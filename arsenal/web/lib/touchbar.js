@@ -27,6 +27,13 @@
 // while one is queued), and the colour kick strip carries a faint wash of the palette's two lift colours (what the colour
 // kick paints). One text and one style change per palette event; nothing runs per frame.
 //
+// THE CAMERA DISTANCE SEGMENT (2026-10-29, Daniel: "can we think of a control scheme for camera distance so that i can
+// trigger between closeup medium and far"). Three joined pads, CLOSE . MID . FAR, that press the page's Q, W and E (a
+// tap starts the dolly, it lands on a beat; the lit one again hands distance back to the director). A page that knows its
+// distance says so with the window event "arsenal:camdist" {mode, stop, ...} (only when it changes) and keeps the latest in
+// window.__camdist; the segment lights the stop held by hand and none in auto. It sits in the bar's own row, at the bar's
+// height, so it never covers the kick strips; each pad is 44 CSS px wide.
+//
 // The bar shows itself on touch screens (pointer: coarse); ?pads=1 forces it on, ?pads=0 off. Its collapsed state is
 // remembered per page (a convenience; the page works the same without storage).
 
@@ -45,6 +52,11 @@ const CSS = `
 .tb button.on { background: rgba(255, 255, 255, .32); color: rgba(255, 255, 255, .9); transition: none; }
 .tb button.util { flex: 0 0 38px; border-style: dashed; }
 .tb.collapsed button:not(.grip) { display: none; }
+.tb .seg { pointer-events: none; flex: 0 0 auto; display: flex; gap: 1px; }
+.tb .seg button { flex: 0 0 44px; width: 44px; border-radius: 0; font-size: 8.5px; letter-spacing: .02em; }
+.tb .seg button:first-child { border-radius: 8px 0 0 8px; }
+.tb .seg button:last-child { border-radius: 0 8px 8px 0; }
+.tb .seg button.lit { background: rgba(255, 255, 255, .26); color: rgba(255, 255, 255, .85); border-color: rgba(255, 255, 255, .34); }
 .tb.strips button.stripped { display: none; }
 .tbs { position: fixed; z-index: 61; top: 30vh; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); width: 44px;
       pointer-events: auto; touch-action: none; border-radius: 12px; overflow: hidden;
@@ -89,7 +101,7 @@ const padEvent = (type, detail) => window.dispatchEvent(new CustomEvent(type, { 
 
 // pads: [{ label, code, key, sub?, stripped? }] in order (stripped: hidden while the kick strips stand in for it).
 // strips: [{ label, sub, pad, side: "left" | "right", floor? }]. id: a short name for the remembered collapsed state.
-export function mountTouchBar({ id, pads, strips = [] }) {
+export function mountTouchBar({ id, pads, strips = [], segment = null }) {
   const qs = new URLSearchParams(location.search);
   const want = qs.get("pads");
   if (want === "0") return null;
@@ -115,7 +127,7 @@ export function mountTouchBar({ id, pads, strips = [] }) {
     sendKey("keyup", b.dataset.code, b.dataset.key);
   };
 
-  for (const p of pads) {
+  const padButton = (p, parent) => {
     const b = document.createElement("button");
     b.type = "button";
     b.dataset.code = p.code;
@@ -136,7 +148,20 @@ export function mountTouchBar({ id, pads, strips = [] }) {
       if (n === 1) { b.classList.add("on"); sendKey("keydown", p.code, p.key); }
     });
     for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, (e) => release(e.pointerId));
-    bar.appendChild(b);
+    parent.appendChild(b);
+    return b;
+  };
+  for (const p of pads) padButton(p, bar);
+  if (segment) {
+    const seg = document.createElement("div");
+    seg.className = "seg";
+    seg.setAttribute("role", "group");
+    seg.setAttribute("aria-label", segment.label || "segment");
+    const items = segment.items.map((it) => { const b = padButton(it, seg); b.dataset.stop = it.stop; b.title = it.title || it.label; return b; });
+    // the lit item follows the page's own event (only when it changes; nothing per frame)
+    const show = (d) => { for (const b of items) b.classList.toggle("lit", !!d && d.mode === "manual" && d.stop === b.dataset.stop); };
+    if (segment.event) { window.addEventListener(segment.event, (e) => show(e.detail)); show(window[segment.state]); }
+    bar.appendChild(seg);
   }
 
   const util = (label, title, onClick, cls = "") => {
@@ -268,6 +293,16 @@ export const STAGE_PADS = [
   { label: "shot", code: "KeyC", key: "c", sub: "camera" },
   { label: "palette", code: "KeyP", key: "p", sub: "next", palette: true },
 ];
+
+// The Stage's camera distance segment (stage/distance.js): CLOSE, MID and FAR press Q, W and E.
+export const STAGE_DISTANCE = {
+  label: "Camera distance", event: "arsenal:camdist", state: "__camdist",
+  items: [
+    { label: "close", code: "KeyQ", key: "q", stop: "close", title: "Camera close (again: back to the director)" },
+    { label: "mid", code: "KeyW", key: "w", stop: "medium", title: "Camera medium (again: back to the director)" },
+    { label: "far", code: "KeyE", key: "e", stop: "far", title: "Camera far (again: back to the director)" },
+  ],
+};
 
 // The Stage's two kick strips (KICK v2: pad 1 deals an area the palette's white, pad 5 an area lifted inside the palette;
 // the colour strip wears a wash of the palette's two lift colours).

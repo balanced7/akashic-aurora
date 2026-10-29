@@ -50,10 +50,20 @@
 // a neighbour crossfades over 4 bars, anything else cuts on the line through a one-beat dip. Every press before the
 // landing steps the palette that will land. The page says what is showing and what is coming with the window event
 // "arsenal:palette" {id, name, next, nextName, at} (only when it changes) and keeps the latest in window.__palette.
+//
+// CAMERA DISTANCE (2026-10-29, distance.js). Daniel: "can we think of a control scheme for camera distance so that i can
+// trigger between closeup medium and far." Shot size is its own control on top of whatever shot is running: Q CLOSE,
+// W MEDIUM, E FAR (left hand, near to far, left to right). A press starts a dolly at once and lands on a beat line;
+// the active key again hands distance back to the director over two beats; Shift + key cuts on the next beat instead;
+// Esc gives both the shot and the distance back. The KeyLab's F8 (CC 112, unless the set's show.faders names another
+// control "distance") is a continuous distance with soft takeover; the HUD has its slider; the phone bar a CLOSE . MID .
+// FAR segment. The pad map may name "distance-close", "distance-medium", "distance-far" and "distance-auto". The page
+// says what the distance is with the window event "arsenal:camdist" {mode, stop, v, ...} (only when it changes) and keeps
+// the latest in window.__camdist.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
-import { validateScene, expandScene } from "./rig.js";
+import { validateScene, expandScene, hallStructure } from "./rig.js";
 import { BeatGrid, DemoBeats, beatExtras } from "./grid.js";
 import { Programmer } from "./programmer.js";
 import { Strand } from "./kinetics.js";
@@ -61,6 +71,7 @@ import { LaserEngine } from "./lasers.js";
 import { Lasers3D } from "./lasers3d.js";
 import { Atmosphere } from "./atmos.js";
 import { Director, cameraModel, formationPoseSets } from "./camera.js";
+import { CameraDistance, makeRoom, KEY_STOPS } from "./distance.js";
 import { RingFormations, validateRingFormations } from "./formations.js";
 import { Show, speedFromFader } from "./show.js";
 import { FrameLimiter, LIMIT } from "./flash.js";
@@ -188,6 +199,24 @@ function start({ rig, R, renderMod, palettes }) {
                                   ringsOf: (key) => (ringKeys.includes(key) ? rings.annuliSets(key) : null),
                                   sightOf: (key) => (ringKeys.includes(key) ? rings.sight(key) : null) });
   director.start(Object.keys(rig.cameras.sequences)[0], 0);      // until the first section starts its own sequence
+  // camera DISTANCE (distance.js): shot size on top of the director's shots, clamped inside the venue, clear of the
+  // hall's structure and 1.5 m from the strand and the rings
+  const hall = hallStructure(rig.venue);
+  const camDist = new CameraDistance({ room: makeRoom(rig.venue, [...hall.solid, ...hall.truss]), z: camModel.z, rings: camModel.rings });
+  const distCtx = (tMs, extra = {}) => {
+    const pos = grid.posAt(tMs + grid.presentLagMs);
+    return { t: tMs / 1000, pos, spb: 60 / grid.bpm, shot: director.shots[director.pose.shot] || null, lastCutPos: director.lastCutPos,
+             nextCutPos: !director.manual && director.entry && director.entry.p1 > pos ? director.entry.p1 : Infinity, ...extra };
+  };
+  function announceDistance() {
+    const d = camDist.status(director.shots[director.pose.shot] || null);
+    window.__camdist = d;
+    window.dispatchEvent(new CustomEvent("arsenal:camdist", { detail: { ...d } }));
+  }
+  function distance(what, { cut = false } = {}) {
+    const ctx = distCtx(performance.now(), { cut });
+    return what === "auto" ? camDist.auto(ctx) : camDist.press(what, ctx);
+  }
   // what the camera reads of the rig each frame: the formation key (a change with a landing gets the glide and the hero
   // view), its landing bar line, the live rung poses. A ring formation that lands elsewhere sets formation and posLand too,
   // and rings (live annuli, camera.js ringAnnulus) while the rings are off their home pose, so the guard sees them.
@@ -237,7 +266,9 @@ function start({ rig, R, renderMod, palettes }) {
   }
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
   const faders = { ...{ strand: 1, lasers: 1, haze: 0.55, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
-  const faderMap = show0.faders || {};
+  const faderMap = { ...(show0.faders || {}) };
+  // KeyLab F8 (CC 112) is the camera's distance unless the set names its own control for it
+  if (!Object.values(faderMap).includes("distance") && !faderMap.cc112) faderMap.cc112 = "distance";
   const padMap = show0.pads || {};
   let sectionSpeed = 1, energy = 0.6, lastFrame = null, manualShot = null;
   // the room's ambient (the veil and the fill light) x the phrase step's own (a laser step darkens the room)
@@ -351,6 +382,7 @@ function start({ rig, R, renderMod, palettes }) {
     else if (action === "palette-next" && on) stepPal(1, tEval);
     else if (action === "palette-prev" && on) stepPal(-1, tEval);
     else if (action === "morph" && on) rings.morph(grid, tEval);
+    else if (on && /^distance-(close|medium|far|auto)$/.test(action)) distance(action.slice(9));
     else if (action === "hero" && on) rings.hero(grid, tEval);
   }
   // a held pad's live level (0..1: the phone pad's finger height; later the KeyLab's aftertouch): the held kick's brightness
@@ -368,7 +400,8 @@ function start({ rig, R, renderMod, palettes }) {
     else if (ev.t === "energy") energy = ev.level;
     else if (ev.t === "ctl") {
       const target = faderMap[ev.id];
-      if (target && ev.kind === "abs") { faders[target] = ev.value; applyFaders(tEval); syncFaderUI(); }
+      if (target === "distance" && ev.kind === "abs") camDist.fader(ev.value, distCtx(nowMs));
+      else if (target && ev.kind === "abs") { faders[target] = ev.value; applyFaders(tEval); syncFaderUI(); }
     }
   }
   // the engine link: Server-Sent Events, reconnecting with a backoff
@@ -445,6 +478,9 @@ function start({ rig, R, renderMod, palettes }) {
       camScene.posLand = ringKey && rings.move ? rings.move.posLand : strand.move ? strand.move.posLand : null;
       camScene.rings = rings.liveAnnuli(); camScene.dt = dt;
       const pose = director.update(pos, camScene);
+      // the distance layer moves the camera along the shot's own line to its subject (auto: the director's pose exactly)
+      camDist.apply(pose, director.shots[pose.shot], { t: now / 1000, pos, cut: pose.cut, poses: strand.poses, rings: camScene.rings });
+      if (camDist.takeChange()) announceDistance();
       const pl = Math.hypot(pose.look[0] - pose.pos[0], pose.look[1] - pose.pos[1], pose.look[2] - pose.pos[2]) || 1;
       fwd[0] = (pose.look[0] - pose.pos[0]) / pl; fwd[1] = (pose.look[1] - pose.pos[1]) / pl; fwd[2] = (pose.look[2] - pose.pos[2]) / pl;
       if (rings.live) rings.updateMounts(lasers3d, lasers.heads);
@@ -504,7 +540,9 @@ function start({ rig, R, renderMod, palettes }) {
         : st.state === "armed" ? `armed: starts on the next bar line` : "idle (pad 3 / key 3: go)";
     }
     const forShot = director.pose.forShot ? ` (for ${director.pose.forShot})` : "";
-    $("hud-shot").textContent = `${state.shot || "-"}${forShot} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""}`;
+    $("hud-shot").textContent = `${state.shot || "-"}${forShot} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""} · ${camDist.hudText(director.shots[state.shot] || null)}`;
+    const ds = $("fader-distance");
+    if (ds && document.activeElement !== ds) ds.value = String(Math.max(0, Math.min(1, camDist.mode === "auto" ? (camDist.status(director.shots[state.shot] || null).vAuto ?? 0.5) : camDist.v.x)));
     const p0 = strand.poses[0], p11 = strand.poses[strand.poses.length - 1];
     const rk = rings.def(rings.key), rpos = grid.posAt(tEval), charge = rings.heroCharge(rpos);
     const ringTxt = `rings: ${rk ? rk.name : rings.key}${rk && rk.dream ? " (dream)" : ""}${rings.move ? ` · landing bar ${Math.round((rings.move.posLand - grid.barAnchor) / 4)}` : ""} · hero ${charge >= 1 ? "charged" : `${Math.round(charge * 100)} %`} (pads 8 / 9)`;
@@ -529,6 +567,15 @@ function start({ rig, R, renderMod, palettes }) {
     fwrap.append(d);
   }
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
+  // F8 distance: the slider shows the live distance (in auto, the shot's own size) and takes over at once when dragged
+  {
+    const d = document.createElement("label"); d.className = "fader";
+    const inp = document.createElement("input"); inp.type = "range"; inp.min = "0"; inp.max = "1"; inp.step = "0.01"; inp.value = "0.5";
+    inp.id = "fader-distance"; inp.setAttribute("aria-label", "F8 distance (close to far)");
+    inp.addEventListener("input", () => camDist.fader(Number(inp.value), distCtx(performance.now()), { takeover: false }));
+    d.append(inp, document.createTextNode("F8 distance"));
+    fwrap.append(d);
+  }
   // the quiet flash protection setting, in the HUD's header row (on a phone the pad bar's HUD button shows it, and the
   // header sits above the kick strips, which start at 30 % of the height, and the pad bar at the bottom)
   document.querySelector("#hud .hud-head").append(protectionCheckbox(document, flash, { id: "opt-flash", className: "hud-opt" }));
@@ -543,6 +590,7 @@ function start({ rig, R, renderMod, palettes }) {
     const n = KEYPAD[e.code];
     const tEval = performance.now() + grid.presentLagMs;
     if (n) { held.add(e.code); pad(n, e.shiftKey ? 1 : 0.8, true, tEval); e.preventDefault(); return; }
+    if (KEY_STOPS[e.code]) { distance(KEY_STOPS[e.code], { cut: e.shiftKey }); e.preventDefault(); return; }
     if (e.code === "KeyP") stepPal(e.shiftKey ? -1 : 1, tEval);
     else if (e.code === "KeyH") hudEl.classList.toggle("hidden");
     else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
@@ -552,7 +600,7 @@ function start({ rig, R, renderMod, palettes }) {
       const cur = ids.indexOf(manualShot ? manualShot : state.shot);
       manualShot = ids[(cur + 1) % ids.length];
       director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
-    } else if (e.code === "Escape") { manualShot = null; director.manual = null; }
+    } else if (e.code === "Escape") { manualShot = null; director.manual = null; distance("auto"); }
   });
   window.addEventListener("keyup", (e) => {
     const n = KEYPAD[e.code];
@@ -590,6 +638,7 @@ function start({ rig, R, renderMod, palettes }) {
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
                     flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) },
                     kick: programmer.kick.status(),
+                    distance: { ...camDist.status(director.shots[state.shot] || null), cuts: camDist.cuts.slice(-16), moves: camDist.moves.slice(-16), escapes: camDist.escapes },
                     palette: { id: pal.id, name: theme.name, queued: pal.queued, at: pal.at, dip: pal.dip, landings: pal.landings.slice(-8),
                                library: palettes ? palettes.ids.length : 0, refused: palettes ? palettes.refused.map((r) => r.id) : [] },
                     rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
@@ -609,6 +658,11 @@ function start({ rig, R, renderMod, palettes }) {
       return r;
     },
     clearShot: () => { manualShot = null; director.manual = null; },
+    // camera DISTANCE: a stop ("close" | "medium" | "far" | "auto") as the keys do it (cut: Shift), or at once (now: the
+    // receipts' stills); the fader (soft takeover unless takeover: false); the layer's status
+    distance: (what, { cut = false, now = false } = {}) => { if (now) { camDist.setNow(what); return camDist.status(); } return distance(what, { cut }); },
+    distanceFader: (v, { takeover = true } = {}) => camDist.fader(v, distCtx(performance.now()), { takeover }),
+    camDist,
     // PALETTES: the library's ids, and a palette by id (or a step) -- landing on the next 16-bar line, or now
     palettes: () => (palettes ? palettes.ids.slice() : []),
     palette: (id, { now = false } = {}) => stepPal(1, performance.now() + grid.presentLagMs, { id, now }),

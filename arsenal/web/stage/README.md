@@ -54,8 +54,40 @@ Open it from the Arsenal server:
 | Pad 8 / key `8` | MORPH: the rings move to the next formation of the deck (home, orrery, spiral, vortex, crown, portal), starting on the next bar line and landing on the bar line their slowest ring can make; the camera glides while they move and cuts on the landing to the formation's hero view. Dream formations (orrery, spiral) turn their rings; the rest are real-capable. |
 | Pad 9 / key `9` | HERO: the energy beam's discharge up the rings' axis through the core, on the next ONE, once per eight bars (a press while it recharges does nothing; the HUD shows the charge). Its flash goes through the FlashGate. |
 | F1, F4, F5, F6, F9 | Strand master, lasers, haze target (it moves over minutes), speed (detents 1/4 to 4; a phrase's own timing is in beats and ignores it), grand master. The sliders in the HUD do the same. |
-| `C` / `Esc` | Play the next camera shot in motion, looping over its own bars (v2; every shot in the set, the held RING_THREAD included) / give the camera back to the director (or the phrase). |
+| `C` / `Esc` | Play the next camera shot in motion, looping over its own bars (v2; every shot in the set, the held RING_THREAD included) / give the camera back to the director (or the phrase), and the distance with it. |
+| `Q` `W` `E` | Camera DISTANCE (2026-10-29, `distance.js`): CLOSE, MEDIUM, FAR on top of whatever shot is running (left hand, near to far, left to right). The camera starts moving at once and lands on a beat line; the lit key again hands distance back to the director over two beats; Shift + key cuts on the next beat instead. Phone: the CLOSE · MID · FAR segment in the pad bar. |
+| F8 | Camera distance as a continuous fader (KeyLab CC 112) with soft takeover: it does nothing until it passes the distance the camera has now. The HUD's F8 slider shows the live value. |
 | `H`, `F` | Hide the HUD, go full screen. The HUD's phrase row names the step, the variant, the repeat and the beats left. |
+
+## Camera distance: close, medium, far (2026-10-29, `distance.js`)
+
+Daniel: "can we think of a control scheme for camera distance so that i can trigger between closeup medium and far."
+
+Distance is shot SIZE, its own axis on top of the director's shots: how wide a slice of the room the frame holds at the
+shot's subject (its look point). CLOSE holds 14 m across (the inner rings fill the frame), MEDIUM 34 m (ring 0 with its
+halo), FAR 80 m (the whole deck and its towers); the scale is logarithmic and MEDIUM is its middle. Measured on the GPU
+(receipt `stage_verify --gpu --phases distance`): on HALO_LOCK the dolly runs 22.9 / 54.7 / 104.8 m from the rings and their
+on-screen box is 5.7x larger at CLOSE than at FAR; on FOH_WIDE 11.6 / 27.8 / 66.6 m and 9.9x.
+
+- **A dolly, never a zoom.** The camera slides along the line from the subject through the shot's own position, by one
+  factor over the whole move, so a crane still rises, an orbit still orbits and a crash zoom still lands; the lens, the
+  look point, the roll, the handheld wander and the shot's exposure stay the director's (a lit surface or a beam in haze
+  has the same radiance from 14 m as from 80 m: only its size changes, so the shot's EV is right at every distance).
+- **Limits, every frame.** The shot's comfort range (a fast shot is never scaled past the house drone's 15 m/s; never
+  nearer the subject than 3 m; a dolly zoom keeps its own size), the venue's walls, roof and the crowd's heads, the hall's
+  structure, and the strand and rings live: never within 1.5 m (camera.js's rule; the camera eases toward 2.5 m). A press
+  is planned to what the room allows, so a move decelerates into a limit instead of meeting it; the HUD's camera row says
+  "held at" what holds it.
+- **Timing** (the round-3 design, sections 3, 5, 6): a press starts at once and lands ON the first beat line at least half
+  a beat and the comfort time away (the subject's size changing at most e^4.5 per second at the move's peak: at 150 BPM a
+  step lands on the next beat or the one after, CLOSE to FAR in two or three). A second press bends the move from its
+  current speed. Shift: a clean cut on the next beat line, never within 2 beats of the director's last cut, and with the
+  director's own next cut when that is under 2 beats away. The handback blends over two beats.
+- **State and doors.** The HUD's camera row: `distance auto (as shot: far) · Q W E`, `distance CLOSE manual → beat 133`,
+  `distance 0.42 (F8) manual`. The page's window event `arsenal:camdist` {mode, stop, v, ...} fires only on a change
+  (`window.__camdist` keeps the latest); the pad map may name `distance-close`, `distance-medium`, `distance-far`,
+  `distance-auto`; the set's `show.faders` may name another control `distance` (else F8 = CC 112). A shot may carry
+  `distance: false` (it keeps its size) or `distance: {k_min, k_max}`.
 
 ## Flash protection: the viewer's choice (2026-10-28, `../lib/flash-consent.js`)
 
@@ -156,6 +188,7 @@ models the stands); the Qlimax-faithful home keeps the 2014 rule: the ring is st
 | `formations.js` | v2: the ring formations (home, orrery, spiral, vortex, crown, portal): MORPH, HERO, the reveal, the light layer, the scenery (core, bands, planets, motes), the energy column, the camera's annuli, and the safety check of every beam's end. |
 | `lasers.js`, `lasers3d.js` | A minimal laser brain on the Lasers v2 contract (v1: laser group lines with shapes and gates, heads past the 21, an aim side channel), mapped onto 33 projectors in 3D with physical power sharing. |
 | `atmos.js` | The haze medium: the hazers, the lag, our own tileable noise, and two caps since VJ V2 (haze and fog 0.26 /m, CO2 and smoke plumes 15 /m: opaque white CO2 is possible; the white-out guard is flash.js and the FlashGate, receipts in tests/stage_atmos.test.mjs). |
+| `distance.js` | Camera distance (2026-10-29): shot size on a log scale, the quintic moves landing on beat lines, the clean cut, the handback, the fader's soft takeover, and the per-frame limits (comfort, venue, structure, the 1.5 m rule) along the shot's own line to its subject. |
 | `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan; v2: the strand frame (shots round the live centre line, the under-ride), the formation-validity filter and the guard (never a shot within 1.5 m of a rung), roll curves, the easings arrive_fast, snap and arrive_u, the dolly zoom, and the landing grammar: one glide while the hoists move, the cut ON the landing bar line to the formation's hero view (`cameras.formation_views`, the ring formations' among them). |
 | `show.js` | Sections (v1: a section may name a phrase), the demo plan, and DROP NOW. |
 | `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. v2 (2026-10-28): the same windows, counters and limits, met with smooth fields over the cells' corners (a soft dimming, or a glow in the region's own colour) instead of v1's per-cell holds, which froze whole tiles with hard edges; see "Flash protection" below. |
@@ -165,5 +198,6 @@ Tests: `node --test tests/stage_*.test.mjs`. The browser receipt: `node arsenal/
 load, clock, camera, phrase, engine, flash, storm, the picture measures, and v2's orrery and spiral: the gimbals' prime
 rates, the core and its scenery drawn, the spiral's landing with the camera's cut on its bar line, the HERO discharge on
 its ONE through the FlashGate, and every frame through the near view and the discharge judged by the flash counter; `--phases flash3m --flash-scale 0.75` runs the
-three-minute crowd-on run in ten-second bursts; `--phases sheet-phrase --sheet-dir <scratch>` the phrase's sheet). It
+three-minute crowd-on run in ten-second bursts; `--phases sheet-phrase --sheet-dir <scratch>` the phrase's sheet; `--phases distance --gpu`, attended, the camera distance's
+receipt: the same shots at the three sizes, the keys, the fader and the phone segment). It
 runs headless SwiftShader only, under the house GPU lock, on the test band.
