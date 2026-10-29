@@ -56,6 +56,9 @@ const { values: opt } = parseArgs({
     out: { type: "string", default: "" },
     port: { type: "string", default: "8960" },
     "no-sheet": { type: "boolean", default: false },
+    // switch renderer layers off to find what draws a thing: "beams=0,veil=0" (render.js features: venue, crowd, strand,
+    // rings, beams, lasers, emitters, bloom, veil)
+    features: { type: "string", default: "" },
     "facts-only": { type: "boolean", default: false },
     "sheet-width": { type: "string", default: "640" },
     "lock-dir": { type: "string", default: join(MAIN, "state", "arsenal", "gpu-render.lock") },
@@ -332,8 +335,11 @@ const RUN_TO = String.raw`((bar, maxFrames) => {
 })`;
 // one still: the shot forced by hand at u, the limiter fresh, two frames drawn at this same instant (a zero-length step:
 // the show does not move, so every shot of a bar sees the same moment)
-const STILL = String.raw`((id, u) => {
+const FEAT = opt.features ? JSON.stringify(Object.fromEntries(opt.features.split(",").map((kv) => kv.split("=")).filter(([k]) => k)
+  .map(([k, v]) => [k.trim(), !(v === undefined ? false : /^(0|false|off)$/i.test(v.trim()))]))) : "null";
+const STILL = String.raw`((id, u, feat) => {
   const s = window.__stage;
+  if (feat) s.features(feat);
   s.setShot(id, u); s.resetLimiter(); s.skipRender = false;
   window.__vt.step(0); window.__vt.step(0);
   const st = s.state(), p = s.director.pose;
@@ -385,7 +391,7 @@ while (pending.length) {
       let firstShot = null;
       for (const id of SHOT_IDS) for (const u of US) {
         const ts = Date.now();
-        const st = await ev(`${STILL}(${JSON.stringify(id)}, ${u})`, 120000);
+        const st = await ev(`${STILL}(${JSON.stringify(id)}, ${u}, ${FEAT})`, 120000);
         const shot = await S("Page.captureScreenshot", { format: "png" });
         const file = join(OUT, `${id}-bar${String(bar - sectionStart).replace(".", "_")}${opt.section ? `-${opt.section}` : ""}${fmtU(u)}.png`);
         writeFileSync(file, Buffer.from(shot.data, "base64"));
@@ -396,7 +402,7 @@ while (pending.length) {
       }
       // the same instant twice gives the same picture (the first still of the bar, drawn again after the others)
       if (firstShot) {
-        await ev(`${STILL}(${JSON.stringify(firstShot.id)}, ${firstShot.u})`, 120000);
+        await ev(`${STILL}(${JSON.stringify(firstShot.id)}, ${firstShot.u}, ${FEAT})`, 120000);
         const again = await S("Page.captureScreenshot", { format: "png" });
         determinism.push({ bar, shot: firstShot.id, identical: again.data === firstShot.data });
       }

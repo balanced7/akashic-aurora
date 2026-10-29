@@ -310,10 +310,14 @@ export class StageRenderer {
     const fl = new THREE.PlaneGeometry(fx[1] - fx[0], fz[1] - fz[0]); fl.rotateX(-Math.PI / 2); fl.translate(0, 0, (fz[0] + fz[1]) / 2);
     add(fl, this.mat.floor, "floor");
     const rake = (V.stands && V.stands.rake_deg || 30) * DEG, top = V.stands && V.stands.top_y || 30, run = top / Math.tan(rake), slope = Math.hypot(top, run);
-    const standL = new THREE.PlaneGeometry(slope, fz[1] - fz[0] + 2 * run); standL.rotateY(Math.PI / 2); standL.rotateZ(-(Math.PI / 2 - rake));
-    const sl = add(standL, this.mat.stand, "stand-l"); sl.position.set(fx[0] - run / 2, top / 2, (fz[0] + fz[1]) / 2 + run / 2);
-    const standR = standL.clone(); const sr = add(standR, this.mat.stand, "stand-r"); sr.scale.x = -1; sr.position.set(fx[1] + run / 2, top / 2, (fz[0] + fz[1]) / 2 + run / 2);
-    const standB = new THREE.PlaneGeometry(fx[1] - fx[0] + 2 * run, slope); standB.rotateX(-(Math.PI / 2 - rake));
+    // each stand rises from the floor's edge up and AWAY from the floor at the rake (2026-10-29: the side stands were built
+    // with their slope along the hall's length -- a tilted 60 m strip over z 32-92 that cut the beams in the side wides --
+    // and the back stand rose toward the stage; found by the spectacle-shots lane, stage_stills.mjs)
+    const sideLen = fz[1] - fz[0] + run;            // the length of the hall, on to the back stand's corner
+    const standL = new THREE.PlaneGeometry(slope, sideLen); standL.rotateX(-Math.PI / 2); standL.rotateZ(-rake);
+    const sl = add(standL, this.mat.stand, "stand-l"); sl.position.set(fx[0] - run / 2, top / 2, (fz[0] + fz[1] + run) / 2);
+    const standR = standL.clone(); const sr = add(standR, this.mat.stand, "stand-r"); sr.scale.x = -1; sr.position.set(fx[1] + run / 2, top / 2, (fz[0] + fz[1] + run) / 2);
+    const standB = new THREE.PlaneGeometry(fx[1] - fx[0] + 2 * run, slope); standB.rotateX(1.5 * Math.PI - rake);   // the same plane as PI/2 - rake, its face (normal) toward the hall
     const sb = add(standB, this.mat.stand, "stand-b"); sb.position.set(0, top / 2, fz[1] + run / 2);
     const rf = new THREE.PlaneGeometry(fx[1] - fx[0] + 2 * run, fz[1] - fz[0] + 2 * run); rf.rotateX(Math.PI / 2);
     const rm = add(rf, this.mat.roof, "roof"); rm.position.set(0, roof, (fz[0] + fz[1]) / 2);
