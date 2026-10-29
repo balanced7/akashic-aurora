@@ -229,6 +229,6 @@
     },
     "pads": { "1": "kick", "2": "lasers", "6": "flyout", "10": "drop" },
     "faders": { "cc105": "strand", "cc108": "lasers", "cc109": "haze", "cc110": "speed", "cc113": "grand" },
-    "fader_defaults": { "strand": 1, "lasers": 1, "haze": 0.55, "speed": 0.5, "grand": 1 }
+    "fader_defaults": { "strand": 1, "lasers": 1, "haze": 0.85, "speed": 0.5, "grand": 1 }
   }
 }

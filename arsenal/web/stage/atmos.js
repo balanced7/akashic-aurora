@@ -34,6 +34,12 @@
 // minutes). Now the fader is the haze: sigma0 = SIGMA_MAX x H, the plumes 0.012 x output x H, both zero at F5 = 0 and full
 // at the top, and H follows the fader smoothly over the set's atmos.tau_s (1.5 s: never per beat, never a step). The
 // page's HUD shows that level, the fader and the density (stage.js).
+// THE FADER'S CURVE (review V4, 2026-10-29). With sigma0 linear in the fader the change was front-loaded: the visible haze
+// saturates (measured, FOH_WIDE HDR: the fader's first quarter gave 56 % of the frame's whole rise in mean luminance, its
+// last quarter 5 %). The fader now goes through hazeCurve, the inverse of that saturation (frame ~ 1 - exp(-K x), K = 3,
+// fitted 3.3 on the receipt), so equal travel gives about equal visible change: hazeCurve(0) = 0 (still no haze at all),
+// hazeCurve(1) = 1 (SIGMA_MAX); the plumes take the same curve. The page's default fader moves from 0.55 to 0.85, the
+// same density as before (hazeFader(0.55)), so the house's default look and every receipt drawn at it are unchanged.
 
 export const ATMOS_API = "arsenal.stage-atmos/v1";
 export const SIGMA_MIN = 0.003;      // the thinnest arena haze (Koschmieder, 1,300 m); no longer a floor under the fader
@@ -46,6 +52,11 @@ export const FOG_G = 0.85;
 export const MAX_HAZERS = 8;
 export const HAZE_MIN_RATE = 0.05;   // inside HAZE_ARRIVE of the fader the level moves at least 5 % of full a second
 export const HAZE_ARRIVE = 0.02;     // (so it arrives instead of creeping)
+export const HAZE_CURVE_K = 3;       // the fader's curve: the inverse of the haze's visible saturation
+const HK = 1 - Math.exp(-HAZE_CURVE_K);
+// the share of SIGMA_MAX a fader position gives, and its inverse (the fader for a share)
+export const hazeCurve = (f) => { const x = f > 1 ? 1 : f > 0 ? f : 0; return x >= 1 ? 1 : x <= 0 ? 0 : -Math.log(1 - x * HK) / HAZE_CURVE_K; };
+export const hazeFader = (s) => { const x = s > 1 ? 1 : s > 0 ? s : 0; return x >= 1 ? 1 : (1 - Math.exp(-HAZE_CURVE_K * x)) / HK; };
 
 export const visibility = (sigma) => 3.912 / sigma;
 export const clampSigma = (s) => (s > HAZE_CAP ? HAZE_CAP : s < 0 ? 0 : s);
@@ -88,8 +99,9 @@ export class Atmosphere {
                      hazers: new Float32Array(MAX_HAZERS * 4), hazerSigma: new Float32Array(MAX_HAZERS), n: 0 };
   }
   setTarget(level) { this.target = Math.max(0, Math.min(1, level)); }
-  // the room's base scattering coefficient at haze level H: none at 0, SIGMA_MAX at 1 (no floor: F5 at 0 is no haze)
-  sigmaAt(H) { return clampSigma(SIGMA_MAX * Math.max(0, Math.min(1, H))); }
+  // the room's base scattering coefficient at haze level H (the fader's scale): none at 0, SIGMA_MAX at 1 (no floor: F5 at
+  // 0 is no haze), through the fader's curve
+  sigmaAt(H) { return clampSigma(SIGMA_MAX * hazeCurve(H)); }
   update(dt) {
     if (dt > 0) {
       // smoothly, and it ARRIVES: the lag's exponential, and inside HAZE_ARRIVE of the fader never slower than
@@ -112,7 +124,7 @@ export class Atmosphere {
       // level (the fader's): none at F5 = 0, full at the top
       u.hazers[i * 4] = h.pos[0] + this.wind[0] * 6; u.hazers[i * 4 + 1] = h.pos[1] + 1.5; u.hazers[i * 4 + 2] = h.pos[2] + this.wind[2] * 6;
       u.hazers[i * 4 + 3] = 7;
-      u.hazerSigma[i] = clampSigma(0.012 * h.output * this.H);
+      u.hazerSigma[i] = clampSigma(0.012 * h.output * hazeCurve(this.H));
     }
     return u;
   }

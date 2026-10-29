@@ -247,7 +247,8 @@ function start({ rig, R, renderMod, palettes }) {
     return { id: want, at, dip };
   }
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
-  const faders = { ...{ strand: 1, lasers: 1, haze: 0.55, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
+  // (F5's default 0.85: the density 0.55 gave before the fader's curve, atmos.js hazeCurve)
+  const faders = { ...{ strand: 1, lasers: 1, haze: 0.85, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
   const faderMap = show0.faders || {};
   const padMap = show0.pads || {};
   let sectionSpeed = 1, energy = 0.6, lastFrame = null, manualShot = null;
