@@ -72,6 +72,14 @@
 //   phonebar     the headless phone check (915 x 412, touch): the PALETTE pad's label, the colour strip's wash of the lift
 //                colours, a touch that queues the next palette, the page's palette event only on a change, the frame time
 //                with the bar against without it, a finger on the colour strip, and the landing on the 16-bar line.
+// THE CHORD PHRASING phase (2026-10-29, arsenal/web/stage/grammar.js + ensemble.js):
+//   chords       real keystrokes (CDP Input.dispatchKeyEvent: trusted, so the page's "key" source with its number row),
+//                every frame drawn and read back on FOH_WIDE in the demo's break, flash protection on: a chord (1 then 5
+//                33 ms later) and a fast strum (6 5 4, 33 ms apart) played twice -- ?grammar=0 (today's singles) and the
+//                grammar -- comparing the attack identities (distinct kick punches), the limiter's interventions and the
+//                verifier's flash count; then (grammar only) Daniel's slow sweep (6 5 4 3 2 1 then back 2 3 4 5 6, 183 ms
+//                apart: the fade out and in) and the explicit B (held, 9 down to 1 and back), with the level's path
+//                per frame and stills to the receipt folder for the eye.
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -2104,6 +2112,128 @@ async function phasePhoneBar({ S, ev, open, phase, deadline }) {
   check("phonebar: no exceptions or console errors", !phase.exceptions.length && !phase.console.some((x) => x.type === "error" || x.type === "log-error") && !(await ev("window.__stage.state().errors.length")), { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((x) => x.type === "error" || x.type === "log-error").slice(0, 3) });
 }
 
+
+// ------------------------------------------------------------------------------------------- the chord phrasing --
+// Daniel, 2026-10-29: "lets also land the chord phrasing."; 2026-10-28: "i mean like 8 7 6 5 4 then 456789".
+async function phaseChords({ S, ev, open, shot, phase }) {
+  const VK = (k) => (/^[0-9]$/.test(k) ? 48 + Number(k) : k.charCodeAt(0));
+  const key = (k, down) => S("Input.dispatchKeyEvent", { type: down ? "rawKeyDown" : "keyUp", code: /^[0-9]$/.test(k) ? `Digit${k}` : `Key${k}`,
+                                                         key: k.toLowerCase(), windowsVirtualKeyCode: VK(k), nativeVirtualKeyCode: VK(k) });
+  // n frames drawn; per frame the cells (the verifier's 4 x 4), whether the limiter acted, the fade's level
+  const rec = (n) => ev(`(() => { const s = window.__stage, out = [];
+    for (let i = 0; i < ${n}; i++) { window.__vt.step(${F}); const c = window.__probe.cells(), g = s.renderer.info.gains, b = s.breath ? s.breath() : null;
+      let l = 0, nn = 0; for (let q = 0; q < 16; q++) { l += c.L[q] * c.N[q]; nn += c.N[q]; }
+      out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, mean: +(l / nn).toFixed(5), lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0,
+                 level: b ? +b.level.toFixed(4) : 1 }); }
+    return out; })()`, 170000);
+  const punches = () => ev("window.__stage.programmer.kick.list.map((k) => k.punchFrom).filter((x) => Number.isFinite(x)).map((x) => +x.toFixed(4))");
+  const kickPresses = () => ev("window.__stage.programmer.kick.presses");
+  const segment = async (name, script) => {
+    const lim0 = await ev("window.__stage.limiter.stats().interventions"), p0 = await punches();
+    const frames = [], seen = new Set();
+    for (const step of script) {
+      if (typeof step === "number") frames.push(...(await rec(step)));
+      else if (step.shot) await shot(join(outDir, `chords-${step.shot}.png`));
+      else { await key(step.k, step.down); for (const x of await punches()) seen.add(x); }   // (a faded kick leaves the list)
+    }
+    const lim1 = await ev("window.__stage.limiter.stats().interventions");
+    const fresh = [...seen].filter((x) => !p0.includes(x));
+    const j = judgeFlashes(frames);
+    return { name, frames: frames.length, limiter_interventions: lim1 - lim0, limited_frames: frames.reduce((s, f) => s + f.lim, 0),
+             flashes_per_s: j.worst, red_flashes_per_s: j.worst_red, attacks: fresh.length, punch_from: fresh,
+             mean: frames.map((f) => f.mean), level: frames.map((f) => f.level) };
+  };
+  const down = (k) => ({ k, down: true }), up = (k) => ({ k, down: false });
+  // the chord: 1, then 5 two frames (33 ms) later, held half a second; the strum: 6 5 4 two frames apart
+  const CHORD = [down("1"), 2, down("5"), 28, { shot: null }, up("1"), up("5"), 90];
+  const STRUM = [down("6"), 2, down("5"), 2, down("4"), 26, { shot: null }, up("6"), up("5"), up("4"), 90];
+  const runs = {};
+  for (const g of ["0", "1"]) {
+    await open(`demo=1&vt=1&${BASE}&grammar=${g}`);
+    await ev(PAGE_PROBE);
+    await S("Page.bringToFront");
+    // into the break (bar 41: the demo presses no pads of its own there), logic only; then FOH_WIDE held still, drawn
+    await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 96 * 41 + 6; i++) window.__vt.step(${F}); s.setShot("FOH_WIDE", 0.5); s.skipRender = false; for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`, 170000);
+    const tag = g === "1" ? "grammar" : "singles";
+    if (g === "0") await shot(join(outDir, "chords-0-before.png"));
+    // a single is instant: key 1's kick exists on the key's own call, before any frame
+    const k0 = await kickPresses();
+    await key("1", true);
+    const k1 = await kickPresses();
+    await key("1", false);
+    await rec(90);
+    const chord = await segment("chord", CHORD.map((x) => (x && x.shot === null ? { shot: `1-chord-${tag}` } : x)));
+    const strum = await segment("strum", STRUM.map((x) => (x && x.shot === null ? { shot: `2-strum-${tag}` } : x)));
+    const st = await ev("window.__stage.state()");
+    runs[tag] = { instant: k1 - k0, chord, strum, grammar: st.grammar };
+    if (g === "1") {
+      // Daniel's sweep: 6 5 4 3 2 1 (the third key takes over: a fade out), then back 2 3 4 5 6 inside its gap (a fade in)
+      const SW = [];
+      // (the bottom's still is taken inside the gap: a pause over 450 ms would end the sweep, and 2 would fire LASER)
+      for (const k of ["6", "5", "4", "3", "2", "1"]) SW.push(down(k), 3, up(k), 8);
+      SW.push({ shot: "3-sweep-bottom" });
+      for (const k of ["2", "3", "4", "5", "6"]) SW.push(down(k), 3, up(k), 8);
+      SW.push(60, { shot: "4-sweep-back" });
+      // the explicit B: held, 9 down to 1 (no single fires), then 1 up to 9, let go
+      const BB = [down("B"), 4];
+      for (const k of ["9", "8", "7", "6", "5", "4", "3", "2", "1"]) BB.push(down(k), 3, up(k), 5);
+      BB.push(40, { shot: "5-breath-bottom" });
+      for (const k of ["2", "3", "4", "5", "6", "7", "8", "9"]) BB.push(down(k), 3, up(k), 5);
+      BB.push(up("B"), 60, { shot: "6-breath-back" });
+      const kp0 = await kickPresses(), hero0 = await ev("window.__stage.state().rings.hero.armed");
+      runs.grammar.sweep = await segment("sweep", SW);
+      const kp1 = await kickPresses();
+      runs.grammar.breath = await segment("breath", BB);
+      const kp2 = await kickPresses(), st2 = await ev("window.__stage.state()");
+      runs.grammar.sweep_kicks = kp1 - kp0; runs.grammar.breath_kicks = kp2 - kp1;
+      runs.grammar.hero_armed = { before: hero0, after: st2.rings.hero.armed, fired: st2.rings.hero.fired, morph: st2.rings.move, key: st2.rings.key };
+      runs.grammar.final = st2.grammar;
+      runs.grammar.errors = st2.errors;
+    }
+  }
+  // the receipt keeps the paths short: the level per frame, the mean luminance per frame for the fades
+  const A = runs.singles, B = runs.grammar;
+  phase.runs = { singles: { instant: A.instant, chord: { ...A.chord, mean: undefined, level: undefined }, strum: { ...A.strum, mean: undefined, level: undefined } },
+                 grammar: { instant: B.instant, chord: { ...B.chord, mean: undefined, level: undefined }, strum: { ...B.strum, mean: undefined, level: undefined },
+                            sweep: B.sweep, breath: B.breath, sweep_kicks: B.sweep_kicks, breath_kicks: B.breath_kicks, hero: B.hero_armed,
+                            counts: B.final.counts, ensemble: B.final.ensemble, gestures: B.final.gestures } };
+  check("chords: a single is instant (key 1's kick is pressed on the key's own call, before any frame), with and without the grammar",
+        A.instant === 1 && B.instant === 1, { singles: A.instant, grammar: B.instant });
+  check("chords: the page heard real keystrokes as the keyboard source (key), and recognised a chord and a strum",
+        !!(B.final.sources && B.final.sources.key) && B.final.gestures.some((x) => x.type === "reclassify" && x.kind === "chord") && B.final.gestures.some((x) => x.type === "reclassify" && x.kind === "strum"),
+        { sources: Object.keys(B.final.sources || {}), reclassified: B.final.gestures.filter((x) => x.type === "reclassify").map((x) => x.kind) });
+  check("chords: one attack per chord with the grammar (1 + 5: one punch shared), two as singles", B.chord.attacks === 1 && A.chord.attacks === 2,
+        { grammar: B.chord.punch_from, singles: A.chord.punch_from });
+  for (const seg of ["chord", "strum"]) {
+    check(`chords: the ${seg} adds no flash -- the limiter's interventions and the verifier's flash count with protection on are no more than the same keys as singles`,
+          B[seg].limiter_interventions <= A[seg].limiter_interventions && B[seg].flashes_per_s <= A[seg].flashes_per_s && B[seg].red_flashes_per_s <= A[seg].red_flashes_per_s,
+          { grammar: { lim: B[seg].limiter_interventions, limited_frames: B[seg].limited_frames, flashes: B[seg].flashes_per_s, red: B[seg].red_flashes_per_s },
+            singles: { lim: A[seg].limiter_interventions, limited_frames: A[seg].limited_frames, flashes: A[seg].flashes_per_s, red: A[seg].red_flashes_per_s } });
+  }
+  const lv = B.sweep.level, lo = Math.min(...lv);
+  check("chords: the sweep fades out to 4/9 (6 and 5 fire their singles, 4 takes over; 3, 2, 1 step) and back to 1 (2 up to 6)",
+        Math.abs(lo - 4 / 9) < 0.01 && lv[lv.length - 1] === 1 && B.sweep_kicks === 1, { min: lo, end: lv[lv.length - 1], kick_presses: B.sweep_kicks });
+  const bl = B.breath.level, blo = Math.min(...bl);
+  check("chords: B held is a fader from the first key: 9 to 1 is 1/9 (no single fires: no kick, no HERO), 1 to 9 is back to 1",
+        Math.abs(blo - 1 / 9) < 0.01 && bl[bl.length - 1] === 1 && B.breath_kicks === 0 && B.hero_armed.after === B.hero_armed.before,
+        { min: blo, end: bl[bl.length - 1], kick_presses: B.breath_kicks, hero: B.hero_armed });
+  // the level ramps (never faster than a 1/9 step per 120 ms) and the frame follows it down
+  let fastest = 0;
+  for (const p of [lv, bl]) for (let i = 1; i < p.length; i++) fastest = Math.max(fastest, Math.abs(p[i] - p[i - 1]));
+  check("chords: the fade is a ramp (at most a 1/9 step per 120 ms: 0.0154 a frame)", fastest <= (1 / 9) * (F / 120) + 1e-3, { fastest_per_frame: +fastest.toFixed(4) });
+  const meanAt = (seg, i) => seg.mean[Math.max(0, Math.min(seg.mean.length - 1, i))];
+  const iLo = bl.indexOf(blo);
+  phase.fade_frame_mean = { breath_top: meanAt(B.breath, 0), breath_bottom: meanAt(B.breath, iLo + 20), breath_back: meanAt(B.breath, B.breath.mean.length - 1),
+                            sweep_top: meanAt(B.sweep, 0), sweep_bottom: meanAt(B.sweep, lv.indexOf(lo) + 1) };
+  check("chords: the picture follows the fade (B: the frame's mean luminance at the bottom under half of the top; the sweep, whose first two keys fired their singles: under 0.8 of the top once their kicks are let go)",
+        phase.fade_frame_mean.breath_bottom < 0.5 * phase.fade_frame_mean.breath_top && phase.fade_frame_mean.sweep_bottom < 0.8 * phase.fade_frame_mean.sweep_top, phase.fade_frame_mean);
+  phase.sweep_cancels = B.final.gestures.filter((x) => x.did.some((d) => /^\d: /.test(d))).map((x) => x.did.filter((d) => /^\d: /.test(d)));
+  for (const seg of ["sweep", "breath"]) check(`chords: the ${seg} adds no flash (the verifier's count stays under 3 a second; red 0)`,
+                                               B[seg].flashes_per_s < 3 && B[seg].red_flashes_per_s === 0, { flashes: B[seg].flashes_per_s, red: B[seg].red_flashes_per_s, lim: B[seg].limiter_interventions });
+  const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (B.errors || []).length;
+  check("chords: no exceptions or console errors", errs === 0, { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((c) => /error/.test(c.type)).slice(0, 3), page: (B.errors || []).slice(0, 3) });
+}
+
 // ------------------------------------------------------------------------------------------------------ main --
 if (opt.stitch) {
   // no browser, no lock: judge stored chunks
@@ -2123,7 +2253,7 @@ try {
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
                   orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat,
-                  palettes: phasePalettes, phonebar: phasePhoneBar };
+                  palettes: phasePalettes, phonebar: phasePhoneBar, chords: phaseChords };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }
