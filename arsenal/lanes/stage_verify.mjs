@@ -75,7 +75,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { acquireGpuLock } from "./gpu_lock.mjs";
-import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { QUIET_FLAGS, judgeFor, renderFlags, rendererName } from "../shaders/headless.mjs";
 import { expandScene } from "../web/stage/rig.js";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url)).replace(/[\\/]+$/, "");
@@ -111,6 +111,8 @@ const { values: opt } = parseArgs({
     "sheet-dir": { type: "string", default: "" },
     "lock-dir": { type: "string", default: join(MAIN, "state", "arsenal", "gpu-render.lock") },
     "gpu-wait-min": { type: "string", default: "6" },
+    // render on the real GPU instead of SwiftShader: attended runs only (see headless.mjs GPU_FLAGS)
+    gpu: { type: "boolean", default: false },
     "flash-seconds": { type: "string", default: "8" },
     "flash-scale": { type: "string", default: "1" },
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
@@ -228,10 +230,10 @@ async function burst(name, body) {
   let gpu = null, chrome = null, browser = null;
   const phase = report.phases[name] = { console: [], exceptions: [] };
   try {
-    gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `stage_verify ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 2000 });
+    gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `stage_verify ${name} (${rendererName(opt.gpu)})`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 2000 });
     phase.lock = { dir: opt["lock-dir"], acquired_at: gpu.owner.acquiredAt };
     const tLock = Date.now();          // the burst (under three minutes) starts when the lock is ours, not while waiting
-    chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0", `--user-data-dir=${profile}`,
+    chrome = spawn(opt.chrome, [...renderFlags(opt.gpu), ...QUIET_FLAGS, "--remote-debugging-port=0", `--user-data-dir=${profile}`,
       `--window-size=${W},${H}`, "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore", windowsHide: true });
     const [cdpPort, cdpPath] = await waitFor(() => { try { const [p, w] = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split(/\r?\n/); return p && w ? [p, w] : null; } catch { return null; } }, 30000, "DevToolsActivePort");
     browser = await connect(`ws://127.0.0.1:${cdpPort}${cdpPath}`);
@@ -381,9 +383,9 @@ async function phaseLoad({ ev, open, shot, phase }) {
   await open(`demo=1&vt=1&${BASE}`);
   await ev(PAGE_PROBE);
   const renderer = await ev("window.__probe.renderer()");
-  const judged = judgeRenderer(renderer);
+  const judged = judgeFor(opt.gpu)(renderer);
   phase.renderer = renderer;
-  check("load: the renderer is SwiftShader (no hardware)", judged.ok, renderer);
+  check(opt.gpu ? "load: the renderer is the GPU (--gpu)" : "load: the renderer is SwiftShader (no hardware)", judged.ok, renderer);
   // a few seconds of the show, so the grid locks and the first section starts (timed: SwiftShader's frame cost)
   const tRun = Date.now();
   await ev(`(() => { for (let i = 0; i < 90; i++) window.__vt.step(${F}); window.__stage.renderer.gl.finish(); return true; })()`);

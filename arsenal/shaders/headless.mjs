@@ -74,6 +74,23 @@ export const QUIET_FLAGS = ["--no-first-run", "--no-default-browser-check", "--m
                             // a background tab throttles timers and rAF; the render page's watchdog must keep time
                             "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
                             "--disable-backgrounding-occluded-windows"];
+// --gpu (opt-in, attended runs only). Daniel, 2026-10-29, at the desk: "please test with gpu, cpu shader takes forever".
+// The fence above exists because AMD driver resets (TDR) took down the Claude app; SwiftShader stays the default so an
+// unattended run never touches the adapter. With --gpu the browser renders on the hardware through ANGLE's default
+// (D3D11), headless, and the renderer must NAME hardware, the mirror of judgeRenderer.
+export const GPU_FLAGS = ["--headless=new", "--use-angle=d3d11", "--ignore-gpu-blocklist"];
+export const renderFlags = (gpu) => (gpu ? [...GPU_FLAGS] : [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS]);
+export const rendererName = (gpu) => (gpu ? "GPU" : "SwiftShader");
+export function judgeHardwareRenderer(renderer) {
+  if (typeof renderer !== "string" || !renderer.trim()) {
+    return { ok: false, reason: "no renderer string (no WebGL2 context, or WEBGL_debug_renderer_info is unavailable)" };
+  }
+  if (/swiftshader|software|llvmpipe/i.test(renderer)) return { ok: false, reason: `--gpu asked, but the renderer is software: ${renderer}` };
+  if (!HARDWARE_HINT.test(renderer)) return { ok: false, reason: `--gpu asked, but the renderer names no hardware: ${renderer}` };
+  return { ok: true, reason: null };
+}
+export const judgeFor = (gpu) => (gpu ? judgeHardwareRenderer : judgeRenderer);
+
 export const chromeFlags = (profile) => [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS,
                                          "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"];
 
