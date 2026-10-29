@@ -124,6 +124,12 @@ async function boot() {
 }
 
 function start({ rig, R, renderMod }) {
+  // the finish's look (render.js LOOKS): ?look=hdr|punch|velvet|classic, then this browser's last choice, then HDR Night;
+  // automation (every house lane) stays on classic, the finish its numbers were measured on. L cycles it.
+  const LOOKS = renderMod.LOOKS, LOOK_ORDER = renderMod.LOOK_ORDER;
+  const lookStore = (v) => { try { if (v === undefined) return localStorage.getItem("arsenal.stage.look"); localStorage.setItem("arsenal.stage.look", v); } catch { return null; } return null; };
+  const qLook = QS.get("look");
+  R.look = LOOKS[qLook] ? qLook : navigator.webdriver ? "classic" : (LOOKS[lookStore()] ? lookStore() : "hdr");
   const show0 = rig.show;
   const themeName = THEME_ASKED && rig.themes[THEME_ASKED] ? THEME_ASKED : show0.theme || Object.keys(rig.themes)[0];
   const theme = { name: themeName, ...rig.themes[themeName] };
@@ -433,7 +439,7 @@ function start({ rig, R, renderMod }) {
     $("hud-flash").innerHTML = !flash.on ? "protection off (frames as drawn)"
       : st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
     const avg = timing.list.length ? timing.list.reduce((s, x) => s + x, 0) / timing.list.length : 0;
-    $("hud-render").textContent = `${R.w}x${R.h} · ${avg.toFixed(1)} ms CPU+GPU · ${state.info ? `${state.info.beams} beams, ${state.info.emitters} emitters, ${state.info.drawCalls} draws` : ""}`;
+    $("hud-render").textContent = `${(LOOKS[R.look] || LOOKS.classic).name} (L) · ${R.w}x${R.h} · ${avg.toFixed(1)} ms CPU+GPU · ${state.info ? `${state.info.beams} beams, ${state.info.emitters} emitters, ${state.info.drawCalls} draws` : ""}`;
   }
   // the fader strip (also the KeyLab's F1, F4, F5, F6, F9 through the engine)
   const FADERS = [["strand", "F1 strand"], ["lasers", "F4 lasers"], ["haze", "F5 haze"], ["speed", "F6 speed"], ["grand", "F9 master"]];
@@ -462,6 +468,7 @@ function start({ rig, R, renderMod }) {
     const tEval = performance.now() + grid.presentLagMs;
     if (n) { held.add(e.code); pad(n, e.shiftKey ? 1 : 0.8, true, tEval); e.preventDefault(); return; }
     if (e.code === "KeyH") hudEl.classList.toggle("hidden");
+    else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
     else if (e.code === "KeyF") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
     else if (e.code === "KeyC") {
       const ids = Object.keys(director.shots);

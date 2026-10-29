@@ -54,6 +54,18 @@ export const QUALITY = Object.freeze({
   low:     { msaa: 0, beamScale: 0.34, beamSamples: 4, bloomLevels: 4, crowd: 1 },
 });
 
+// The finish's looks (Daniel, 2026-10-29: "How do we let the background get darker for enhanced hdr? how do we make the
+// colors more vibrant too, can you make a few presets?" ... "I want there to be areas of true black on the screen, so that
+// we truly get the full range of hdr"). classic is the house finish unchanged (every lane's numbers were measured on it);
+// the others crush the haze's grey wash to true black, keep a laser's hue as it brightens, and lift colour and contrast.
+export const LOOKS = Object.freeze({
+  classic: { name: "Classic",      sat: 1.08, vig: 0.22, hueKeep: 0,    black: 0,     vibrance: 0,    contrast: 0,    bloom: 1 },
+  hdr:     { name: "HDR Night",    sat: 1.22, vig: 0.30, hueKeep: 0.85, black: 0.035, vibrance: 0.35, contrast: 0.30, bloom: 1.35 },
+  punch:   { name: "Laser Punch",  sat: 1.38, vig: 0.34, hueKeep: 1,    black: 0.06,  vibrance: 0.55, contrast: 0.42, bloom: 1.7 },
+  velvet:  { name: "Velvet Black", sat: 1.15, vig: 0.36, hueKeep: 0.7,  black: 0.09,  vibrance: 0.3,  contrast: 0.22, bloom: 1.2 },
+});
+export const LOOK_ORDER = Object.freeze(["hdr", "punch", "velvet", "classic"]);
+
 function rngOf(seed) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -148,6 +160,7 @@ export class StageRenderer {
     this.rig = rig;
     this.q = { ...(QUALITY[quality] || QUALITY.high) };
     this.qualityName = QUALITY[quality] ? quality : "high";
+    this.look = "classic";
     this.features = { venue: true, crowd: true, strand: true, rings: true, beams: true, lasers: true, emitters: true, bloom: true, veil: true };
     this.veilNow = [0, 0, 0];   // the haze veil this frame (linear rgb), reused
     this.profile = false;
@@ -247,7 +260,8 @@ export class StageRenderer {
                       blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor }),
       finish: fs(S.FINISH_FRAGMENT(this.preludeFinish), { uHdr: { value: null }, uBloom: { value: null }, uRes: { value: new THREE.Vector2() },
                                                          uBloomMix: { value: 0.06 }, uExposure: { value: 1 }, uEv: { value: 0 }, uCurve: { value: 0 },
-                                                         uSat: { value: 1.08 }, uVig: { value: 0.22 } }),
+                                                         uSat: { value: 1.08 }, uVig: { value: 0.22 }, uHueKeep: { value: 0 },
+                                                         uBlack: { value: 0 }, uVibrance: { value: 0 }, uContrast: { value: 0 } }),
       meter1: fs(S.METER1_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() },
                                                        uBX: { value: new Float32Array(5) }, uBY: { value: new Float32Array(5) } }),
       meter2: fs(S.METER2_FRAGMENT, { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() } }),
@@ -776,6 +790,10 @@ export class StageRenderer {
       u.uHdr.value = this.hdrRT.texture; u.uBloom.value = this.bloom[0].texture; u.uRes.value.set(w, h);
       u.uBloomMix.value = F.bloom ? (fs.bloomMix ?? 0.05) / Math.max(1, this.bloom.length) * this.bloom.length / 6 : 0;
       u.uEv.value = (c.ev || 0) + (fs.ev || 0);
+      const lk = LOOKS[this.look] || LOOKS.classic;
+      u.uSat.value = lk.sat; u.uVig.value = lk.vig; u.uHueKeep.value = lk.hueKeep; u.uBlack.value = lk.black;
+      u.uVibrance.value = lk.vibrance; u.uContrast.value = lk.contrast;
+      u.uBloomMix.value *= lk.bloom;
       this._fs(this.post.finish, this.ldrRT);
     }, () => this.ldrRT.texture);
     // 5. the meter, the limiter, the apply pass (with no limiter asked: no meter, and the identity)

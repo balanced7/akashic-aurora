@@ -523,13 +523,49 @@ uniform float uEv;
 uniform int uCurve;
 uniform float uSat;
 uniform float uVig;
+// the look (render.js LOOKS; Daniel 2026-10-29: "I want there to be areas of true black on the screen ... the lasers look a
+// bit muted"). With uHueKeep, uBlack, uVibrance and uContrast all 0 this is exactly displayOut (the classic look).
+uniform float uHueKeep;   // 0 per-channel curve .. 1 the curve on the brightest channel, colour carried: lasers keep hue
+uniform float uBlack;     // display-linear luminance floor: below half of it TRUE black, above 1.6x it untouched
+uniform float uVibrance;  // extra saturation, most on the least saturated colours
+uniform float uContrast;  // the display S-curve
 out vec4 fragColor;
+vec3 curveOf(vec3 x) {
+  if (uCurve == 1) return tmExp(x);
+  if (uCurve == 2) return tmAcesFit(x);
+  if (uCurve == 3) return tmPbrNeutral(x);
+  return tmTanh(x);
+}
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
   vec3 c = texture(uHdr, uv).rgb;
   vec3 b = texture(uBloom, uv).rgb;
   vec3 lin = mix(c, b, uBloomMix) * uExposure;
-  fragColor = vec4(displayOut(lin, gl_FragCoord.xy, uRes, uEv, uCurve, uSat, uVig, 0.0, 256.0), 1.0);
+  if (uHueKeep <= 0.0 && uBlack <= 0.0 && uVibrance <= 0.0 && uContrast <= 0.0) {
+    fragColor = vec4(displayOut(lin, gl_FragCoord.xy, uRes, uEv, uCurve, uSat, uVig, 0.0, 256.0), 1.0);
+    return;
+  }
+  vec3 light = expose(max(lin, vec3(0.0)), uEv);
+  vec3 shown = curveOf(light);
+  if (uHueKeep > 0.0) {
+    float m = max(max(light.r, light.g), light.b);
+    vec3 kept = m > 1e-6 ? light * (curveOf(vec3(m)).r / m) : vec3(0.0);
+    shown = mix(shown, kept, uHueKeep);
+  }
+  if (uBlack > 0.0) {
+    float y = dot(shown, vec3(0.2126, 0.7152, 0.0722));
+    shown *= smoothstep(uBlack * 0.5, uBlack * 1.6, y);
+  }
+  shown = grdSaturation(shown, uSat);
+  if (uVibrance > 0.0) {
+    float mx = max(max(shown.r, shown.g), shown.b), mn = min(min(shown.r, shown.g), shown.b);
+    float sat = mx > 1e-5 ? (mx - mn) / mx : 0.0;
+    shown = max(grdSaturation(shown, 1.0 + uVibrance * (1.0 - sat)), vec3(0.0));
+  }
+  shown *= vigCorner(uv, uRes.x / uRes.y, uVig);
+  vec3 enc = srgbEncode(clamp(shown, 0.0, 1.0));
+  enc = clamp(grdSCurveDisp(enc, uContrast), 0.0, 1.0);
+  fragColor = vec4(ditherOut(enc, gl_FragCoord.xy, 256.0), 1.0);
 }`;
 
 // the meter (flash.js v2): per 4 x 4 block of the finished frame, THREE texels side by side (slot = x % 3): the block's
