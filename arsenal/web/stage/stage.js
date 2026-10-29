@@ -85,7 +85,7 @@ import { Atmosphere } from "./atmos.js";
 import { Director, cameraModel, formationPoseSets } from "./camera.js";
 import { CameraDistance, makeRoom, KEY_STOPS } from "./distance.js";
 import { RingFormations, validateRingFormations } from "./formations.js";
-import { Show, speedFromFader } from "./show.js";
+import { Show, speedFromFader, faderValue } from "./show.js";
 import { FrameLimiter, LIMIT } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
@@ -93,7 +93,7 @@ import { validateKick } from "./kick.js";
 import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
 import { Grammar } from "./grammar.js";
 import { Ensembles, chainLayers } from "./ensemble.js";
-import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf } from "../palettes.js";
+import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf, bankLasers, bankLaserExtras } from "../palettes.js";
 import { withExtraShots, askedShot } from "./stills.js";
 
 const QS = new URLSearchParams(location.search);
@@ -206,7 +206,7 @@ function start({ rig, R, renderMod, palettes }) {
   const lasers3d = new Lasers3D(rig.projectors, rig.venue, { heads: lasers.heads });
   const runner = Object.keys(rig.phrases || {}).length ? new PhraseRunner(rig) : null;
   const firstPhrase = runner ? (PHRASE_ASKED && rig.phrases[PHRASE_ASKED] ? PHRASE_ASKED : Object.keys(rig.phrases)[0]) : null;
-  const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 30, preHaze: rig.atmos.pre_haze ?? 0.12,
+  const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 1.5, preHaze: rig.atmos.pre_haze ?? 0.12,
                                  wind: rig.atmos.wind || [0.25, 0, -0.1], noiseAmp: rig.atmos.noise_amp ?? 0.6 });
   // v2: the ring formations (their light is a programmer layer over the look and the phrases)
   const rings = new RingFormations(rig);
@@ -269,6 +269,17 @@ function start({ rig, R, renderMod, palettes }) {
                               return { white: hexToLinear(th.W || "#ffffff"), fanRamp: g ? tableOf(g) : null }; };
   lasers.setColours(theme.laser, laserOpts(theme));
   lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+  // KICK 5's colour bank reaches the lasers (Daniel, 2026-10-29: "I also want kick 5 to also adjust all lasers"): every
+  // laser group takes the bank's laser colours on the frame the bank changes; bank 0 is the palette's own
+  let laserBankSerial = -1;
+  function lasersFollowBank() {
+    const B = programmer.bank;
+    if (B.serial === laserBankSerial) return;
+    laserBankSerial = B.serial;
+    if (!B.count) { lasers.setColours(theme.laser, laserOpts(theme)); return; }
+    const lb = bankLasers(theme.laser, B.count, bankLaserExtras(theme.palette));
+    lasers.setColours(lb.colours, { white: hexToLinear(theme.W || "#ffffff"), fanRamp: lb.fanRamp });
+  }
   // the live palette: what shows, what is queued and the 16-bar line it lands on
   const pal = { id: palId, queued: null, at: null, dip: false, landings: [] };
   function announcePalette() {
@@ -303,7 +314,8 @@ function start({ rig, R, renderMod, palettes }) {
     return { id: want, at, dip };
   }
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
-  const faders = { ...{ strand: 1, lasers: 1, haze: 0.55, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
+  // (F5's default 0.85: the density 0.55 gave before the fader's curve, atmos.js hazeCurve)
+  const faders = { ...{ strand: 1, lasers: 1, haze: 0.85, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
   const faderMap = { ...(show0.faders || {}) };
   // KeyLab F8 (CC 112) is the camera's distance unless the set names its own control for it
   if (!Object.values(faderMap).includes("distance") && !faderMap.cc112) faderMap.cc112 = "distance";
@@ -526,9 +538,10 @@ function start({ rig, R, renderMod, palettes }) {
     else if (ev.t === "pad") { if (!(GRAMMAR && inputPad("midi", ev.pad, ev.vel, ev.on, nowMs))) pad(ev.pad, ev.vel, ev.on, tEval); }
     else if (ev.t === "energy") energy = ev.level;
     else if (ev.t === "ctl") {
-      const target = faderMap[ev.id];
-      if (target === "distance" && ev.kind === "abs") camDist.fader(ev.value, distCtx(nowMs));
-      else if (target && ev.kind === "abs") { faders[target] = ev.value; applyFaders(tEval); syncFaderUI(); }
+      // a mapped fader's position, whichever kind the hub filed it as (show.js faderValue)
+      const target = faderMap[ev.id], v = target ? faderValue(ev) : null;
+      if (target === "distance" && v !== null) camDist.fader(v, distCtx(nowMs));
+      else if (target && v !== null) { faders[target] = v; applyFaders(tEval); syncFaderUI(); }
     }
   }
   // the engine link: Server-Sent Events, reconnecting with a backoff
@@ -600,6 +613,7 @@ function start({ rig, R, renderMod, palettes }) {
         $("hud-set").textContent = hudSetText();
         announcePalette();
       }
+      lasersFollowBank();
       strand.update(grid, tEval, dt);
       // the camera follows the ring formation while one stands (its landing, its hero view, the live rings for the guard)
       const ringKey = rings.key !== "home" ? rings.key : null;
@@ -685,7 +699,8 @@ function start({ rig, R, renderMod, palettes }) {
     const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind.replace(/^kick-/, "")} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
     const gl = ens ? ens.log[ens.log.length - 1] : null;
     const gTxt = !ens ? "" : `${ens.breath.level < 0.999 || ens.breath.active ? ` · breath ${Math.round(ens.breath.level * 100)} %` : ""}${gl ? ` · ${gl.gesture}${gl.controls ? ` ${gl.controls.join("+")}` : ""}` : ""}`;
-    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}${gTxt}`;
+    const bk = programmer.bank;
+    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)}) · bank ${bk.on ? bk.count : "0 (the palette's own)"}${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}${gTxt}`;
     const ph = $("hud-phrase");
     if (ph) {
       const st = runner ? runner.status() : null;
@@ -702,7 +717,9 @@ function start({ rig, R, renderMod, palettes }) {
     const ringTxt = `rings: ${rk ? rk.name : rings.key}${rk && rk.dream ? " (dream)" : ""}${rings.move ? ` · landing bar ${Math.round((rings.move.posLand - grid.barAnchor) / 4)}` : ""} · hero ${charge >= 1 ? "charged" : `${Math.round(charge * 100)} %`} (pads 8 / 9)`;
     $("hud-strand").textContent = `${strand.formation.name} · rung 1 ${p0.y.toFixed(2)} m ${p0.roll.toFixed(0)}° · rung ${strand.n} ${p11.y.toFixed(2)} m${strand.move ? " · landing" : ""} · ${ringTxt}`;
     $("hud-lasers").textContent = `${state.l2 ? state.l2.look : "-"} · ${state.l3 ? state.l3.n : 0} beams · ${state.l2 && state.l2.hits ? `${state.l2.hits} hits` : "no hits"}`;
-    $("hud-haze").textContent = `${Math.round(atmos.H * 100)} % → ${Math.round(atmos.target * 100)} % · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers`;
+    // the haze in the room now (what the renderer draws), and the F5 fader it is following
+    const hz = Math.round(atmos.H * 100), f5 = Math.round(atmos.target * 100);
+    $("hud-haze").textContent = `${hz} %${hz === f5 ? " (F5)" : ` → F5 ${f5} %`} · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers at ${hz} %`;
     const st = limiter.stats();
     $("hud-flash").innerHTML = !flash.on ? "protection off (frames as drawn)"
       : st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
@@ -811,7 +828,7 @@ function start({ rig, R, renderMod, palettes }) {
     state: () => ({ pos: state.pos, bpm: grid.bpm, bar: grid.barAt(performance.now() + grid.presentLagMs), section: state.section, look: state.look,
                     shot: state.shot, u: state.u, formation: strand.formation.name, info: state.info, counts: rig.counts,
                     limiter: limiter.stats(), grid: { ...grid.stats, ver: grid.ver, locked: grid.locked, barAnchor: grid.barAnchor },
-                    haze: { H: atmos.H, target: atmos.target, sigma0: atmos.uniform.sigma0 }, engine: { open: link.open, hello: link.hello },
+                    haze: { H: atmos.H, target: atmos.target, fader: faders.haze, sigma0: atmos.uniform.sigma0, hazerSigma: Array.from(atmos.uniform.hazerSigma), tau: atmos.tau }, engine: { open: link.open, hello: link.hello },
                     lands: strand.lands.slice(-8), cuts: director.cuts.slice(-16), kicks: kicks.slice(-64), errors: errors.slice(),
                     quality: R.qualityName, renderer: { three: renderMod.QUALITY ? "r186" : "", w: R.w, h: R.h },
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),

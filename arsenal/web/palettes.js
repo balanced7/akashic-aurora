@@ -318,6 +318,68 @@ export function stepPalette(lib, id, delta = 1) {
   return lib.ids[(((i < 0 ? 0 : i + delta) % n) + n) % n];
 }
 
+// KICK 5's COLOUR BANK on the lasers (2026-10-29, Daniel: "I also want kick 5 to also adjust all lasers"): bank k > 0 deals
+// every laser colour the palette's CHROMATIC laser colours turned one place a press (laser colour i shows chromatic colour
+// (i + s + k - 1) mod m, s the start that moves the first bank furthest from the palette's own), so every laser changes
+// colour on every press -- the palette's near-white laser too, which under a bank
+// takes a colour (a white laser's core and a colour's clip alike to white on screen: the GPU receipt's first run measured
+// a press from pink and white to white and violet changing 5 % of the laser pixels). The chromatic colours are the
+// palette's laser colours of OKLCh chroma 0.06 or more, then, while there are fewer than two, its "lasers" gradient's
+// stops, then its kick and highlight (a palette of one hue turns its own laser colours, white included). A fan of the first two takes a gradient per beam between the two it now shows
+// (OKLCh, 32 samples). Bank 0 is the palette's own (its colours and its designed "lasers" gradient: the caller's).
+// colours: #rrggbb or linear; extra: further #rrggbb candidates in that order (the gradient's stops, the lift colours).
+export function bankLasers(colours, k, extra = []) {
+  const lin = (colours || []).map((c) => (typeof c === "string" ? hexToLin(c) : c.slice()));
+  const n = lin.length;
+  if (!n || !(k > 0)) return { colours: lin, fanRamp: null };
+  // (review V2/V3, 2026-10-29: Molten's two laser yellows sit 25 degrees apart and its press never visibly turned the
+  // lasers; Titanium turned into grey and white.) The turn's colours are SPREAD: every two at least LASER_BANK_HUE degrees
+  // of hue apart (OKLCh), else every two dEOK LASER_BANK_DE apart, else (the old rule) dEOK 0.05; the palette's own laser
+  // colours first, then the extras, in order, while there are fewer than two
+  const ex = extra.map((h) => (typeof h === "string" ? hexToLin(h) : h));
+  // (the extras go on while there are fewer than two, or while no start of the turn moves EVERY laser colour off its
+  // own on the first bank: Leviathan Royal's gold, cream and violet against a turn of gold and violet keep one of them)
+  const startOf = (ch) => {
+    const m = ch.length;
+    let s0 = 0, best = -1;
+    for (let s = 0; s < m; s++) { const lo = Math.min(...lin.map((c, i) => deOK(c, ch[(i + s) % m]))); if (lo > best + 1e-9) { best = lo; s0 = s; } }
+    return { s0, best };
+  };
+  const pick = (apart) => {
+    const out = [];
+    const add = (c) => { if (lchOfLin(c).C >= 0.06 && !isSaturatedRed(c) && out.every((u) => apart(u, c))) out.push(c); };
+    for (const c of lin) add(c);
+    for (const c of ex) { if (out.length >= 2 && startOf(out).best >= 0.05) break; add(c); }
+    return out;
+  };
+  // the first rule whose pick turns every laser colour on the first bank; else the first with two colours at all
+  let chroma = [];
+  for (const apart of [(u, c) => hueGap(lchOfLin(u).h, lchOfLin(c).h) >= LASER_BANK_HUE, (u, c) => deOK(u, c) >= LASER_BANK_DE, (u, c) => deOK(u, c) >= 0.05]) {
+    const got = pick(apart);
+    if (got.length >= 2 && startOf(got).best >= 0.05) { chroma = got; break; }
+    if (chroma.length < 2) chroma = got;
+  }
+  // a palette with no second colour anywhere turns its own distinct laser colours, white included
+  if (chroma.length < 2) for (const c of lin) if (!chroma.some((u) => deOK(u, c) < 0.05)) chroma.push(c);
+  if (chroma.length < 2) return { colours: lin, fanRamp: null };
+  // the turn's start: the one whose first bank moves every laser colour furthest from the palette's own
+  const m = chroma.length, { s0 } = startOf(chroma);
+  const rot = lin.map((_, i) => chroma[(i + s0 + k - 1) % m].slice());
+  const t = new Float32Array(96);
+  if (n >= 2) for (let i = 0; i < 32; i++) t.set(mixLch(rot[0], rot[1], i / 31), i * 3);
+  return { colours: rot, fanRamp: n >= 2 ? t : null };
+}
+// the extra candidates bankLasers takes from a palette: its "lasers" gradient's stops, its kick colour, the heads' rest and
+// alt slots (the colours its beams already show: Molten's lime), its bed and partner, then its highlight
+export function bankLaserExtras(p) {
+  if (!p) return [];
+  const g = grad(p, "lasers"), hd = p.heads || {};
+  return [...(g && g.stops ? g.stops.map((s) => s.hex) : []), roleHex(p, "kick"), hd.rest && hd.rest.hex, hd.alt && hd.alt.hex,
+          roleHex(p, "base"), roleHex(p, "partner"), roleHex(p, "highlight")].filter(isHex);
+}
+export const LASER_BANK_HUE = 30;          // the bank's laser colours: every two this many degrees of OKLCh hue apart
+export const LASER_BANK_DE = 0.1;          // ... or, failing that, this far apart (dEOK)
+
 // ----------------------------------------------------------------------------------------------- the tables --
 // a gradient's 32 samples as linear rgb (Float32Array of 96)
 export function tableOf(g) { const t = new Float32Array(96); (g.samples32 || []).forEach((h, i) => t.set(hexToLin(h), i * 3)); return t; }

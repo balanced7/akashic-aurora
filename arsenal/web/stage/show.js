@@ -23,6 +23,15 @@
 export const SHOW_API = "arsenal.stage-show/v1";
 export const SPEED_DETENTS = Object.freeze([0.25, 0.5, 1, 2, 4]);
 export const speedFromFader = (v) => SPEED_DETENTS[Math.max(0, Math.min(4, Math.round(v * 4)))];
+// A fader's position from an engine ctl event (2026-10-29, the haze fader). A fader is absolute hardware, but the hub's
+// decoder (arsenal/keylab/vj.py CCDecoder) learns every CC's kind on touch and may file a CC as "rel"; the page used to
+// drop every rel event, so a fader so filed stopped moving its target where it was (Daniel's haze: target 100 % with F5
+// down). A rel event still carries the raw 7-bit value as delta = value - 64, so the position is (64 + delta) / 127.
+export function faderValue(ev) {
+  if (!ev) return null;
+  const v = ev.kind === "abs" ? Number(ev.value) : ev.kind === "rel" ? (64 + Number(ev.delta)) / 127 : NaN;
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : null;
+}
 
 export class Show {
   constructor(rig, { demo = true } = {}) {

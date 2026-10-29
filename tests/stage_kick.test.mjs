@@ -29,6 +29,13 @@ import { loadPalettes, stageTheme, planOf, deOK, lchOf, lchOfLin, linToHex } fro
 const SCENE1 = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
 const SCENE0 = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v0.json", import.meta.url), "utf8"));
 const RIG1 = expandScene(SCENE1);
+// KICK round 3 (2026-10-29): the set's kick-colour is a BANK kind now (every press deals the palette's next colour bank to
+// the whole stage: tests/stage_kick_bank.test.mjs). The palette LIFT kind it was (one area lifted inside the palette, the
+// re-strike ladder, the heads' one-slot lift) is still a kind a set may name; these tests keep pinning it on a copy of
+// the set whose kick-colour is that kind.
+const SCENE1P = JSON.parse(JSON.stringify(SCENE1));
+SCENE1P.kick.kinds["kick-colour"].colour = "palette";
+const RIG1P = expandScene(SCENE1P);
 const RIG0 = expandScene(SCENE0);
 const PALS = loadPalettes(JSON.parse(readFileSync(new URL("../arsenal/web/palettes.json", import.meta.url), "utf8")));
 const THEME1 = stageTheme(PALS.byId[SCENE1.show.palette]);          // the page's default palette, as the page runs it
@@ -114,9 +121,10 @@ test("the dealer deals only an area the camera sees, when the page tells it what
 });
 
 // ------------------------------------------------------------------------------ the override and the colours --
-test("OVERRIDE: a white kick turns a lit area full-intensity palette white over the look; a colour kick lifts every cell inside the palette (its own role's lift, its gradient kept); release hands it back to the look", () => {
+test("OVERRIDE: a white kick turns a lit area full-intensity palette white over the look; a palette-lift kick lifts every cell inside the palette (its own role's lift, its gradient kept); release hands it back to the look", () => {
   for (const [kind, check] of [[W, "white"], [C, "colour"]]) {
-    const g = locked(150), p = fresh({ look: "drop" }), base = fresh({ look: "drop" });
+    const rig = kind === C ? RIG1P : RIG1;                     // the lift kind (the set's colour kick is the bank now)
+    const g = locked(150), p = fresh({ look: "drop", rig }), base = fresh({ look: "drop", rig });
     force(p, "rings");
     let rec = null, during = null, after = null;
     for (let t = 0; t < 20 * g.period; t += 1000 / FPS) {
@@ -160,8 +168,8 @@ test("OVERRIDE: a white kick turns a lit area full-intensity palette white over 
   }
 });
 
-test("a re-strike while lit is a new hit at about the same brightness: the colour kick swaps the palette's lift ladder on EVERY tap (its kick and highlight colours, luminance-matched, never a saturated red), the white kick deals a fresh motion", () => {
-  const g = locked(150), p = fresh({ look: "break" });
+test("a re-strike while lit is a new hit at about the same brightness: the palette-lift kick swaps the palette's lift ladder on EVERY tap (its kick and highlight colours, luminance-matched, never a saturated red), the white kick deals a fresh motion", () => {
+  const g = locked(150), p = fresh({ look: "break", rig: RIG1P });
   force(p, "rings");
   const seen = [];
   let k = 0, rec = null;
@@ -201,7 +209,7 @@ test("a re-strike while lit is a new hit at about the same brightness: the colou
 });
 function hexLin(h) { const v = parseInt(h.slice(1), 16); const f = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return [f(v >> 16 & 255), f(v >> 8 & 255), f(v & 255)]; }
 
-test("moving heads change colour too: a colour kick steps the wheel by the palette's plan the short way, never through the red slot, never to the warm white; the white kick never turns a wheel", () => {
+test("moving heads change colour too: a palette-lift kick steps the wheel by the palette's plan the short way, never through the red slot, never to the warm white; the white kick never turns a wheel", () => {
   const wheel = SCENE1.types["beam-7r"].attrs.Color1.colours.map(hexLin);
   const red = KICK.redSlots(wheel);
   assert.deepEqual(red, [1], "the beam's red slot");
@@ -216,7 +224,7 @@ test("moving heads change colour too: a colour kick steps the wheel by the palet
   const plan = planOf(THEME1.palette);
   let shownRed = 0, moved = 0, offPlan = 0;
   for (const look of ["intro", "build", "drop", "break", "groove"]) {
-    const g = locked(150), p = fresh({ look });
+    const g = locked(150), p = fresh({ look, rig: RIG1P });
     let k = 0;
     play(p, g, 0, 4 + 16 * 4, (pos) => {
       if (pos >= 4 + 4 * k && k < 16) { force(p, k % 2 ? "halo" : "beams"); p.pad(k % 4 < 2 ? C : W, 0.7, pos, { hold: true }); p.padRelease(k % 4 < 2 ? C : W, pos + 1.5); k++; }
@@ -235,7 +243,7 @@ test("moving heads change colour too: a colour kick steps the wheel by the palet
   // a white kick on the dark halo (its wheel parked on the palette's rest slot, violet) leaves the wheel where it is; a
   // colour kick steps it one slot to magenta, and on the release it comes back
   for (const [kind, want] of [[W, plan.rest], [C, plan.lift.get(plan.rest).to]]) {
-    const g = locked(150), p = fresh({ look: "break" });
+    const g = locked(150), p = fresh({ look: "break", rig: RIG1P });
     force(p, "halo");
     let rec = null, before = null, back = null;
     play(p, g, 0, 16, (pos) => {
@@ -673,6 +681,7 @@ test("the kinds are data: a set may add a kind (its own colour, no repeat) and m
   const scene = JSON.parse(JSON.stringify(SCENE1));
   scene.kick.kinds["kick-amber"] = { colour: "#ffd21a", override: true, motion: "none", strobe: false, repeat: "none", punch: 0 };
   scene.kick.kinds["kick-colour-2"] = { colour: "palette", override: true, motion: "none", strobe: false, repeat: "colour", punch: 0 };
+  scene.kick.kinds["kick-colour"].colour = "palette";       // (the set's own is the bank kind: tests/stage_kick_bank.test.mjs)
   const rig = expandScene(scene);
   assert.deepEqual(KICK.validateKick(rig), []);
   const g = locked(150), p = fresh({ rig, look: "break" });
@@ -720,7 +729,7 @@ test("a re-strike flips a comb on the area (alternate heads at full and at 35 %)
 });
 
 // ----------------------------------------------------------------------------------------------- the governor --
-test("the flash governor: with the limiter's budget spent the kick still lights every press, but holds back its optional changes (punch, colour step, comb, the start of a fade, the strobe going dark)", () => {
+test("the flash governor: with the limiter's budget spent the kick still lights every press, but holds back its optional changes (punch, the bank's colour step, comb, the start of a fade, the strobe going dark)", () => {
   const cfg = KICK.kickConfig(RIG1);
   const g = locked(150), p = fresh({ look: "break" });
   force(p, "rings");
@@ -737,7 +746,9 @@ test("the flash governor: with the limiter's budget spent the kick still lights 
   assert.ok(lv.find(([pos]) => pos >= 6.05)[1] > held - 0.01, "but the press lights at once");
   assert.equal(r2, rec, "the second press re-strikes");
   assert.equal(rec.presses, 2);
-  assert.ok(p.kick.gov.colour >= 1 && p.kick.gov.comb >= 1 && p.kick.gov.punch >= 1, `held back: ${JSON.stringify(p.kick.gov)}`);
+  assert.ok(p.kick.gov.bank >= 1 && p.kick.gov.comb >= 1 && p.kick.gov.punch >= 1, `held back: ${JSON.stringify(p.kick.gov)}`);
+  assert.equal(p.bank.count, 0, "KICK round 3: the bank's step waits for room (both presses)");
+  assert.equal(p.kick.bankWait, true);
   assert.equal(rec.comb, 0, "no comb flip");
   // the fade waits (up to governor.defer_s) while the budget stays spent
   const lingerEnd = 6.5 + cfg.governor.linger_s * 1000 / g.period;
@@ -753,6 +764,7 @@ test("the flash governor: with the limiter's budget spent the kick still lights 
     if (k2) lv2.push([pos, areaLevel(q, k2.card)]);
   });
   const at2 = (b) => lv2.find(([pos]) => pos >= b)[1];
+  assert.equal(q.bank.count, 1, "with room the press deals the next bank at once");
   assert.ok(at2(6 + cfg.governor.linger_s * 1000 / 400 + 1.5) < 0.5 * held, "with headroom the area fades after its linger");
 });
 
