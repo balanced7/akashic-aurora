@@ -165,7 +165,7 @@
     ]
   },
   "atmos": {
-    "tau_s": 30, "pre_haze": 0.12, "wind": [0.25, 0, -0.1], "noise_amp": 0.6,
+    "tau_s": 1.5, "pre_haze": 0.12, "wind": [0.25, 0, -0.1], "noise_amp": 0.6,
     "hazers": [
       { "id": "hz-sl", "pos": [-21, 2.5, -6] }, { "id": "hz-sr", "pos": [21, 2.5, -6] },
       { "id": "hz-roof-1", "pos": [-10, 33, 20] }, { "id": "hz-roof-2", "pos": [10, 33, 42] },

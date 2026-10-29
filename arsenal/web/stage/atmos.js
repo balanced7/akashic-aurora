@@ -5,9 +5,8 @@
 //
 //   sigma(x, t) = sigma0 * H(t) * (1 + a * n(x - w t)) + sum over hazer plumes        (scattering coefficient, 1/m)
 //
-// H(t) is the haze master after the machines' lag: a hazer does not fill a hall instantly, the room's haze level moves
-// toward the fader's target with a time constant of about 30 s (est.), so the Haze fader (F5) is a level that changes
-// over minutes, never per beat. n is our own tileable noise, advected by a slow wind (0.1-0.5 m/s). Each hazer adds a
+// H(t) is the haze master: the room's haze level follows the Haze fader (F5) smoothly over tau (the set's atmos.tau_s,
+// 1.5 s since 2026-10-29; it was the machines' 30 s lag, see THE HAZE FADER below), never per beat. n is our own tileable noise, advected by a slow wind (0.1-0.5 m/s). Each hazer adds a
 // soft plume around its nozzle while it runs. The albedo of haze is about 1, so extinction ~ scattering.
 //
 // Ranges (Koschmieder: visibility V = 3.912 / sigma): arena haze 0.003 to 0.02 1/m (about 1,300 m down to 200 m), a
@@ -24,9 +23,20 @@
 // single scatter, the check's finding), and the phase: the approximate-Mie lobe dims side-on beams 1.7-2.6 x (the check)
 // and waits for a re-level with a before/after luminance receipt.
 // Phase: Henyey-Greenstein, g = 0.75 for haze (F6: Colombi and Louedec 2013), g = 0.85 for fog and CO2.
+//
+// THE HAZE FADER (2026-10-29). Daniel: "It looks like the haze knob doesn't quite fully control the haze" (his HUD at the
+// time: haze "96 % -> 100 % ... 8 hazers", the F5 fader not at the top). Three things kept the room's haze from being the
+// fader's, all here: the room's level had a FLOOR (sigma0 = SIGMA_MIN + (SIGMA_MAX - SIGMA_MIN) H: at F5 = 0 the room
+// still held 0.003 /m, 15 % of full, which keeps every beam visible), the eight HAZERS' plumes ran at 40 % of their output
+// whatever the fader (0.012 x (0.4 + 0.6 x target), at the nozzles up to 0.0048 /m more each, on the fader's target rather
+// than the room's level, so they jumped while the room crept), and the room followed the fader with the machines' 30 s
+// lag (a move took about 70 s to be 90 % there: moving F5 seemed to do little, and the HUD's level trailed its target by
+// minutes). Now the fader is the haze: sigma0 = SIGMA_MAX x H, the plumes 0.012 x output x H, both zero at F5 = 0 and full
+// at the top, and H follows the fader smoothly over the set's atmos.tau_s (1.5 s: never per beat, never a step). The
+// page's HUD shows that level, the fader and the density (stage.js).
 
 export const ATMOS_API = "arsenal.stage-atmos/v1";
-export const SIGMA_MIN = 0.003;
+export const SIGMA_MIN = 0.003;      // the thinnest arena haze (Koschmieder, 1,300 m); no longer a floor under the fader
 export const SIGMA_MAX = 0.02;
 export const HAZE_CAP = 0.26;
 export const PLUME_CAP = 15;
@@ -34,6 +44,8 @@ export const SIGMA_CAP = HAZE_CAP;   // v0's name for the haze channel's cap
 export const HAZE_G = 0.75;
 export const FOG_G = 0.85;
 export const MAX_HAZERS = 8;
+export const HAZE_MIN_RATE = 0.05;   // inside HAZE_ARRIVE of the fader the level moves at least 5 % of full a second
+export const HAZE_ARRIVE = 0.02;     // (so it arrives instead of creeping)
 
 export const visibility = (sigma) => 3.912 / sigma;
 export const clampSigma = (s) => (s > HAZE_CAP ? HAZE_CAP : s < 0 ? 0 : s);
@@ -63,7 +75,7 @@ export function phaseHG(mu, g) {
 }
 
 export class Atmosphere {
-  constructor({ hazers = [], tau = 30, preHaze = 0.12, wind = [0.25, 0, -0.1], noiseAmp = 0.6 } = {}) {
+  constructor({ hazers = [], tau = 1.5, preHaze = 0.12, wind = [0.25, 0, -0.1], noiseAmp = 0.6 } = {}) {
     this.hazers = hazers.slice(0, MAX_HAZERS).map((h) => ({ ...h, output: h.out ?? 1 }));
     this.tau = tau;
     this.H = preHaze;            // the room's haze level 0..1 (pre-haze before doors: 10-15 %)
@@ -76,12 +88,17 @@ export class Atmosphere {
                      hazers: new Float32Array(MAX_HAZERS * 4), hazerSigma: new Float32Array(MAX_HAZERS), n: 0 };
   }
   setTarget(level) { this.target = Math.max(0, Math.min(1, level)); }
-  // the room's base scattering coefficient at haze level H
-  sigmaAt(H) { return clampSigma(SIGMA_MIN + (SIGMA_MAX - SIGMA_MIN) * H); }
+  // the room's base scattering coefficient at haze level H: none at 0, SIGMA_MAX at 1 (no floor: F5 at 0 is no haze)
+  sigmaAt(H) { return clampSigma(SIGMA_MAX * Math.max(0, Math.min(1, H))); }
   update(dt) {
     if (dt > 0) {
-      const k = 1 - Math.exp(-dt / this.tau);
-      this.H += (this.target - this.H) * k;
+      // smoothly, and it ARRIVES: the lag's exponential, and inside HAZE_ARRIVE of the fader never slower than
+      // HAZE_MIN_RATE of full a second, so the last two per cent land in under half a second instead of an exponential
+      // tail (F5 at 0 is exactly no haze, not 0.2 %)
+      const d = this.target - this.H, k = 1 - Math.exp(-dt / this.tau), floor = Math.abs(d) < HAZE_ARRIVE ? HAZE_MIN_RATE * dt : 0;
+      const step = Math.abs(d * k) >= floor ? d * k : Math.sign(d) * Math.min(Math.abs(d), floor);
+      this.H += step;
+      if (Math.abs(this.target - this.H) < 1e-9) this.H = this.target;
       for (let i = 0; i < 3; i++) this.offset[i] += this.wind[i] * dt;
     }
     const u = this.uniform;
@@ -91,11 +108,11 @@ export class Atmosphere {
     for (let i = 0; i < MAX_HAZERS; i++) {
       const h = this.hazers[i];
       if (!h) { u.hazers.fill(0, i * 4, i * 4 + 4); u.hazerSigma[i] = 0; continue; }
-      // the plume drifts downwind of the nozzle and spreads; its excess density follows the machine's output and the
-      // room's level (a hazer at work while the room is still thin shows as a visible plume)
+      // the plume drifts downwind of the nozzle and spreads; its excess density is the machine's output at the room's
+      // level (the fader's): none at F5 = 0, full at the top
       u.hazers[i * 4] = h.pos[0] + this.wind[0] * 6; u.hazers[i * 4 + 1] = h.pos[1] + 1.5; u.hazers[i * 4 + 2] = h.pos[2] + this.wind[2] * 6;
       u.hazers[i * 4 + 3] = 7;
-      u.hazerSigma[i] = clampSigma(0.012 * h.output * (0.4 + 0.6 * this.target));
+      u.hazerSigma[i] = clampSigma(0.012 * h.output * this.H);
     }
     return u;
   }

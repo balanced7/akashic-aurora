@@ -62,7 +62,7 @@ import { Lasers3D } from "./lasers3d.js";
 import { Atmosphere } from "./atmos.js";
 import { Director, cameraModel, formationPoseSets } from "./camera.js";
 import { RingFormations, validateRingFormations } from "./formations.js";
-import { Show, speedFromFader } from "./show.js";
+import { Show, speedFromFader, faderValue } from "./show.js";
 import { FrameLimiter, LIMIT } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
@@ -168,7 +168,7 @@ function start({ rig, R, renderMod, palettes }) {
   const lasers3d = new Lasers3D(rig.projectors, rig.venue, { heads: lasers.heads });
   const runner = Object.keys(rig.phrases || {}).length ? new PhraseRunner(rig) : null;
   const firstPhrase = runner ? (PHRASE_ASKED && rig.phrases[PHRASE_ASKED] ? PHRASE_ASKED : Object.keys(rig.phrases)[0]) : null;
-  const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 30, preHaze: rig.atmos.pre_haze ?? 0.12,
+  const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 1.5, preHaze: rig.atmos.pre_haze ?? 0.12,
                                  wind: rig.atmos.wind || [0.25, 0, -0.1], noiseAmp: rig.atmos.noise_amp ?? 0.6 });
   // v2: the ring formations (their light is a programmer layer over the look and the phrases)
   const rings = new RingFormations(rig);
@@ -378,8 +378,9 @@ function start({ rig, R, renderMod, palettes }) {
     else if (ev.t === "pad") pad(ev.pad, ev.vel, ev.on, tEval);
     else if (ev.t === "energy") energy = ev.level;
     else if (ev.t === "ctl") {
-      const target = faderMap[ev.id];
-      if (target && ev.kind === "abs") { faders[target] = ev.value; applyFaders(tEval); syncFaderUI(); }
+      // a mapped fader's position, whichever kind the hub filed it as (show.js faderValue)
+      const target = faderMap[ev.id], v = target ? faderValue(ev) : null;
+      if (target && v !== null) { faders[target] = v; applyFaders(tEval); syncFaderUI(); }
     }
   }
   // the engine link: Server-Sent Events, reconnecting with a backoff
@@ -523,7 +524,9 @@ function start({ rig, R, renderMod, palettes }) {
     const ringTxt = `rings: ${rk ? rk.name : rings.key}${rk && rk.dream ? " (dream)" : ""}${rings.move ? ` · landing bar ${Math.round((rings.move.posLand - grid.barAnchor) / 4)}` : ""} · hero ${charge >= 1 ? "charged" : `${Math.round(charge * 100)} %`} (pads 8 / 9)`;
     $("hud-strand").textContent = `${strand.formation.name} · rung 1 ${p0.y.toFixed(2)} m ${p0.roll.toFixed(0)}° · rung ${strand.n} ${p11.y.toFixed(2)} m${strand.move ? " · landing" : ""} · ${ringTxt}`;
     $("hud-lasers").textContent = `${state.l2 ? state.l2.look : "-"} · ${state.l3 ? state.l3.n : 0} beams · ${state.l2 && state.l2.hits ? `${state.l2.hits} hits` : "no hits"}`;
-    $("hud-haze").textContent = `${Math.round(atmos.H * 100)} % → ${Math.round(atmos.target * 100)} % · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers`;
+    // the haze in the room now (what the renderer draws), and the F5 fader it is following
+    const hz = Math.round(atmos.H * 100), f5 = Math.round(atmos.target * 100);
+    $("hud-haze").textContent = `${hz} %${hz === f5 ? " (F5)" : ` → F5 ${f5} %`} · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers at ${hz} %`;
     const st = limiter.stats();
     $("hud-flash").innerHTML = !flash.on ? "protection off (frames as drawn)"
       : st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
@@ -597,7 +600,7 @@ function start({ rig, R, renderMod, palettes }) {
     state: () => ({ pos: state.pos, bpm: grid.bpm, bar: grid.barAt(performance.now() + grid.presentLagMs), section: state.section, look: state.look,
                     shot: state.shot, u: state.u, formation: strand.formation.name, info: state.info, counts: rig.counts,
                     limiter: limiter.stats(), grid: { ...grid.stats, ver: grid.ver, locked: grid.locked, barAnchor: grid.barAnchor },
-                    haze: { H: atmos.H, target: atmos.target, sigma0: atmos.uniform.sigma0 }, engine: { open: link.open, hello: link.hello },
+                    haze: { H: atmos.H, target: atmos.target, fader: faders.haze, sigma0: atmos.uniform.sigma0, hazerSigma: Array.from(atmos.uniform.hazerSigma), tau: atmos.tau }, engine: { open: link.open, hello: link.hello },
                     lands: strand.lands.slice(-8), cuts: director.cuts.slice(-16), kicks: kicks.slice(-64), errors: errors.slice(),
                     quality: R.qualityName, renderer: { three: renderMod.QUALITY ? "r186" : "", w: R.w, h: R.h },
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
