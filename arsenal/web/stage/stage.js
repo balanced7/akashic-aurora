@@ -68,7 +68,7 @@ import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
 import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
-import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf } from "../palettes.js";
+import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf, bankLasers } from "../palettes.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -202,6 +202,17 @@ function start({ rig, R, renderMod, palettes }) {
                               return { white: hexToLinear(th.W || "#ffffff"), fanRamp: g ? tableOf(g) : null }; };
   lasers.setColours(theme.laser, laserOpts(theme));
   lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+  // KICK 5's colour bank reaches the lasers (Daniel, 2026-10-29: "I also want kick 5 to also adjust all lasers"): every
+  // laser group takes the bank's laser colours on the frame the bank changes; bank 0 is the palette's own
+  let laserBankSerial = -1;
+  function lasersFollowBank() {
+    const B = programmer.bank;
+    if (B.serial === laserBankSerial) return;
+    laserBankSerial = B.serial;
+    if (!B.count) { lasers.setColours(theme.laser, laserOpts(theme)); return; }
+    const lb = bankLasers(theme.laser, B.count);
+    lasers.setColours(lb.colours, { white: hexToLinear(theme.W || "#ffffff"), fanRamp: lb.fanRamp });
+  }
   // the live palette: what shows, what is queued and the 16-bar line it lands on
   const pal = { id: palId, queued: null, at: null, dip: false, landings: [] };
   function announcePalette() {
@@ -438,6 +449,7 @@ function start({ rig, R, renderMod, palettes }) {
         $("hud-set").textContent = hudSetText();
         announcePalette();
       }
+      lasersFollowBank();
       strand.update(grid, tEval, dt);
       // the camera follows the ring formation while one stands (its landing, its hero view, the live rings for the guard)
       const ringKey = rings.key !== "home" ? rings.key : null;
@@ -495,7 +507,8 @@ function start({ rig, R, renderMod, palettes }) {
     const eng = !ENGINE_URL ? "demo clock" : link.open ? (link.hello ? `engine ${link.hello.src || "on"}` : "engine connected") : "engine offline (free-running)";
     $("hud-clock").textContent = `${grid.bpm.toFixed(1)} BPM · bar ${b.bar} beat ${b.beat} · ${eng}`;
     const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind.replace(/^kick-/, "")} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
-    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}`;
+    const bk = programmer.bank;
+    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)}) · bank ${bk.on ? bk.count : "0 (the palette's own)"}${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}`;
     const ph = $("hud-phrase");
     if (ph) {
       const st = runner ? runner.status() : null;

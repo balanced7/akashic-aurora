@@ -318,6 +318,22 @@ export function stepPalette(lib, id, delta = 1) {
   return lib.ids[(((i < 0 ? 0 : i + delta) % n) + n) % n];
 }
 
+// KICK 5's COLOUR BANK on the lasers (2026-10-29, Daniel: "I also want kick 5 to also adjust all lasers"): bank k > 0 turns
+// the palette's laser colours k places round (colour i shows the distinct colour k places on from its own: every laser
+// changes colour on every press), and a fan of the first two takes a gradient per beam between the two it now shows (OKLCh, 32 samples);
+// bank 0 is the palette's own (its colours and its designed "lasers" gradient: the caller's). colours: #rrggbb or linear.
+export function bankLasers(colours, k) {
+  const lin = (colours || []).map((c) => (typeof c === "string" ? hexToLin(c) : c.slice()));
+  const n = lin.length;
+  if (!n || !(k > 0)) return { colours: lin, fanRamp: null };
+  // the distinct colours (a palette may carry two near-whites: Noir), each laser colour turning round them
+  const uniq = [], of = lin.map((c) => { let j = uniq.findIndex((u) => deOK(u, c) < 0.05); if (j < 0) j = uniq.push(c) - 1; return j; });
+  const rot = of.map((j) => uniq[(j + k) % uniq.length].slice());
+  const t = new Float32Array(96);
+  if (n >= 2) for (let i = 0; i < 32; i++) t.set(mixLch(rot[0], rot[1], i / 31), i * 3);
+  return { colours: rot, fanRamp: n >= 2 ? t : null };
+}
+
 // ----------------------------------------------------------------------------------------------- the tables --
 // a gradient's 32 samples as linear rgb (Float32Array of 96)
 export function tableOf(g) { const t = new Float32Array(96); (g.samples32 || []).forEach((h, i) => t.set(hexToLin(h), i * 3)); return t; }

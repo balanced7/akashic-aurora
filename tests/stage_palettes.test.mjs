@@ -27,13 +27,18 @@ import { FrameLimiter } from "../arsenal/web/stage/flash.js";
 const RAW = JSON.parse(readFileSync(new URL("../arsenal/web/palettes.json", import.meta.url), "utf8"));
 const SCENE = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
 const RIG = expandScene(SCENE);
+// KICK round 3 (2026-10-29): the set's kick-colour is the BANK kind (tests/stage_kick_bank.test.mjs); the palette LIFT kind
+// these tests pinned is still a kind a set may name, and runs here on a copy of the set whose kick-colour is that kind
+const SCENEP = JSON.parse(JSON.stringify(SCENE));
+SCENEP.kick.kinds["kick-colour"].colour = "palette";
+const RIGP = expandScene(SCENEP);
 const WHEEL_HEX = SCENE.types["beam-7r"].attrs.Color1.colours;
 const LIB = PAL.loadPalettes(RAW, { wheel: WHEEL_HEX });
 const FPS = 60, DT = 1 / FPS, W = "kick-white", C = "kick-colour";
 const CTO = PAL.CTO_SLOT;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const locked = (bpm = 150) => { const g = new BeatGrid({ bpm, t0: 0 }); g.beat({ due_ms: 0, bpm, n: 0, conf: 1, bar: 1, ver: 0 }, 0); return g; };
-const fresh = (id, look = "drop", seed = 7) => { const p = new Programmer(RIG, { theme: PAL.stageTheme(LIB.byId[id]), seed }); p.setLook(look, 0); return p; };
+const fresh = (id, look = "drop", seed = 7, rig = RIG) => { const p = new Programmer(rig, { theme: PAL.stageTheme(LIB.byId[id]), seed }); p.setLook(look, 0); return p; };
 function play(p, g, a, b, each = null) {
   for (let t = a * g.period; t < b * g.period; t += 1000 / FPS) { const pos = g.posAt(t); if (each) each(pos, t); p.tick(g, t, DT); }
 }
@@ -180,9 +185,9 @@ test("the amber share: kicked moving heads never show the warm-white slot in any
   console.log(`  the amber share (3 looks, 6 presses each):\n  ${rows.join("\n  ")}`);
 });
 
-test("the dealer: a colour kick never takes an area of heads alone that cannot change colour (the halo on white), and deals the strand at least once in every three presses while it shows", () => {
+test("the dealer: a palette-lift kick never takes an area of heads alone that cannot change colour (the halo on white), and a colour kick deals the strand at least once in every three presses while it shows", () => {
   for (const id of ["titanium", "noir", "rose-fans"]) {
-    const g = locked(), p = fresh(id, "drop");
+    const g = locked(), p = fresh(id, "drop", 7, RIGP);
     const dealt = [];
     let k = 0;
     play(p, g, 0, 4 + 24 * 4, (pos) => { if (pos >= 4 + 4 * k && k < 24) { const r = p.pad(C, 0.8, pos, { hold: true }); dealt.push(r.card.name); p.padRelease(C, pos + 0.5); k++; } });
@@ -199,9 +204,9 @@ test("the dealer: a colour kick never takes an area of heads alone that cannot c
 });
 
 // ---------------------------------------------------------------------------------- the strand under the kick --
-test("the strand under a colour kick keeps its helix: every cube cell its own roles' lift at its own mix, two lift colours across the strand, and the pattern jumps a quarter cycle then eases back over a beat", () => {
+test("the strand under a palette-lift kick keeps its helix: every cube cell its own roles' lift at its own mix, two lift colours across the strand, and the pattern jumps a quarter cycle then eases back over a beat", () => {
   for (const id of ["source-violet", "violet-hold", "cyan-hold", "throne-world"]) {
-    const g = locked(), p = fresh(id, "drop"), base = fresh(id, "drop");
+    const g = locked(), p = fresh(id, "drop", 7, RIGP), base = fresh(id, "drop", 7, RIGP);
     const cubes = RIG.groups["strand.cubes"].members;
     let rec = null, at = null, jumpNow = null, jumpLater = null, lifted = null;
     for (let t = 0; t < 16 * g.period; t += 1000 / FPS) {

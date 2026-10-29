@@ -97,6 +97,48 @@
 //                 it never turns a wheel); the strand is dealt at least once in every three presses while it shows
 //                 (Daniel's "dont change at all"); of the areas that show, the one whose screen share times the share of
 //                 its members the hit changes is largest.
+//
+// KICK ROUND 3: THE COLOUR BANK (2026-10-29). Daniel, at the desk: "also pressing 5 never seems to change the full stage
+// worth of lights, just a few accent lights. I want 5 to change light groups using a palate across all the elements", and
+// "I also want kick 5 to also adjust all lasers." Before that: "Can we make the kick buttons override existing scene lights
+// and cause them to change color with a high intensity burst and slight fadeout and for that to be instantaneous" and "if
+// only color and white kick triggered exactly on cue and changed color banks or perhaps even the whole set after every few".
+// Round 2's colour kick recoloured the ONE area it dealt (a quarter of the rig at most) and never the lasers. Kick 5 is now
+// the kind colour "bank" (the set's kick.kinds; the palette lift above stays a kind a set may name):
+//   THE BANK      every press deals the active palette's next COLOUR BANK to the WHOLE stage (programmer.js bankCycle,
+//                 bankAdvance): the cycle is the palette's own colour roles (bed, partner, highlight, kick colour, a split's
+//                 accents; never its white, warm white, air or a pin; never a saturated red), ordered so that every step
+//                 moves furthest; each light group (the deck's rows: the rings' slats and rims, the truss and lip heads, the
+//                 towers and pods with their strips, both delay towers, the halo, the strand's heads, cubes, dots and bars)
+//                 stands at its own place on it -- so at least three palette colours are on the stage at once -- and a
+//                 cell's roles show the cycle's colours from there (the bed at the group's place, the partner two on: a helix
+//                 stays a helix, in two new colours). A press steps every group one place: EVERY group changes colour on
+//                 EVERY press, re-strikes included. The first press from the palette's own colours puts each group where
+//                 its colours move furthest from the look's (never the same two colours, never just swapped ends).
+//   THE HEADS     alternate on every press between the two slots of their PAIR on the palette's plan (its rest and alt,
+//                 or a lift: one clean wheel slot apart, turned at the wheel's speed, never red, never pink, never the warm
+//                 white). In the four palettes whose heads rest on white (Rose Fans, Moon Hive, Titanium, Noir) the pair is
+//                 white and the palette's colour slot, far apart on the wheel: a lit head is never run through the slots
+//                 between, it takes the new slot in black.
+//   THE LASERS    every laser group takes the bank's laser colours on the frame the bank changes (palettes.js bankLasers:
+//                 the palette's distinct laser colours turned one place a press, the fan's gradient between the two it now
+//                 shows; stage.js lasersFollowBank).
+//   LATCHED       the bank holds after the release until the next press of 5; kick 1 WHITE never steps it; a palette
+//                 change (P, the palette pads) starts from that palette's own colours (bank 0), and the next press of 5
+//                 deals its first bank.
+//   THE HIT       unchanged on top: the dealt area bursts (the punch, lit while held, the linger and the slight fade-out,
+//                 the strobe band, the comb, velocity's motion), in its new colours; the change lands at the press (the next
+//                 frame; the wheels at their motor speed). Velocity and the level keep their meaning (they set the burst);
+//                 the bank does not depend on them.
+//   THE GOVERNOR  the bank's step is one of the kick's optional changes: while the final limiter's most loaded window has
+//                 under governor.need transitions left, the step waits (one step, however many presses waited) and lands
+//                 the frame there is room. The limiter and every limit are untouched; with flash protection off the
+//                 governor sees a full budget.
+//   THE DEALER    under the bank the colour change is the hit, so a member counts as changed when it takes another colour,
+//                 darker or not (round 2's "never a dimming" stays for every other kind).
+//   Receipts: tests/stage_kick_bank.test.mjs; on the GPU, stage_verify --phases bank (the share of lit pixels whose hue
+//   moves 30 degrees or more after a press in a wide shot, the share of laser pixels that change colour, the red rule and the
+//   limiter with protection on).
 
 import { MotionDealer, valueAt, headSign, CLASSES, seededRng } from "../vj-motions.js";
 import { ORDERS, orderKey, rankBy } from "./effects.js";
@@ -104,7 +146,7 @@ import { hexToLinear, isSaturatedRed } from "./lasers.js";
 import { elementMatrix, eulerToMat3, mat3MulVec } from "./rig.js";
 import { STAGE_ROLES, deOK, linToHex } from "../palettes.js";
 
-export const KICK_API = "arsenal.stage-kick/v2.2";
+export const KICK_API = "arsenal.stage-kick/v3";
 export const KICK_KINDS = Object.freeze(["kick-white", "kick-colour"]);
 // what the dealer counts as a hit that shows (tests/stage_kick.test.mjs pins the same numbers): at least half the area's
 // members change their emitted light by more than CIE76 dE 10 (the pixel metric's own bar)
@@ -131,7 +173,8 @@ export const CLASSES_BEATS = (cls) => (CLASSES[cls] ? CLASSES[cls].beats : NaN);
 // THE KINDS: what a kick does to the area it is dealt, as data (the set's kick.kinds; the pad map names a kind as a pad's
 // action, so a new kind is a new entry here and a new pad there). Each kind:
 //   colour    "white" (the palette's white, role W), "palette" (the palette's lift: each cell its own role's lift colour),
-//             "keep" (the area's own colour) or "#rrggbb"
+//             "bank" (KICK round 3: the press deals the palette's next COLOUR BANK to the whole stage, lasers included, and
+//             the dealt area bursts in its new colours), "keep" (the area's own colour) or "#rrggbb"
 //   override  true: the kick's intensity and colour REPLACE the look's (latest takes precedence); false: a lift (highest)
 //   motion    "bands": velocity's animation (the bands: a peak, a sweep, twice the throw); "none"
 //   strobe    true: the strobe runs while the live level is in the top band
@@ -140,10 +183,10 @@ export const CLASSES_BEATS = (cls) => (CLASSES[cls] ? CLASSES[cls].beats : NaN);
 //   punch     the attack's overshoot over the held intensity on a fresh hit (0 none), settling over punch_s seconds
 // Round 3 adds kinds (a MOVE that steps the panning phrases, a BLAST of narrow full beams, a SWAP of which lights are on)
 // as new fields read here and new branches where press() and apply() read them.
-export const KIND_FIELDS = Object.freeze({ colour: ["white", "palette", "keep"], motion: ["bands", "none"], repeat: ["colour", "motion", "none"] });
+export const KIND_FIELDS = Object.freeze({ colour: ["white", "palette", "bank", "keep"], motion: ["bands", "none"], repeat: ["colour", "motion", "none"] });
 export const DEFAULT_KINDS = Object.freeze({
   "kick-white": Object.freeze({ colour: "white", override: true, motion: "bands", strobe: true, repeat: "motion", punch: 0.15 }),
-  "kick-colour": Object.freeze({ colour: "palette", override: true, motion: "bands", strobe: true, repeat: "colour", punch: 0.15 }),
+  "kick-colour": Object.freeze({ colour: "bank", override: true, motion: "bands", strobe: true, repeat: "colour", punch: 0.15 }),
 });
 const LEGACY_KIND = Object.freeze({ colour: "keep", override: false, motion: "none", strobe: false, repeat: "none", punch: 0 });
 
@@ -531,7 +574,8 @@ export class Kicks {
     // to dim a hit; a press always lights.
     // (and, round 2's last addition, a live area's motion and LED chase STAND STILL while the budget is spent: frames, in
     // gov.still; they move on from where they stood once a window has room again)
-    this.headroom = 5; this.gov = { punch: 0, colour: 0, comb: 0, motion: 0, fade: 0, strobe: 0, still: 0 };
+    this.headroom = 5; this.gov = { punch: 0, colour: 0, comb: 0, motion: 0, fade: 0, strobe: 0, still: 0, bank: 0 };
+    this.bankWait = false;                // a bank step the governor held back (taken once the limiter has room)
     // the pre-kick state of the last frame (the dealer judges a row on it) and each member's recent peak level
     this.preH = new Float64Array(prog.nH * 7); this.preC = new Float64Array(prog.nC * 4);
     this.recentH = new Float32Array(prog.nH); this.recentC = new Float32Array(prog.nC);
@@ -589,6 +633,8 @@ export class Kicks {
   _colourOf(kind, card, swap = null) {
     const spec = this.specOf(kind), p = this.p;
     if (spec.colour === "keep") return null;
+    // the bank: the area keeps its own colours, which are the bank's (the programmer deals them to every group)
+    if (spec.colour === "bank") return { lift: -1, role: -1, bank: true, rgb: p.bankSwatch(p.bankG.cellG[card.cells[0]] ?? p.bankG.headG[card.heads[0]] ?? 0).slice() };
     if (spec.colour === "white") return { lift: -1, role: this.whiteRole, rgb: p.roleRGB[this.whiteRole] };
     if (isHex(spec.colour)) { const r = this.kindRoles[kind]; return { lift: -1, role: r.role, rgb: r.rgb }; }
     const sw = swap === null ? this._liftSwap(card) : swap ? 1 : 0;
@@ -650,28 +696,30 @@ export class Kicks {
     const view = v0 === null ? { share: 1, cover: 1 } : typeof v0 === "number" ? { share: v0, cover: v0 } : v0;
     if (view.share < cfg.view.min_share || view.cover < (cfg.view.min_cover ?? 0)) return { changed: 0, view, ok: false, why: "too little of it in the camera's view" };
     const I = intensityOf(cfg, level), Ic = I;
-    const col = this._colourOf(kind, card);
+    const col = this._colourOf(kind, card), bankHit = !!(col && col.bank && this.p.bank.on);
     let ch = 0, n = 0;
     const sc = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
     const test = (before, lvNow, lvPeak, after) => {
       const bNow = sc(before, lvNow), bPeak = sc(before, lvPeak), la = labOfLinear(after)[0];
       const brighter = la >= Math.max(labOfLinear(bNow)[0], labOfLinear(bPeak)[0]) - 3;
       const d = Math.min(deltaE(bNow, after), deltaE(bPeak, after));
-      if (d > KICK_VISIBLE.de + VIS_DE_MARGIN && brighter) ch++;
+      // (under the bank the colour change is the hit, which may be a darker colour of the palette than the look's)
+      if (d > KICK_VISIBLE.de + VIS_DE_MARGIN && (brighter || bankHit)) ch++;
       n++;
     };
     if (card.heads.length) {
       const slots = this._slotsFor(card, col);
       for (let m = 0; m < card.heads.length; m++) {
         const i = card.heads[m], w = this.p.wheels[i], now = this._headColour(i);
-        const after = sc(w && slots && slots[m] >= 0 ? w[slots[m]] : col && col.lift < 0 && !w ? col.rgb : now, I);
+        const bs = col && col.bank && w ? this.p.bank.slot[i] : -1;
+        const after = sc(w && slots && slots[m] >= 0 ? w[slots[m]] : bs >= 0 ? w[bs] : col && col.lift < 0 && !col.bank && !w ? col.rgb : now, I);
         test(now, this.preH[i * 7 + 2], this.recentH[i], after);
       }
     }
     for (const c of card.cells) {
       if (this.p.cellKind[c] === CELL_PIN) continue;
       const now = this._cellColour(c);
-      const after = !col ? now : col.lift >= 0 ? this._cellLift(c, col.lift) : col.rgb;
+      const after = !col ? now : col.bank ? this.p.bankColourOfCell(c, clamp01(this.preC[c * 4 + 1])) : col.lift >= 0 ? this._cellLift(c, col.lift) : col.rgb;
       test(now, this.preC[c * 4], this.recentC[c], sc(after, Ic));
     }
     const changed = n ? ch / n : 0;
@@ -691,6 +739,12 @@ export class Kicks {
     const band = bandFor(cfg, vel);
     const level = this.levelOfVel(vel);
     this.motions.press(pos);
+    // KICK round 3: a bank kind deals the palette's next colour bank to the WHOLE stage on every press, a re-strike too
+    // (the burst below still lands on one area); while the limiter's budget is spent the step waits for room
+    if (spec.colour === "bank" && !cfg.legacy) {
+      if (this._can("bank")) { this.p.bankAdvance(pos); this.bankWait = false; }
+      else this.bankWait = true;
+    }
     // a press while this button's area is still lit RE-STRIKES it: the same area, held again, and the kind's repeat (the
     // next colour of about the same luminance, or a fresh motion)
     if (!cfg.legacy) {
@@ -745,7 +799,7 @@ export class Kicks {
                   strobing: false, maskOn: true, lit: false, dead: false, presses: 1, colour: null, slots: null, colourAtS: this._secs(pos),
                   punchFrom: spec.punch > 0 && this._can("punch") ? from : -Infinity, chaseShift: 0, comb: 0, deferred: 0, heldSince: pos, mHold: 0, still: false };
     this._paint(rec, this._colourOf(kind, card));
-    if (rec.colour && rec.colour.lift >= 0) this._jump(card, from);
+    if (rec.colour && (rec.colour.lift >= 0 || rec.colour.bank)) this._jump(card, from);
     if (band.sweep && spec.motion === "bands") rec.motion = this._motion(card, band, vel, from);
     if (!hold) this._release(rec, pos);
     this.list.push(rec);
@@ -765,6 +819,7 @@ export class Kicks {
     if (spec.repeat === "colour" && spec.colour === "palette" && k.colour && k.colour.lift >= 0 && this._can("colour")) {
       this._paint(k, this._colourOf(k.kind, k.card, 1 - k.colour.lift), true); this._jump(k.card, pos); k.colourAtS = this._secs(pos);
     }
+    if (spec.colour === "bank" && this.p.bank.on) { this._paint(k, this._colourOf(k.kind, k.card)); this._jump(k.card, pos); k.colourAtS = this._secs(pos); }
     k.heldSince = pos;                     // a new press is a new hold (the strobe's hold_s counts from it)
     // a fresh motion every re-strike (the sweep band's, at least: a roll always moves) and the chase jumped on -- both move
     // light about the frame, so they too wait for the limiter's headroom
@@ -860,6 +915,8 @@ export class Kicks {
     if (p.kickC) p.kickC.fill(0);
     const dB = this.lastPos === null ? 0 : Math.max(0, pos - this.lastPos);
     this.lastPos = pos;
+    // a bank step the governor held back lands once the limiter has room (one step, however many presses waited)
+    if (this.bankWait && this.headroom >= cfg.governor.need) { this.bankWait = false; p.bankAdvance(pos); }
     const fall = cfg.recent_fall_per_beat * dB;
     for (let i = 0; i < p.nH; i++) { const d = tH[i * 7 + 2]; this.recentH[i] = Math.max(d, this.recentH[i] - fall); }
     for (let c = 0; c < p.nC; c++) { const d = tC[c * 4]; this.recentC[c] = Math.max(d, this.recentC[c] - fall); }
@@ -978,7 +1035,7 @@ export class Kicks {
     return { api: KICK_API, legacy: this.cfg.legacy, kinds: this.cfg.kindNames.slice(), presses: this.presses, presses_unlit: this.unlit,
              palette: p.palette ? p.palette.id : (p.theme && (p.theme.id || p.theme.name)) || null, ladder: lad,
              white: this.cfg.legacy || !p.roleRGB ? null : linToHex(p.roleRGB[R_W]), since_strand: this.sinceStrand,
-             headroom: this.headroom, governor_held_back: { ...this.gov },
+             headroom: this.headroom, governor_held_back: { ...this.gov }, bank: p.bankStatus ? p.bankStatus() : null, bank_waiting: this.bankWait,
              restrikes: this.restrikes, areas_passed_over: this.passedOver, round: this.deck.round,
              clock: { on: this.clock.on, period_beats: this.clock.P, on_beats: +this.clock.onB.toFixed(3) },
              live: this.list.map((k) => ({ kind: k.kind, row: k.card.name, band: k.band, level: +k.level.toFixed(3), target: +k.levelTarget.toFixed(3),
