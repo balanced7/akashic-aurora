@@ -250,6 +250,12 @@ async function phaseConsent(pageKey, sizeKey) {
     await press(first.labelRect.x - first.labelRect.w / 2 + 14, first.labelRect.y);
     const afterBox = await ev(SCREEN);
     check(`${tag}: a ${Z.phone ? "tap" : "click"} unchecks the box`, afterBox && afterBox.checked === false, afterBox && { checked: afterBox.checked });
+    if (Z.phone && pageKey === "stage") {
+      // the viewer reads the warning for more than half a minute (the page's clock jumps 31 s): the kick strips must still
+      // come once the show starts (the pad bar looks for the pad door for as long as it takes)
+      await ev("(window.__vt.step(31000), true)");
+      await delay(2500);
+    }
     await press(first.start.x, first.start.y);
     await waitFor(() => ev("!document.getElementById('flash-consent')"), 10000, "the screen to close");
     await waitFor(() => ev(P.ready), 120000, "the page to be ready");
@@ -258,6 +264,10 @@ async function phaseConsent(pageKey, sizeKey) {
     const started = await ev(P.started);
     phase.after_start = { state: st, stored, started };
     check(`${tag}: Start starts the show with protection off, and the browser remembers "off"`, st && st.on === false && stored === "off" && started === true, phase.after_start);
+    if (Z.phone && pageKey === "stage") {
+      const strips = await waitFor(() => ev("document.querySelectorAll('.tbs').length === 2 && document.querySelectorAll('.tbs').length"), 8000, "the kick strips").catch(() => 0);
+      check(`${tag}: the pad bar's two kick strips come once the show starts, after 31 s on the warning`, strips === 2, { strips });
+    }
     await ev(STEP(12));
     const nag1 = await ev(NAG);
     await shot(`after-start-${pageKey}-${sizeKey}.png`);

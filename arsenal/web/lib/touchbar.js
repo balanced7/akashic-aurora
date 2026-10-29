@@ -160,11 +160,13 @@ export function mountTouchBar({ id, pads, strips = [] }) {
   document.addEventListener("visibilitychange", () => { if (wakeWanted) keepAwake(); });
   document.body.appendChild(bar);
   if (strips.length) {
-    // the strips wait for the page's pad door (it opens once the page has booted); a page without one keeps its keys
+    // the strips wait for the page's pad door (it opens once the show starts: a show page holds its start for the
+    // viewer's flash protection choice, lib/flash-consent.js, for as long as the viewer reads the warning); a page
+    // without a door keeps its keys. Looked for every 250 ms for 30 s, then every 2 s.
     const t0 = performance.now();
     const look = () => {
       if (window.__padDoor) { for (const st of strips) mountStrip(st); bar.classList.add("strips"); return; }
-      if (performance.now() - t0 < 30000) setTimeout(look, 250);
+      setTimeout(look, performance.now() - t0 < 30000 ? 250 : 2000);
     };
     look();
   }
