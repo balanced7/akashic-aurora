@@ -60,6 +60,7 @@ import { hexToLinear } from "./lasers.js";
 import { aimPreset } from "./phrases.js";
 import { Kicks, redSlots, wheelWay, wayLumaClean as wayLumaCleanKick } from "./kick.js";
 import { STAGE_ROLES, planOf, tableOf, sampleTable, mixLch, isSaturatedRed, deOK, lchOfLin, hueGap, mixLin } from "../palettes.js";
+import { partOfSide, tableInto, whitesTurn, cycleOf, pathOf, mixPath, lasersAt, cubesAt, setupSlots, levelOf, NR as SETUP_NR } from "./setups.js";
 
 export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
@@ -333,26 +334,40 @@ export class Programmer {
     // THE COLOUR BANK: each member's bank group (-1: none, a pin), the groups' places on the cycle, the heads' pairs and the
     // slot the bank has a head on (-1: the look's), the cells' roles before the bank (kick.js judges the next bank with them)
     this.bankG = { names: [], cellG: new Int16Array(this.nC).fill(-1), headG: new Int16Array(this.nH).fill(-1) };
+    // (and each member's side of its group, for a setup's left / right placement: the part 0 centre, 1 left, 2 right)
+    this.cellSG = new Int16Array(this.nC); this.headSG = new Int16Array(this.nH);
     for (const gname of BANK_GROUPS) {
       const g = rig.groups[gname];
       if (!g) continue;
       const gi = this.bankG.names.push(gname) - 1;
+      const side = g.keys && g.keys.side;
       for (let m = 0; m < g.n; m++) {
-        const k = g.members[m];
-        if (g.kind === "cells" && this.bankG.cellG[k] < 0) this.bankG.cellG[k] = gi;
-        else if (g.kind === "heads" && this.bankG.headG[k] < 0) this.bankG.headG[k] = gi;
+        const k = g.members[m], part = side ? partOfSide(side[m]) : 0;
+        if (g.kind === "cells" && this.bankG.cellG[k] < 0) { this.bankG.cellG[k] = gi; this.cellSG[k] = gi * 3 + part; }
+        else if (g.kind === "heads" && this.bankG.headG[k] < 0) { this.bankG.headG[k] = gi; this.headSG[k] = gi * 3 + part; }
       }
     }
     // a member none of them names (another set's rig) still takes the bank, in a group of its own
     const extra = this.bankG.names.length;
     let anyExtra = false;
-    for (let c = 0; c < this.nC; c++) if (this.bankG.cellG[c] < 0) { this.bankG.cellG[c] = extra; anyExtra = true; }
-    for (let i = 0; i < this.nH; i++) if (this.bankG.headG[i] < 0) { this.bankG.headG[i] = extra; anyExtra = true; }
+    for (let c = 0; c < this.nC; c++) if (this.bankG.cellG[c] < 0) { this.bankG.cellG[c] = extra; this.cellSG[c] = extra * 3; anyExtra = true; }
+    for (let i = 0; i < this.nH; i++) if (this.bankG.headG[i] < 0) { this.bankG.headG[i] = extra; this.headSG[i] = extra * 3; anyExtra = true; }
     if (anyExtra) this.bankG.names.push("other");
     const nG = this.bankG.names.length;
     this.bank = { on: false, count: 0, serial: 0, cycle: [], idx: new Int32Array(nG), near: new Uint8Array(nG), maps: Array.from({ length: nG }, () => new Int16Array(ROLES.length)),
                   pairs: new Array(this.nH).fill(null), slot: new Int16Array(this.nH).fill(-1), log: [] };
     this.bankOrigC = new Int16Array(this.nC * 2);
+    // THE SETUP LAYER (setups.js): each (group, part)'s role table -- the targets, what showed when a setup landed, and
+    // what shows (setupView: per (group, part) a role -> [r, g, b] view of shown, read by the colour stage like roleRGB)
+    {
+      const nSG = nG * 3, len = nSG * SETUP_NR * 3;
+      const shown = new Float32Array(len);
+      this.sx = { def: null, pending: null, k: 0, fading: false, p0: 0, len: 0, T: new Float32Array(len), F: new Float32Array(len), shown,
+                  path: new Uint8Array(nSG * SETUP_NR), wToB: new Uint8Array(nSG), level: new Float32Array(nSG).fill(Infinity), cube: null, cubeF: null, cubeT: null, cubePath: [0, 0],
+                  lasers: null, laserSerial: 0, allowed: new Map(), prevAllowed: null, prevDef: null, events: [], landings: [] };
+      this.setupView = Array.from({ length: nSG }, (_, sg) => Array.from({ length: SETUP_NR }, (_, r) => shown.subarray((sg * SETUP_NR + r) * 3, (sg * SETUP_NR + r) * 3 + 3)));
+      this.setupOn = false;
+    }
     this.setTheme(theme || Object.values(rig.themes)[0] || null);
     this.stats = { kicks: [], flyouts: 0, lookChanges: 0, overlays: 0 };
     // the phrase layer
@@ -592,10 +607,15 @@ export class Programmer {
     }
     B.on = false; B.count = 0; B.serial++; B.idx.fill(0); B.near.fill(0); B.slot.fill(-1);
     if (this.bankDip) this.bankDip.fill(0);
+    if (this.sx) { this.sx.k = 0; this.sx.wToB.fill(0); if (this.sx.def) { this.sx.lasers = lasersAt(this.sx.def, 0, this.roleRGB); this.sx.laserSerial++; } }
   }
   // KICK 5: every group one place on round the cycle (the first press from the palette's own colours puts each group where
   // its colours move furthest from the look's), every head to the other slot of its pair. Lands on the next frame.
   bankAdvance(pos = null) {
+    // under a SETUP the bank turns the setup's own colours (setups.js THE BANK WITHIN A SETUP); a fade back to the palette's
+    // own looks ends at the press, and the palette's bank takes it from there
+    if (this.setupOn && this.sx.def) return this._setupBank(pos);
+    if (this.setupOn) { this.setupOn = false; this.sx.fading = false; }
     const B = this.bank, n = B.cycle.length;
     if (n < 2) return false;
     const nG = B.idx.length;
@@ -657,6 +677,18 @@ export class Programmer {
   // roles through its group's map; the cells' roles before it are kept for the kick's judge
   _bankApply() {
     const B = this.bank, tC = this.tC, tH = this.tH, cg = this.bankG.cellG, hg = this.bankG.headG, nR = ROLES.length;
+    if (this.setupOn) {
+      // a SETUP's bank is in its tables; here only the look's whites of a group that does not keep them take its b (W to
+      // B; setups.js whitesTurn) -- a kick's white, painted after this, stays the setup's white
+      const turn = true, wb = this.sx.wToB, W = ROLE.W, Bi = ROLE.B;
+      for (let c = 0; c < this.nC; c++) {
+        const b = c * 4;
+        this.bankOrigC[c * 2] = tC[b + 2]; this.bankOrigC[c * 2 + 1] = tC[b + 3];
+        if (turn && wb[this.cellSG[c]]) { if ((tC[b + 2] | 0) === W) tC[b + 2] = Bi; if ((tC[b + 3] | 0) === W) tC[b + 3] = Bi; }
+      }
+      if (turn) for (let i = 0; i < this.nH; i++) if (wb[this.headSG[i]]) { const b = i * 7; if ((tH[b + 5] | 0) === W) tH[b + 5] = Bi; if ((tH[b + 6] | 0) === W) tH[b + 6] = Bi; }
+      return;
+    }
     for (let c = 0; c < this.nC; c++) {
       const b = c * 4;
       this.bankOrigC[c * 2] = tC[b + 2]; this.bankOrigC[c * 2 + 1] = tC[b + 3];
@@ -677,13 +709,25 @@ export class Programmer {
   bankColourOfCell(c, mix, out = [0, 0, 0]) {
     const B = this.bank, nR = ROLES.length;
     let r1 = this.bankOrigC[c * 2], r2 = this.bankOrigC[c * 2 + 1];
+    if (this.setupOn) {
+      if (this.sx.wToB[this.cellSG[c]]) { if (r1 === ROLE.W) r1 = ROLE.B; if (r2 === ROLE.W) r2 = ROLE.B; }
+      return this.colourOfCell(c, r1, r2, mix, out);
+    }
     if (B.on && this.cellKind[c] !== CELL_KIND.PIN) { const m = B.maps[this.bankG.cellG[c]]; if (r1 < nR) r1 = m[r1]; if (r2 < nR) r2 = m[r2]; }
     return this.colourOfCell(c, r1, r2, mix, out);
   }
   // the colour of group g's bed under the bank (the record's swatch)
-  bankSwatch(g = 0) { const B = this.bank; return B.on && B.cycle.length ? this.roleRGB[B.cycle[B.idx[g] % B.cycle.length]] : this.roleRGB[ROLE.A]; }
+  bankSwatch(g = 0) {
+    const B = this.bank;
+    if (this.setupOn) return this.setupView[g * 3][ROLE.A];
+    return B.on && B.cycle.length ? this.roleRGB[B.cycle[B.idx[g] % B.cycle.length]] : this.roleRGB[ROLE.A];
+  }
   bankStatus() {
     const B = this.bank;
+    if (this.setupOn && this.sx.def) {
+      const S = this.sx.def, place = (n) => (!S.place[n] ? "look" : S.place[n].pin ? "pinned" : "turns");
+      return { on: B.on, count: B.count, setup: S.id, cycle: cycleOf(S, this.roleRGB).slice(), groups: Object.fromEntries(this.bankG.names.map((n) => [n, place(n)])), log: B.log.slice(-8) };
+    }
     return { on: B.on, count: B.count, cycle: B.cycle.map((r) => ROLES[r]), groups: Object.fromEntries(this.bankG.names.map((n, g) => [n, B.on ? ROLES[B.cycle[B.idx[g] % B.cycle.length]] : "look"])),
              log: B.log.slice(-8) };
   }
@@ -767,22 +811,161 @@ export class Programmer {
       this.roleRGB[ROLE.A] = u >= 1 ? cur.slice() : mixLch(prev, cur, u);
     }
   }
+  // --------------------------------------------------------------------------------------------- THE SETUP LAYER --
+  // SETUPS (2026-10-29, setups.js; Daniel: "i want the lights to cycle different color palates and setups"). A setup
+  // places its own colours on the bank's groups (and the lasers and the HAL cubes): each (group, part) gets a role table
+  // the colour stage reads instead of the palette's roles (setupView), after the look, the phrases, the formations, the
+  // bank and the kicks have set every member's roles and levels -- so a setup recolours, it never moves or dims anything.
+  // beginSetup(S, pos) lands S (null: back to the palette's own looks) ON pos, crossfading every table from what shows
+  // over `beats` along each colour's clean path (setups.js pathOf); a new setup starts at bank 0 and kick 5 turns its own
+  // colours (_setupBank). Pinned groups hold; heads take the slots nearest the setup's colours, moving far in black.
+  beginSetup(S, pos, { beats = 4 } = {}) {
+    this.sx.pending = { def: S || null, at: pos, beats: Math.max(0, beats) };
+    return { id: S ? S.id : null, at: pos, until: pos + Math.max(0, beats) };
+  }
+  // a setup now, no crossfade (the receipts' door and the page's first frame)
+  setSetupNow(S) { this.sx.pending = { def: S || null, at: -Infinity, beats: 0 }; this._setupStep(-Infinity); }
+  _setupTargets(S, k, out) {
+    const roles = this.roleRGB, cy = S ? cycleOf(S, roles) : null, names = this.bankG.names, nR = SETUP_NR;
+    for (let g = 0; g < names.length; g++) {
+      const placed = S && S.place[names[g]];
+      this.sx.wToB[g * 3] = this.sx.wToB[g * 3 + 1] = this.sx.wToB[g * 3 + 2] = placed && whitesTurn(S, names[g], k) ? 1 : 0;
+      this.sx.level[g * 3] = this.sx.level[g * 3 + 1] = this.sx.level[g * 3 + 2] = placed ? levelOf(S, names[g]) : Infinity;
+      for (let part = 0; part < 3; part++) {
+        const off = (g * 3 + part) * nR * 3;
+        if (placed) tableInto(S, names[g], part, k, roles, out, off, cy);
+        else for (let r = 0; r < nR; r++) { const c = roles[r]; out[off + r * 3] = c[0]; out[off + r * 3 + 1] = c[1]; out[off + r * 3 + 2] = c[2]; }
+      }
+    }
+    return out;
+  }
+  // the HAL cubes' tint the setup gives (cubes.js THE HOOK), or the palette's own (its deep along to its B)
+  _setupCubeTarget(S, k) {
+    if (S) return cubesAt(S, k, this.roleRGB);
+    return { glowTop: (this.ambient || [0.03, 0.01, 0.2]).slice(), glowBottom: this.roleRGB[ROLE.B].slice(), coreTop: null, coreBottom: null, glowMix: null };
+  }
+  _setupStep(pos) {
+    const X = this.sx;
+    if (X.pending && pos >= X.pending.at - 1e-9) {
+      const P = X.pending;
+      X.pending = null;
+      // what shows now is where the crossfade starts (the palette's own roles when no setup was up)
+      if (this.setupOn) X.F.set(X.shown); else this._setupTargets(null, 0, X.F);
+      X.cubeF = this.setupOn && X.cube ? { ...X.cube } : this._setupCubeTarget(null, 0);
+      X.prevDef = this.setupOn ? X.def : null; X.prevAllowed = this.setupOn ? "setup" : "palette";
+      X.def = P.def;
+      X.allowed.clear();
+      this.setupOn = true;
+      this._bankReset();                                 // the new setup (or the palette) starts from its own colours
+      X.k = 0;
+      this._setupTargets(X.def, 0, X.T);
+      X.fading = P.beats > 0 && Number.isFinite(P.at);
+      X.p0 = P.at; X.len = P.beats;
+      if (X.fading) {
+        const a = [0, 0, 0], b = [0, 0, 0];
+        for (let e = 0; e < X.path.length; e++) { const o = e * 3; a[0] = X.F[o]; a[1] = X.F[o + 1]; a[2] = X.F[o + 2]; b[0] = X.T[o]; b[1] = X.T[o + 1]; b[2] = X.T[o + 2]; X.path[e] = pathOf(a, b); }
+        X.cubeT = this._setupCubeTarget(X.def, 0);
+        X.cubePath = [pathOf(X.cubeF.glowTop, X.cubeT.glowTop), pathOf(X.cubeF.glowBottom, X.cubeT.glowBottom)];
+      }
+      X.lasers = X.def ? lasersAt(X.def, 0, this.roleRGB) : null;   // the lasers change ON the line
+      X.laserSerial++;
+      X.events.push({ type: "swap", id: X.def ? X.def.id : null, pos: Number.isFinite(pos) ? pos : null });
+      if (!X.fading) { X.events.push({ type: "landed", id: X.def ? X.def.id : null, pos: Number.isFinite(pos) ? pos : null }); if (!X.def) this.setupOn = false; }
+      if (X.landings.length >= 64) X.landings.shift();
+      X.landings.push({ id: X.def ? X.def.id : null, pos: Number.isFinite(P.at) ? +P.at.toFixed(4) : null, beats: P.beats });
+    }
+    if (!this.setupOn) { X.cube = null; return; }
+    this._setupTargets(X.def, X.k, X.T);
+    const cubeT = this._setupCubeTarget(X.def, X.k);
+    if (X.fading) {
+      const u = (pos - X.p0) / X.len;
+      if (u >= 1) {
+        X.fading = false;
+        X.events.push({ type: "landed", id: X.def ? X.def.id : null, pos });
+        X.prevAllowed = null; X.allowed.clear();
+        if (!X.def) { this.setupOn = false; X.cube = null; return; }
+      } else {
+        const t = Math.max(0, u), a = [0, 0, 0], b = [0, 0, 0], m = [0, 0, 0];
+        for (let e = 0; e < X.path.length; e++) {
+          const o = e * 3;
+          a[0] = X.F[o]; a[1] = X.F[o + 1]; a[2] = X.F[o + 2]; b[0] = X.T[o]; b[1] = X.T[o + 1]; b[2] = X.T[o + 2];
+          mixPath(a, b, t, X.path[e], m);
+          X.shown[o] = m[0]; X.shown[o + 1] = m[1]; X.shown[o + 2] = m[2];
+        }
+        const F = X.cubeF;
+        X.cube = { glowTop: mixPath(F.glowTop, cubeT.glowTop, t, X.cubePath[0]), glowBottom: mixPath(F.glowBottom, cubeT.glowBottom, t, X.cubePath[1]),
+                   coreTop: t < 0.5 ? F.coreTop : cubeT.coreTop, coreBottom: t < 0.5 ? F.coreBottom : cubeT.coreBottom, glowMix: t < 0.5 ? F.glowMix : cubeT.glowMix };
+        return;
+      }
+    }
+    X.shown.set(X.T);
+    X.cube = X.def ? cubeT : null;
+  }
+  // KICK 5 under a setup: the next bank of the setup's own colours, every group at once (the tables now, so the kick's
+  // judge sees them on this press); the lasers turn through the setup's laser bank; a crossfade under way lands at once
+  _setupBank(pos) {
+    const B = this.bank, X = this.sx;
+    B.on = true; B.count++; B.serial++; X.k = B.count;
+    X.fading = false; X.prevAllowed = null; X.allowed.clear();
+    this._setupTargets(X.def, X.k, X.T);
+    X.shown.set(X.T);
+    X.cube = this._setupCubeTarget(X.def, X.k);
+    X.lasers = lasersAt(X.def, X.k, this.roleRGB); X.laserSerial++;
+    // the dealer's view of the beams: the slot each will show (the look's roles at its mix through the new tables)
+    const W = ROLE.W, Bi = ROLE.B, rgb = [0, 0, 0];
+    for (let i = 0; i < this.nH; i++) {
+      const w = this.wheels[i];
+      if (!w) continue;
+      const b = i * 7, RT = this.setupView[this.headSG[i]], turn = X.wToB[this.headSG[i]];
+      let r1 = this.tH[b + 5] | 0, r2 = this.tH[b + 6] | 0;
+      if (turn && r1 === W) r1 = Bi;
+      if (turn && r2 === W) r2 = Bi;
+      const c1 = r1 < SETUP_NR ? RT[r1] : this.roleRGB[r1], c2 = r2 < SETUP_NR ? RT[r2] : this.roleRGB[r2], mx = Math.max(0, Math.min(1, this.tH[b + 4]));
+      for (let k = 0; k < 3; k++) rgb[k] = c1[k] + (c2[k] - c1[k]) * mx;
+      B.slot[i] = nearestSlot(w, rgb, this._setupAllowed(i));
+    }
+    if (B.log.length >= 64) B.log.shift();
+    B.log.push({ count: B.count, pos: pos === null ? null : +pos.toFixed(4), setup: X.def.id });
+    return true;
+  }
+  // the wheel slots a head may show under the setup (and, while one crossfades in, under what it replaces)
+  _setupAllowed(i) {
+    const X = this.sx, t = this.rig.fixtures[this.rig.heads[i]].type;
+    let a = X.allowed.get(t);
+    if (a) return a;
+    const w = this.wheels[i], red = this.redSlotsOf(i), set = new Set(X.def ? setupSlots(X.def, w, red, this.roleRGB, nearestSlot) : [0]);
+    if (X.fading || !X.def) {
+      const prev = X.prevAllowed === "setup" && X.prevDef ? setupSlots(X.prevDef, w, red, this.roleRGB, nearestSlot) : this.headAllowed || w.map((_, k) => k);
+      for (const s of prev) set.add(s);
+    }
+    a = [...set].filter((s) => !red.includes(s)).sort((x, y) => x - y);
+    X.allowed.set(t, a);
+    return a;
+  }
+  takeSetupEvents() { const e = this.sx.events; this.sx.events = []; return e; }
+  setupStatus() {
+    const X = this.sx;
+    return { on: this.setupOn, id: X.def ? X.def.id : null, name: X.def ? X.def.name : null, bank: X.k, fading: X.fading,
+             pending: X.pending ? { id: X.pending.def ? X.pending.def.id : null, at: X.pending.at } : null,
+             cycle: X.def ? cycleOf(X.def, this.roleRGB).slice() : null, lasers: X.lasers ? X.lasers.names.slice() : null,
+             cubes: X.def ? cubesAt(X.def, X.k, this.roleRGB).names : null, landings: X.landings.slice(-8) };
+  }
   // a cell's colour for the roles r1, r2 at mix as this palette shows it (its split or pin, a 3-stop strand's ramp): the
   // colour stage below does the same inline; kick.js judges a hit with it
   colourOfCell(c, r1, r2, mix, out = [0, 0, 0]) {
-    const kind = this.cellKind[c], nR = ROLES.length;
+    const kind = this.cellKind[c], nR = ROLES.length, RT = this.setupOn ? this.setupView[this.cellSG[c]] : null;
     if (kind && !(this.bank.on && kind === CELL_KIND.ACCENT)) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
-    if (this.ramp3 && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) return sampleTable(this.ramp3, r1 === ROLE.A ? mix : 1 - mix, out);
-    const c1 = this.roleRGB[r1], c2 = this.roleRGB[r2];
+    if (this.ramp3 && !RT && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) return sampleTable(this.ramp3, r1 === ROLE.A ? mix : 1 - mix, out);
+    const c1 = RT && r1 < nR ? RT[r1] : this.roleRGB[r1], c2 = RT && r2 < nR ? RT[r2] : this.roleRGB[r2];
     for (let k = 0; k < 3; k++) out[k] = c1[k] + (c2[k] - c1[k]) * mix;
     return out;
   }
   // the colour kick's LIFT of that cell: each of its roles lifted inside the palette (LIFT; swap 1 the swapped ladder), its
   // mix -- its place in the gradient -- kept, so a lifted strand is still a helix
   liftOfCell(c, r1, r2, mix, swap = 0, out = [0, 0, 0]) {
-    const kind = this.cellKind[c], nR = ROLES.length, L = LIFT_IDX[swap ? 1 : 0];
+    const kind = this.cellKind[c], nR = ROLES.length, L = LIFT_IDX[swap ? 1 : 0], RT = this.setupOn ? this.setupView[this.cellSG[c]] : this.roleRGB;
     if (kind && !(this.bank.on && kind === CELL_KIND.ACCENT)) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
-    const c1 = this.roleRGB[r1 < nR ? L[r1] : r1], c2 = this.roleRGB[r2 < nR ? L[r2] : r2];
+    const c1 = r1 < nR ? RT[L[r1]] : this.roleRGB[r1], c2 = r2 < nR ? RT[L[r2]] : this.roleRGB[r2];
     for (let k = 0; k < 3; k++) out[k] = c1[k] + (c2[k] - c1[k]) * mix;
     return out;
   }
@@ -790,6 +973,7 @@ export class Programmer {
   // the slot a head shows for the look's colour: a split head's own slot (white stays white), else the palette's slot
   // nearest the colour (never a slot outside the palette's plan: the warm white only where a palette declares it)
   _lookSlot(i, b, rgb) {
+    if (this.setupOn) return nearestSlot(this.wheels[i], rgb, this._setupAllowed(i));   // a SETUP: its colours' slots
     if (this.bank.on && this.bank.slot[i] >= 0) return this.bank.slot[i];     // KICK 5's bank: the head's side of its pair
     const ov = this.headSlotOv[i];
     if (ov >= 0) { const lead = this.tH[b + 4] <= 0.5 ? this.tH[b + 5] | 0 : this.tH[b + 6] | 0; if (lead !== ROLE.W) return ov; }
@@ -904,6 +1088,8 @@ export class Programmer {
     this.perMs = grid.period || this.perMs; this.barAnchor = grid.barAnchor ?? 0;
     // 0. the palette: its transition (a crossfade, or a dip with the swap at the bottom) and Lantern Walk's walk
     this._paletteStep(pos);
+    // 0b. the SETUP layer: a setup landing (its crossfade from what shows), its tables at the bank's step
+    this._setupStep(pos);
     // 1. the look's base, crossfading dimmers from the previous look
     const f = this.fade.len > 0 ? Math.min(1, Math.max(0, (pos - this.fade.p0) / this.fade.len)) : 1;
     for (let i = 0; i < nH * 7; i++) {
@@ -962,6 +1148,7 @@ export class Programmer {
     // the bank's move in black: may heads waiting for one start their dip on this frame? (asked once a frame, so every
     // waiting head dips together: one dip of the beams, not a ripple of them)
     let dipOK = null;
+    const SV = this.setupOn ? this.setupView : null, nRh = ROLES.length;
     for (let i = 0; i < nH; i++) {
       const b = i * 7, o = i * HEAD_FLOATS, s = this.slews[i];
       const master = M.grand * dipL * (this.strandHead[i] ? M.strand : M.beams);
@@ -970,7 +1157,8 @@ export class Programmer {
       const zt = this.tH[b + 3] > 0 ? this.tH[b + 3] : this.zoomHome[i];
       const zoom = s.zoom.step(Math.min(this.zoomMax[i], Math.max(this.zoomMin[i], zt)), dt);
       const mix = Math.max(0, Math.min(1, this.tH[b + 4]));
-      const c1 = this.roleRGB[this.tH[b + 5] | 0], c2 = this.roleRGB[this.tH[b + 6] | 0];
+      const rh1 = this.tH[b + 5] | 0, rh2 = this.tH[b + 6] | 0, RTh = SV ? SV[this.headSG[i]] : null;
+      const c1 = RTh && rh1 < nRh ? RTh[rh1] : this.roleRGB[rh1], c2 = RTh && rh2 < nRh ? RTh[rh2] : this.roleRGB[rh2];
       let r = c1[0] + (c2[0] - c1[0]) * mix, g = c1[1] + (c2[1] - c1[1]) * mix, bl = c1[2] + (c2[2] - c1[2]) * mix;
       const wheel = this.wheels[i];
       if (wheel) {
@@ -991,9 +1179,15 @@ export class Programmer {
             // lit: wait (up to a beat) for black; a bank's far move (white to a colour) is never run lit through the slots
             // between: it takes its dimmer to black (the move in black), as soon as the flash governor has room for the
             // dip and its return (kick.js canDip), and waits until then
-            if (this.bank.on && this.bank.slot[i] === target) {
+            if (this.bank.on && this.bank.slot[i] === target && !SV) {
               if (!this.bankDip[i]) { if (dipOK === null) dipOK = this.kick.canDip(); if (dipOK) this.bankDip[i] = 1; }
               target = at;
+            } else if (SV) {
+              // a SETUP's beams: a far move (a landing, a bank step, a look's role change) is made in black as soon as the
+              // governor has room for the dip; with none within a beat the wheel turns lit the red-free short way, as a
+              // look's change does (a setup's beams never stay on the last setup's colour)
+              if (!this.bankDip[i]) { if (dipOK === null) dipOK = this.kick.canDip(); if (dipOK) this.bankDip[i] = 1; }
+              if (this.bankDip[i] || pos - this.wheelWait[i] < 1) target = at;
             } else if (pos - this.wheelWait[i] < 1) target = at;
           }
         } else if (ks >= 0 || target === at) { this.wheelWait[i] = -1; this.bankDip[i] = 0; }
@@ -1015,11 +1209,15 @@ export class Programmer {
         r = c[0]; g = c[1]; bl = c[2];
       }
       const h = this.heads;
-      h[o + H.PAN] = pan; h[o + H.TILT] = tilt; h[o + H.DIM] = dim; h[o + H.R] = r; h[o + H.G] = g; h[o + H.B] = bl;
+      // a SETUP's beams at its level (setups.js THE LEVEL): a wheel slot brighter than the group's level (white, yellow,
+      // cyan, green against the blue and violet slots) is dimmed to it on the way out, the dimmer's own motion untouched
+      // (stage_verify --phases setups: with the beams mastered off the limiter never acted under any setup)
+      const lvl = SV ? Math.min(1, this.sx.level[this.headSG[i]] / Math.max(1e-6, 0.2126 * r + 0.7152 * g + 0.0722 * bl)) : 1;
+      h[o + H.PAN] = pan; h[o + H.TILT] = tilt; h[o + H.DIM] = dim * lvl; h[o + H.R] = r; h[o + H.G] = g; h[o + H.B] = bl;
       h[o + H.ZOOM] = zoom; h[o + H.FROST] = 0; h[o + H.IRIS] = 1; h[o + H.GOBO] = 0; h[o + H.GOBOROT] = 0;
       h[o + H.PRISM] = 0; h[o + H.PRISMROT] = 0; h[o + H.SHUTTER] = 1; h[o + H.FOCUS] = 0.5; h[o + H.FLAGS] = 0;
     }
-    const kC = this.kickC, ramp = this.ramp3, nR = ROLES.length, tmp = [0, 0, 0], bankOn = this.bank.on;
+    const kC = this.kickC, ramp = this.ramp3, nR = ROLES.length, tmp = [0, 0, 0], bankOn = this.bank.on, SV2 = this.setupOn ? this.setupView : null;
     const pinK = 1 - Math.exp(-Math.max(0, dt) / PIN_TAU_S);
     for (let c = 0; c < nC; c++) {
       const b = c * 4, kind = this.cellKind[c];
@@ -1030,10 +1228,11 @@ export class Programmer {
       // (a split's cells show its second family; under the bank they show the bank's colours like every other cell)
       if (kind && !(bankOn && kind === CELL_KIND.ACCENT)) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
       let R, G, B;
-      if (ramp && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) {
+      const RTc = SV2 ? SV2[this.cellSG[c]] : null;
+      if (ramp && !RTc && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) {
         sampleTable(ramp, r1 === ROLE.A ? mix : 1 - mix, tmp); R = tmp[0]; G = tmp[1]; B = tmp[2];   // a 3-stop strand
       } else {
-        const c1 = this.roleRGB[r1], c2 = this.roleRGB[r2];
+        const c1 = RTc && r1 < nR ? RTc[r1] : this.roleRGB[r1], c2 = RTc && r2 < nR ? RTc[r2] : this.roleRGB[r2];
         R = c1[0] + (c2[0] - c1[0]) * mix; G = c1[1] + (c2[1] - c1[1]) * mix; B = c1[2] + (c2[2] - c1[2]) * mix;
       }
       // the colour kick's lift over the look's colour (kick.js: each cell's own roles lifted, its gradient kept)

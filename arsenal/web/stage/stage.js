@@ -94,6 +94,7 @@ import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
 import { Grammar } from "./grammar.js";
 import { Ensembles, chainLayers } from "./ensemble.js";
 import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf, bankLasers, bankLaserExtras } from "../palettes.js";
+import { fetchSetups, stepSetup, nextAutoLine, nextBarLine } from "./setups.js";
 import { withExtraShots, askedShot } from "./stills.js";
 
 const QS = new URLSearchParams(location.search);
@@ -111,6 +112,10 @@ const asName = (v) => (/^[a-z0-9][a-z0-9-]{0,40}$/.test(v || "") ? v : null);
 const THEME_ASKED = asName(QS.get("theme")), PHRASE_ASKED = asName(QS.get("phrase")), RING_ASKED = asName(QS.get("ring"));
 const PALETTE_ASKED = asName(QS.get("palette")) || THEME_ASKED;
 const STRAND_ASKED = asName(QS.get("strand"));
+// SETUPS (setups.js): ?setup=<id> starts on that setup and holds it (add &setups=rotate to rotate from it); ?setups=hold
+// holds the first; ?setups=off is the palettes' own looks; ?setups=rotate turns them on (automation gets none unless asked)
+const SETUP_ASKED = asName(QS.get("setup"));
+const SETUPS_MODE = ["hold", "off", "rotate"].includes(QS.get("setups")) ? QS.get("setups") : null;
 // the chord phrasing (grammar.js): on unless ?grammar=0 (today's direct routing)
 const GRAMMAR = QS.get("grammar") !== "0";
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
@@ -160,6 +165,12 @@ async function boot() {
     palettes = await fetchPalettes(new URL("../palettes.json", import.meta.url), fetch, { wheel: beam ? beam.attrs.Color1.colours : null });
     for (const r of palettes.refused) recordError("palette", `${r.id} refused: ${r.problems.join("; ")}`);
   } catch (e) { recordError("palettes", e); }
+  // the setups (a setup that fails is refused with its reasons and the rest load; without them the palettes' looks run)
+  let setups = null;
+  try {
+    setups = await fetchSetups(new URL("./sets/setups.json", import.meta.url), fetch);
+    for (const r of setups.refused) recordError("setup", `${r.id} refused: ${r.problems.join("; ")}`);
+  } catch (e) { recordError("setups", e); }
   // the house GLSL library and the renderer (three.js from the pinned CDN build, as the piano loads it)
   const lib = await loadLibrary(new URL("../glsl/index.json", import.meta.url).href);
   let renderMod;
@@ -167,10 +178,10 @@ async function boot() {
   catch (e) { throw new Error(`three.js r186 did not load from cdn.jsdelivr.net (${e.message}). Check the network, then reload.`); }
   const canvas = $("gl");
   const R = new renderMod.StageRenderer(canvas, rig, lib, { quality: QUALITY });
-  return { scene, rig, lib, R, renderMod, palettes };
+  return { scene, rig, lib, R, renderMod, palettes, setups };
 }
 
-function start({ rig, R, renderMod, palettes }) {
+function start({ rig, R, renderMod, palettes, setups }) {
   // the finish's look (render.js LOOKS): ?look=hdr|punch|velvet|classic, then this browser's last choice, then HDR Night;
   // automation (every house lane) stays on classic, the finish its numbers were measured on. L cycles it.
   const LOOKS = renderMod.LOOKS, LOOK_ORDER = renderMod.LOOK_ORDER;
@@ -271,8 +282,17 @@ function start({ rig, R, renderMod, palettes }) {
   lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
   // KICK 5's colour bank reaches the lasers (Daniel, 2026-10-29: "I also want kick 5 to also adjust all lasers"): every
   // laser group takes the bank's laser colours on the frame the bank changes; bank 0 is the palette's own
-  let laserBankSerial = -1;
+  let laserBankSerial = -1, laserSetupSerial = -1;
   function lasersFollowBank() {
+    // a SETUP's lasers (its own colours, turned by kick 5 through its laser bank) change on its landing line and its presses
+    const X = programmer.sx;
+    if (programmer.setupOn && X.lasers) {
+      if (X.laserSerial === laserSetupSerial) return;
+      laserSetupSerial = X.laserSerial; laserBankSerial = -1;
+      lasers.setColours(X.lasers.colours, { white: hexToLinear(theme.W || "#ffffff"), fanRamp: X.lasers.fanRamp });
+      return;
+    }
+    laserSetupSerial = -1;
     const B = programmer.bank;
     if (B.serial === laserBankSerial) return;
     laserBankSerial = B.serial;
@@ -312,6 +332,66 @@ function start({ rig, R, renderMod, palettes }) {
     programmer.beginPalette(stageTheme(nxt), at, { beats: 16, dip });
     announcePalette();
     return { id: want, at, dip };
+  }
+  // SETUPS (2026-10-29, setups.js; Daniel: "i want the lights to cycle different color palates and setups"): a palette x a
+  // placement. They rotate on the 16-bar phrase lines (a setup landed by hand keeps at least min_bars before the next
+  // rotation), O steps to the next one by hand (Shift+O the previous) landing on the next bar line, and the pad map may name
+  // "setup-next" / "setup-prev". Each crossfades in over fade_beats from its landing line (programmer.js THE SETUP LAYER).
+  // The page says what shows and what is coming with the window event "arsenal:setup" {id, name, next, nextName, at, hold}
+  // (only on a change) and keeps the latest in window.__setup.
+  const suCfg = { rotate_bars: 16, min_bars: 8, fade_beats: 4, ...(setups ? setups.cfg : {}), ...(show0.setups || {}) };
+  const su = { on: false, id: null, queued: null, at: null, hold: SETUPS_MODE === "hold" || (!!SETUP_ASKED && SETUPS_MODE !== "rotate"),
+               landedAt: grid.posAt(now0), manual: false, landings: [] };
+  if (setups && setups.ids.length && SETUPS_MODE !== "off" && (SETUPS_MODE || SETUP_ASKED || (!navigator.webdriver && suCfg.enabled !== false))) {
+    const first = SETUP_ASKED && setups.byId[SETUP_ASKED] ? SETUP_ASKED : suCfg.first && setups.byId[suCfg.first] ? suCfg.first : setups.ids[0];
+    programmer.setSetupNow(setups.byId[first]);
+    programmer.takeSetupEvents();
+    su.on = true; su.id = first;
+  }
+  function announceSetup() {
+    const cur = su.id && setups ? setups.byId[su.id] : null, nxt = su.queued && setups ? setups.byId[su.queued] : null;
+    const d = { on: su.on, id: su.id, name: cur ? cur.name : null, next: su.queued, nextName: nxt ? nxt.name : null, at: su.at, hold: su.hold };
+    window.__setup = d;
+    window.dispatchEvent(new CustomEvent("arsenal:setup", { detail: { ...d } }));
+  }
+  // the next (+1) or previous (-1) setup (or id; "off": the palettes' own looks), landing on the next bar line; now: on
+  // this frame, no crossfade (the receipts' door)
+  function setupGo(delta, tEval, { id = null, now = false } = {}) {
+    if (!setups || !setups.ids.length) return null;
+    const pos = grid.posAt(tEval);
+    const off = id === "off";
+    const want = off ? null : id && setups.byId[id] ? id : stepSetup(setups, su.queued || su.id || setups.ids[0], delta);
+    const S = want ? setups.byId[want] : null;
+    if (now) {
+      programmer.setSetupNow(S); programmer.takeSetupEvents();
+      su.on = !!S; su.id = want; su.queued = null; su.at = null; su.landedAt = pos;
+      announceSetup();
+      return { id: want, at: pos };
+    }
+    const at = nextBarLine(pos, grid.barAnchor || 0);
+    su.on = true; su.queued = want; su.at = at; su.manual = true;
+    programmer.beginSetup(S, at, { beats: suCfg.fade_beats });
+    announceSetup();
+    return { id: want, at };
+  }
+  // the 16-bar lines count from the phrase anchor (DROP NOW's ONE) moved onto the bar grid (the grid's barAnchor is the
+  // latest ONE, which moves every bar: counting from it, a 16-bar line would always be 16 bars away)
+  const phraseOrigin = () => { const pa = grid.phraseAnchor || 0, ba = grid.barAnchor || 0; return pa + ((((ba - pa) % 4) + 4) % 4); };
+  // the rotation: the next setup queued for the next 16-bar line (at least min_bars after the last landing)
+  function setupAuto(pos) {
+    if (!setups || !su.on || !su.id || su.hold || su.queued !== null) return;
+    const at = nextAutoLine(pos, phraseOrigin(), su.landedAt, { bars: suCfg.rotate_bars, minBars: suCfg.min_bars });
+    const want = stepSetup(setups, su.id, 1);
+    su.queued = want; su.at = at; su.manual = false; su.anchor = phraseOrigin();
+    programmer.beginSetup(setups.byId[want], at, { beats: suCfg.fade_beats });
+    announceSetup();
+  }
+  // the phrase origin moved (the engine's first beat, a re-lock, DROP NOW) before a queued rotation landed: it goes to the
+  // new line
+  function setupReanchor(pos) {
+    if (su.queued === null || su.manual || phraseOrigin() === su.anchor || !(pos < su.at)) return;
+    su.queued = null; su.at = null;
+    setupAuto(pos);
   }
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
   // (F5's default 0.85: the density 0.55 gave before the fader's curve, atmos.js hazeCurve)
@@ -440,6 +520,8 @@ function start({ rig, R, renderMod, palettes }) {
     else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
     else if (action === "palette-next" && on) stepPal(1, tEval);
     else if (action === "palette-prev" && on) stepPal(-1, tEval);
+    else if (action === "setup-next" && on) setupGo(1, tEval);
+    else if (action === "setup-prev" && on) setupGo(-1, tEval);
     else if (action === "morph" && on) rings.morph(grid, tEval);
     else if (on && /^distance-(close|medium|far|auto)$/.test(action)) distance(action.slice(9));
     else if (action === "hero" && on) rings.hero(grid, tEval);
@@ -613,6 +695,17 @@ function start({ rig, R, renderMod, palettes }) {
         $("hud-set").textContent = hudSetText();
         announcePalette();
       }
+      // a setup's landing: what shows, what is queued (the swap is the landing line; the crossfade runs on from there)
+      for (const e of programmer.takeSetupEvents()) {
+        if (e.type === "swap") {
+          su.id = e.id; su.on = !!e.id;
+          if (su.queued === e.id) { su.landedAt = su.at ?? e.pos ?? pos; su.queued = null; su.at = null; }
+          else su.landedAt = e.pos ?? pos;
+          announceSetup();
+        } else if (e.type === "landed" && su.landings.length < 64) su.landings.push({ id: e.id, pos: e.pos });
+      }
+      setupReanchor(pos);
+      setupAuto(pos);
       lasersFollowBank();
       strand.update(grid, tEval, dt);
       // the camera follows the ring formation while one stands (its landing, its hero view, the live rings for the guard)
@@ -648,7 +741,8 @@ function start({ rig, R, renderMod, palettes }) {
                    bloomMix: BLOOM_MIX, rings: rf,
                    // the HAL cubes' glow: the palette's deep (crossfading with it) along to its B, unless a setup names its own;
                    // and the kicks on their cells (a kicked cube's glow follows the hit: cubes.js cubeKickOf)
-                   cubeTint: cubeTintOf({ deep: programmer.ambient, B: programmer.roleRGB[ROLE.B] }, cubeTintOverride, cubeTintNow),
+                   // (a SETUP names its own: programmer.sx.cube, crossfading with it; the URL's A/B wins over both)
+                   cubeTint: cubeTintOf({ deep: programmer.ambient, B: programmer.roleRGB[ROLE.B] }, cubeTintOverride || (programmer.setupOn ? programmer.sx.cube : null), cubeTintNow),
                    cubeKick: { kickC: programmer.kickC, tC: programmer.tC, whiteRole: programmer.kick ? programmer.kick.whiteRole : -1 } };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       // flash protection off: no limiter asked (no meter, the identity: the frame as drawn)
@@ -685,12 +779,16 @@ function start({ rig, R, renderMod, palettes }) {
   if (QS.get("hud") === "0") hudEl.classList.add("hidden");
   function hudSetText() {
     const q = pal.queued && palettes ? palettes.byId[pal.queued] : null;
-    return `${rig.name} · ${theme.name}${q ? ` → ${q.name} (bar ${Math.round((pal.at - (grid.barAnchor || 0)) / 4)})` : ""} · ${show.demo ? "demo show" : "engine"} · ${rig.mode} motion`;
+    const bar = (at) => Math.round((at - (grid.barAnchor || 0)) / 4);
+    const cs = su.id && setups ? setups.byId[su.id] : null, qs = su.queued && setups ? setups.byId[su.queued] : null;
+    const setupTxt = !su.on && !su.queued ? "" : ` · setup ${cs ? cs.name : "palette's own"}${su.queued !== null ? ` → ${qs ? qs.name : "palette's own"} (bar ${bar(su.at)})` : su.hold ? " (held)" : ""}`;
+    return `${rig.name} · ${theme.name}${q ? ` → ${q.name} (bar ${bar(pal.at)})` : ""}${setupTxt} · ${show.demo ? "demo show" : "engine"} · ${rig.mode} motion`;
   }
   $("hud-set").textContent = hudSetText();
   function hud(now) {
     if (now - hudAt < 100 || hudEl.classList.contains("hidden")) return;
     hudAt = now;
+    $("hud-set").textContent = hudSetText();
     const tEval = now + grid.presentLagMs;
     const b = grid.barAt(tEval);
     $("hud-beatdot").classList.toggle("on", grid.phaseAt(tEval) < 0.2);
@@ -784,6 +882,7 @@ function start({ rig, R, renderMod, palettes }) {
     if (n) { held.add(e.code); pad(n, e.shiftKey ? 1 : 0.8, true, tEval); e.preventDefault(); return; }
     if (KEY_STOPS[e.code]) { distance(KEY_STOPS[e.code], { cut: e.shiftKey }); e.preventDefault(); return; }
     if (e.code === "KeyP") stepPal(e.shiftKey ? -1 : 1, tEval);
+    else if (e.code === "KeyO") setupGo(e.shiftKey ? -1 : 1, tEval);
     else if (e.code === "KeyH") hudEl.classList.toggle("hidden");
     else if (e.code === "KeyU") R.cubes.style = CUBE_STYLES[(CUBE_STYLES.indexOf(R.cubes.style) + 1) % CUBE_STYLES.length];
     else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
@@ -836,6 +935,8 @@ function start({ rig, R, renderMod, palettes }) {
                     kick: programmer.kick.status(),
                     distance: { ...camDist.status(director.shots[state.shot] || null), cuts: camDist.cuts.slice(-16), moves: camDist.moves.slice(-16), escapes: camDist.escapes },
                     grammar: grammar ? { ...grammar.status(), ensemble: ens.status(), gestures: gestures.slice(-128) } : { off: true },
+                    setup: { on: su.on, id: su.id, queued: su.queued, at: su.at, hold: su.hold, landedAt: su.landedAt, origin: phraseOrigin(), landings: su.landings.slice(-8),
+                             library: setups ? setups.ids.slice() : [], refused: setups ? setups.refused.map((r) => r.id) : [], layer: programmer.setupStatus() },
                     palette: { id: pal.id, name: theme.name, queued: pal.queued, at: pal.at, dip: pal.dip, landings: pal.landings.slice(-8),
                                library: palettes ? palettes.ids.length : 0, refused: palettes ? palettes.refused.map((r) => r.id) : [] },
                     rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
@@ -864,6 +965,12 @@ function start({ rig, R, renderMod, palettes }) {
     palettes: () => (palettes ? palettes.ids.slice() : []),
     palette: (id, { now = false } = {}) => stepPal(1, performance.now() + grid.presentLagMs, { id, now }),
     paletteStep: (delta = 1) => stepPal(delta, performance.now() + grid.presentLagMs),
+    // SETUPS: the library's ids in rotation order, a setup by id ("off": the palettes' own looks) landing on the next bar
+    // line (now: this frame), a step, and the hold (true: no rotation)
+    setups: () => (setups ? setups.ids.slice() : []),
+    setup: (id, { now = false } = {}) => setupGo(1, performance.now() + grid.presentLagMs, { id, now }),
+    setupStep: (delta = 1) => setupGo(delta, performance.now() + grid.presentLagMs),
+    setupHold: (on = true) => { su.hold = !!on; announceSetup(); return su.hold; },
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
     // the chord phrasing's door, for scripts: a down or an up of a control ("1".."0", "C", "B") from a source
     door: (source, control, down, vel = 0.8, id = null) => input(source, String(control), !!down, vel, performance.now(), id),
@@ -902,6 +1009,7 @@ function start({ rig, R, renderMod, palettes }) {
   });
   applyFaders(performance.now() + grid.presentLagMs);
   if (palettes) announcePalette();
+  if (setups) announceSetup();
   requestAnimationFrame(frame);
 }
 

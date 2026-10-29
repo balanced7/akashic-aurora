@@ -1322,7 +1322,8 @@
         {"section": "intro", "every_bars": 4, "offset_bars": 3, "beat": 1, "pad": 2, "vel": 0.6}
       ]
     },
-    "pads": {"1": "kick-white", "5": "kick-colour", "2": "lasers", "6": "flyout", "10": "drop", "3": "phrase-go", "4": "phrase-next", "7": "phrase-stop", "8": "morph", "9": "hero", "11": "palette-next", "12": "palette-prev"},
+    "pads": {"1": "kick-white", "5": "kick-colour", "2": "lasers", "6": "flyout", "10": "drop", "3": "phrase-go", "4": "phrase-next", "7": "phrase-stop", "8": "morph", "9": "hero", "11": "palette-next", "12": "palette-prev", "13": "setup-next", "14": "setup-prev"},
+    "setups": {"first": "ice-spine", "rotate_bars": 16, "min_bars": 8, "fade_beats": 4},
     "faders": {"cc105": "strand", "cc108": "lasers", "cc109": "haze", "cc110": "speed", "cc113": "grand"},
     "fader_defaults": {"strand": 1, "lasers": 1, "haze": 0.85, "speed": 0.5, "grand": 1},
     "flyout_groups": ["truss.heads", "lip.heads"]
