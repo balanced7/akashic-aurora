@@ -60,6 +60,17 @@
 // FAR segment. The pad map may name "distance-close", "distance-medium", "distance-far" and "distance-auto". The page
 // says what the distance is with the window event "arsenal:camdist" {mode, stop, v, ...} (only when it changes) and keeps
 // the latest in window.__camdist.
+//
+// THE CHORD PHRASING (2026-10-29, grammar.js + ensemble.js; the round-3 design, docs/library/design/
+// 20261028_kick-vocabulary-round3-codex-2026-10-28_4a3a13.md). Daniel: "lets also land the chord phrasing."; "i mean like
+// 8 7 6 5 4 then 456789". Every number key, C, the phone's pads and the KeyLab's pads 1-10 go through ONE input door: the
+// recogniser decides each down on its own call (a single still fires on the frame it is pressed), and a chord, a strum or
+// a slow sweep changes only what follows -- a chord's members light the union of their areas under ONE attack (a later
+// kick joins the first one's punch at its age), a strum lights them in order inside that attack, C asks for at most one
+// shot, transport collapses STOP > NEXT > GO, and a slow sweep (or B held) is BREATH: a fade of the look's own light
+// (descending out, ascending in; latched; Esc hands it back over four beats). Source-local: the keyboard ("key", trusted
+// events), the phone ("phone": its pad bar's synthetic keys and its strips' pad door) and the KeyLab ("midi") never make
+// one chord; strums and sweeps only on the keyboard's number row. ?grammar=0 is today's direct routing, unchanged.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
@@ -80,6 +91,8 @@ import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
 import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
+import { Grammar } from "./grammar.js";
+import { Ensembles, chainLayers } from "./ensemble.js";
 import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf } from "../palettes.js";
 import { withExtraShots, askedShot } from "./stills.js";
 
@@ -98,6 +111,8 @@ const asName = (v) => (/^[a-z0-9][a-z0-9-]{0,40}$/.test(v || "") ? v : null);
 const THEME_ASKED = asName(QS.get("theme")), PHRASE_ASKED = asName(QS.get("phrase")), RING_ASKED = asName(QS.get("ring"));
 const PALETTE_ASKED = asName(QS.get("palette")) || THEME_ASKED;
 const STRAND_ASKED = asName(QS.get("strand"));
+// the chord phrasing (grammar.js): on unless ?grammar=0 (today's direct routing)
+const GRAMMAR = QS.get("grammar") !== "0";
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
 const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
 // The bloom mix the finish pass uses. render.js reads it off the frame state as `fs.bloomMix ?? 0.05` and then divides
@@ -196,7 +211,9 @@ function start({ rig, R, renderMod, palettes }) {
   // v2: the ring formations (their light is a programmer layer over the look and the phrases)
   const rings = new RingFormations(rig);
   rings.roles = programmer.roleRGB;
-  programmer.setLayer(rings);
+  // the chord phrasing's ensembles: BREATH is one more layer after the rings (the look's own light, before the kicks)
+  const ens = GRAMMAR ? new Ensembles() : null;
+  programmer.setLayer(ens ? chainLayers(rings, ens) : rings);
   if (RING_ASKED && rings.def(RING_ASKED)) rings.set(RING_ASKED, 0, demoBpm);
   // v2: the director knows the strand (it never deals a shot within 1.5 m of a rung) and each formation's hero views; a
   // ring formation's shots are judged against the rings it sweeps and against every strand formation of the set, and
@@ -400,6 +417,7 @@ function start({ rig, R, renderMod, palettes }) {
         const k = programmer.pad(action, vel, pos, { hold: true });
         if (kicks.length >= 256) kicks.shift();
         kicks.push({ pressPos: pos, onset: Math.round(pos), kind: k ? k.kind : action, row: k ? k.card.name : null, band: k ? k.band : null });
+        return k;
       } else programmer.padRelease(action, pos);
     }
     else if (action === "flyout" && on) programmer.pad("flyout", vel, pos);
@@ -414,6 +432,86 @@ function start({ rig, R, renderMod, palettes }) {
     else if (on && /^distance-(close|medium|far|auto)$/.test(action)) distance(action.slice(9));
     else if (action === "hero" && on) rings.hero(grid, tEval);
   }
+  // ---------------------------------------------------------------------------------- the chord phrasing's door --
+  // One door for the number keys, C and B (the keyboard and the phone bar), the phone strips' pads and the KeyLab's pads
+  // 1-10. Each down is decided on its own call; the intents run at once (grammar.js, ensemble.js).
+  const grammar = GRAMMAR ? new Grammar({ beatMs: () => (grid.locked ? grid.period : null), positional: (src) => src === "key",
+                                           canFade: (dir) => ens.canFade(dir) }) : null;
+  const gestures = [];                       // the receipts' record: every decision, its time and what it did
+  const controlOf = (n) => String(n % 10);
+  const padOfControl = (c) => (c === "0" ? 10 : Number(c));
+  // the source's own timestamp when it is on this clock (a real event), else now (a virtual-clock receipt)
+  const evTime = (e) => {
+    const now = performance.now(), ts = e && e.timeStamp;
+    if (globalThis.__realNow) return now;                 // the receipts' virtual clock: event stamps are on the real one
+    return Number.isFinite(ts) && ts > 0 && Math.abs(now - ts) < 1000 ? ts : now;
+  };
+  // a pending command the fade takes over: HERO still armed for its ONE, a phrase still armed for its bar line, and a
+  // kick's future envelope (a tapped kick lingers a second after its press: the fade lets it go now, through its normal
+  // release). MORPH's travel, a fly-out under way and anything already shown stay: the honest 8/9 tradeoff of the design.
+  function cancelPending(control, tEval) {
+    const pos = grid.posAt(tEval);
+    const action = padMap[String(padOfControl(control))];
+    if (isKick(action)) {
+      const K = programmer.kick, kind = K.kindOf(action);
+      let n = 0;
+      // (kick.js's record: a released kick stays lit to holdEnd, then fades over release_beats)
+      for (const k of K.list) if (k.kind === kind && !k.held && !k.dead && k.holdEnd !== null && k.holdEnd > pos) { k.holdEnd = Math.max(pos, k.from + K.cfg.tap_hold_beats); n++; }
+      return n ? "kick let go" : "already under way";
+    }
+    if (control === "9" && rings.heroState.at !== null && rings.heroState.at > pos) { rings.heroState.at = null; return "hero withdrawn"; }
+    if (control === "3" && runner && runner.state === "armed") { runner.stop(grid, pos); return "go withdrawn"; }
+    return "already under way";
+  }
+  function runDecisions(ds) {
+    if (!ds.length) return;
+    const now = performance.now(), tEval = now + grid.presentLagMs;
+    for (const d of ds) {
+      const did = [];
+      for (const it of ens.plan(d)) {
+        if (it.do === "press") {
+          if (it.control === "C") { nextShot(tEval); did.push("shot"); continue; }
+          const rec = pad(padOfControl(it.control), it.velocity, true, tEval);
+          const a = rec ? ens.attack(it.lineage, rec) : null;
+          did.push(a ? (a.own ? "attack" : a.restrike ? "restrike" : "joined") : "press");
+        } else if (it.do === "release") { if (it.control !== "C") pad(padOfControl(it.control), 0, false, tEval); did.push("release"); }
+        else if (it.do === "cancel") did.push(`${it.control}: ${cancelPending(it.control, tEval)}`);
+        else did.push(it.do);
+      }
+      if (d.type !== "settle" || d.kind !== "single") {
+        if (gestures.length >= 512) gestures.shift();
+        gestures.push({ at: +now.toFixed(1), pos: +grid.posAt(tEval).toFixed(4), type: d.type, phase: d.phase, control: d.control, kind: d.kind || d.to,
+                        lineage: d.lineage, delta: d.delta, did });
+      }
+    }
+  }
+  function input(source, control, down, vel, t, id) {
+    if (!grammar) return false;
+    runDecisions(grammar.input({ source, control, down, t, velocity: vel, id }));
+    return true;
+  }
+  // a pad 1-10 from the phone strips or the KeyLab: its press id is the pad's current press (pads 11+ go direct)
+  const padIds = { phone: new Map(), midi: new Map() };
+  const keyIds = new Map();                   // key code -> its press {id, src, control}
+  let inSeq = 0;
+  function inputPad(source, n, vel, on, t) {
+    if (!grammar || !(n >= 1 && n <= 10)) return false;
+    const ids = padIds[source];
+    if (on) { const id = `${source}:pad${n}:${++inSeq}`; ids.set(n, id); return input(source, controlOf(n), true, vel, t, id); }
+    const id = ids.get(n); ids.delete(n);
+    return input(source, controlOf(n), false, 0, t, id ?? null);
+  }
+  function cancelSource(source) {
+    if (!grammar) return;
+    runDecisions(grammar.cancel(source, performance.now()));
+    if (padIds[source]) padIds[source].clear();
+    for (const [code, k] of keyIds) if (k.src === source) keyIds.delete(code);
+  }
+  if (grammar) {
+    // focus or visibility lost: the keyboard and the phone let go of everything (a key-up never comes)
+    window.addEventListener("blur", () => { cancelSource("key"); cancelSource("phone"); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelSource("key"); cancelSource("phone"); } });
+  }
   // a held pad's live level (0..1: the phone pad's finger height; later the KeyLab's aftertouch): the held kick's brightness
   function padLevel(n, vel) {
     const action = padMap[String(n)];
@@ -425,7 +523,7 @@ function start({ rig, R, renderMod, palettes }) {
     link.event(ev);
     const tEval = nowMs + grid.presentLagMs;
     if (ev.t === "beat") grid.beat({ ...ev, ...beatExtras(obj) }, nowMs);
-    else if (ev.t === "pad") pad(ev.pad, ev.vel, ev.on, tEval);
+    else if (ev.t === "pad") { if (!(GRAMMAR && inputPad("midi", ev.pad, ev.vel, ev.on, nowMs))) pad(ev.pad, ev.vel, ev.on, tEval); }
     else if (ev.t === "energy") energy = ev.level;
     else if (ev.t === "ctl") {
       const target = faderMap[ev.id];
@@ -439,7 +537,7 @@ function start({ rig, R, renderMod, palettes }) {
     if (!ENGINE_URL) return;
     try { es = new EventSource(`${ENGINE_URL}/api/events`); } catch (e) { recordError("engine", e); return; }
     es.onopen = () => { link.connected(); backoff = 1000; };
-    es.onerror = () => { es.close(); link.disconnected(); setTimeout(connect, backoff); backoff = Math.min(10000, backoff * 1.6); };
+    es.onerror = () => { es.close(); link.disconnected(); if (GRAMMAR) cancelSource("midi"); setTimeout(connect, backoff); backoff = Math.min(10000, backoff * 1.6); };
     es.onmessage = (m) => { let o; try { o = JSON.parse(m.data); } catch { return; } handle(o, performance.now()); };
   }
   connect();
@@ -456,6 +554,8 @@ function start({ rig, R, renderMod, palettes }) {
     last = now;
     try {
       if (demoBeats) demoBeats.tick(now, (o) => handle(o, now));
+      // the chord phrasing: lineages that can no longer grow settle, a sweep past its gap ends; the fade's level ramps
+      if (grammar) { runDecisions(grammar.settle(now)); ens.tick(now); }
       const tEval = now + grid.presentLagMs;
       const pos = grid.posAt(tEval);
       if (grid.locked || !show.demo) {
@@ -519,14 +619,16 @@ function start({ rig, R, renderMod, palettes }) {
       rings.drawLasers(lasers, pos);
       const rf = rings.frame(pose.pos);
       lasers3d.hitOpts = rf.hitOpts;
-      const l3 = lasers3d.map(l2, { reachScale: 1, master: faders.lasers, camera: { pos: pose.pos, fwd, near: 0.1 } });
+      const breathL = ens ? ens.level : 1;
+      const l3 = lasers3d.map(l2, { reachScale: 1, master: faders.lasers * breathL, camera: { pos: pose.pos, fwd, near: 0.1 } });
       const medium = atmos.update(dt);
       const W = FIXED_W || Math.round(Math.min(window.devicePixelRatio || 1, DPR_CAP) * canvasCss().w);
       const Hh = FIXED_H || Math.round(Math.min(window.devicePixelRatio || 1, DPR_CAP) * canvasCss().h);
       R.resize(W, Hh);
       const shot = director.shots[pose.shot];
       const ambient = programmer.ambient, airTint = programmer.airTint;
-      const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
+      const ambS = ambientNow.scale * breathL;
+      const amb = ambS === 1 ? ambient : ambient.map((c) => c * ambS);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
                    pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
                    bloomMix: BLOOM_MIX, rings: rf,
@@ -537,7 +639,7 @@ function start({ rig, R, renderMod, palettes }) {
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       // flash protection off: no limiter asked (no meter, the identity: the frame as drawn)
       const info = api.skipRender ? state.info : R.render(fs, flash.on ? (cells, t) => limiter.step(cells, t, dt) : null, now / 1000);
-      state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2;
+      state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2; state.breath = breathL;
       const ft = (globalThis.__realNow ? globalThis.__realNow() - realStart : performance.now() - now);
       timing.n++; if (timing.list.length >= 240) timing.list.shift(); timing.list.push(ft);
       lastFrame = now;
@@ -546,11 +648,26 @@ function start({ rig, R, renderMod, palettes }) {
       if (errors.length === 1) banner(`The stage stopped: ${e.message}`);
     }
     hud(now);
+    breathChip(now);
   }
 
   // --------------------------------------------------------------------------------------------------- the HUD --
   let hudAt = 0;
   const hudEl = $("hud");
+  // the fade's chip: a latched BREATH stays where the hands leave it, so the room says so even with the HUD hidden (H):
+  // a quiet corner label, DOM over the canvas (never in the picture's pixels), only while the level is below the look's
+  // (review F3, 2026-10-29)
+  let chipAt = 0, chipTxt = "";
+  const chipEl = ens ? document.createElement("div") : null;
+  if (chipEl) { chipEl.className = "breath-chip"; chipEl.id = "breath-chip"; chipEl.hidden = true; chipEl.setAttribute("aria-live", "off"); $("stage").append(chipEl); }
+  function breathChip(now) {
+    if (!chipEl || now - chipAt < 100) return;
+    chipAt = now;
+    const b = ens.breath, low = b.level < 0.995 || b.target < 0.995;
+    const txt = !low ? "" : `breath ${Math.round(b.level * 100)} %${b.hand ? " · back" : " · Esc back"}`;
+    if (txt === chipTxt) return;
+    chipTxt = txt; chipEl.textContent = txt; chipEl.hidden = !low;
+  }
   if (QS.get("hud") === "0") hudEl.classList.add("hidden");
   function hudSetText() {
     const q = pal.queued && palettes ? palettes.byId[pal.queued] : null;
@@ -566,7 +683,9 @@ function start({ rig, R, renderMod, palettes }) {
     const eng = !ENGINE_URL ? "demo clock" : link.open ? (link.hello ? `engine ${link.hello.src || "on"}` : "engine connected") : "engine offline (free-running)";
     $("hud-clock").textContent = `${grid.bpm.toFixed(1)} BPM · bar ${b.bar} beat ${b.beat} · ${eng}`;
     const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind.replace(/^kick-/, "")} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
-    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}`;
+    const gl = ens ? ens.log[ens.log.length - 1] : null;
+    const gTxt = !ens ? "" : `${ens.breath.level < 0.999 || ens.breath.active ? ` · breath ${Math.round(ens.breath.level * 100)} %` : ""}${gl ? ` · ${gl.gesture}${gl.controls ? ` ${gl.controls.join("+")}` : ""}` : ""}`;
+    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}${gTxt}`;
     const ph = $("hud-phrase");
     if (ph) {
       const st = runner ? runner.status() : null;
@@ -620,10 +739,31 @@ function start({ rig, R, renderMod, palettes }) {
   // F fullscreen, U the cubes (HAL 4000 neon / solid), Esc back to the director
   const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9, Digit0: 10 };
   const held = new Set();
+  // C: the next camera shot, played in motion, looping over its own bars
+  function nextShot(tEval) {
+    const ids = Object.keys(director.shots);
+    const cur = ids.indexOf(manualShot ? manualShot : state.shot);
+    manualShot = ids[(cur + 1) % ids.length];
+    director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
+    director.lastCutPos = director.manual.p0;     // a shot by hand is a cut too (a Shift distance cut keeps 2 beats from it)
+  }
   window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
     const n = KEYPAD[e.code];
     const tEval = performance.now() + grid.presentLagMs;
+    if (grammar && (n || e.code === "KeyC" || e.code === "KeyB")) {
+      // a down for a key already held that is not the OS's auto-repeat (e.repeat returned above): its key-up was lost
+      // (a modifier or the OS swallowed it). Let the old press go, then this is a new press (review F7, 2026-10-29)
+      const lost = keyIds.get(e.code);
+      if (lost) { keyIds.delete(e.code); input(lost.src, lost.control, false, 0, evTime(e), lost.id); }
+      // a trusted event is the keyboard; the phone's pad bar presses the page's keys with synthetic events
+      const src = e.isTrusted ? "key" : "phone", control = n ? controlOf(n) : e.code === "KeyC" ? "C" : "B";
+      const id = `${src}:${e.code}:${++inSeq}`;
+      keyIds.set(e.code, { id, src, control });
+      input(src, control, true, e.shiftKey ? 1 : 0.8, evTime(e), id);
+      if (n) e.preventDefault();
+      return;
+    }
     if (n) { held.add(e.code); pad(n, e.shiftKey ? 1 : 0.8, true, tEval); e.preventDefault(); return; }
     if (KEY_STOPS[e.code]) { distance(KEY_STOPS[e.code], { cut: e.shiftKey }); e.preventDefault(); return; }
     if (e.code === "KeyP") stepPal(e.shiftKey ? -1 : 1, tEval);
@@ -631,15 +771,16 @@ function start({ rig, R, renderMod, palettes }) {
     else if (e.code === "KeyU") R.cubes.style = CUBE_STYLES[(CUBE_STYLES.indexOf(R.cubes.style) + 1) % CUBE_STYLES.length];
     else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
     else if (e.code === "KeyF") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
-    else if (e.code === "KeyC") {
-      const ids = Object.keys(director.shots);
-      const cur = ids.indexOf(manualShot ? manualShot : state.shot);
-      manualShot = ids[(cur + 1) % ids.length];
-      director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
-      director.lastCutPos = director.manual.p0;     // a shot by hand is a cut too (a Shift distance cut keeps 2 beats from it)
-    } else if (e.code === "Escape") { manualShot = null; director.manual = null; distance("auto"); }
+    else if (e.code === "KeyC") nextShot(tEval);
+    else if (e.code === "Escape") {
+      manualShot = null; director.manual = null; distance("auto");
+      // and the fade goes back to the look over four beats
+      if (ens) ens.handBack(performance.now(), grid.period);
+    }
   });
   window.addEventListener("keyup", (e) => {
+    const k = keyIds.get(e.code);
+    if (k) { keyIds.delete(e.code); input(k.src, k.control, false, 0, evTime(e), k.id); return; }
     const n = KEYPAD[e.code];
     if (n && held.has(e.code)) { held.delete(e.code); pad(n, 0, false, performance.now() + grid.presentLagMs); }
   });
@@ -652,6 +793,7 @@ function start({ rig, R, renderMod, palettes }) {
   window.addEventListener("arsenal:pad", (e) => {
     const d = e.detail || {}, n = padNo(d);
     if (n === null) return;
+    if (inputPad("phone", n, vel01(d.vel, 0.8), d.on !== false, evTime(e))) return;
     pad(n, vel01(d.vel, 0.8), d.on !== false, performance.now() + grid.presentLagMs);
   });
   window.addEventListener("arsenal:padlevel", (e) => {
@@ -676,6 +818,7 @@ function start({ rig, R, renderMod, palettes }) {
                     flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) },
                     kick: programmer.kick.status(),
                     distance: { ...camDist.status(director.shots[state.shot] || null), cuts: camDist.cuts.slice(-16), moves: camDist.moves.slice(-16), escapes: camDist.escapes },
+                    grammar: grammar ? { ...grammar.status(), ensemble: ens.status(), gestures: gestures.slice(-128) } : { off: true },
                     palette: { id: pal.id, name: theme.name, queued: pal.queued, at: pal.at, dip: pal.dip, landings: pal.landings.slice(-8),
                                library: palettes ? palettes.ids.length : 0, refused: palettes ? palettes.refused.map((r) => r.id) : [] },
                     rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
@@ -705,6 +848,9 @@ function start({ rig, R, renderMod, palettes }) {
     palette: (id, { now = false } = {}) => stepPal(1, performance.now() + grid.presentLagMs, { id, now }),
     paletteStep: (delta = 1) => stepPal(delta, performance.now() + grid.presentLagMs),
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
+    // the chord phrasing's door, for scripts: a down or an up of a control ("1".."0", "C", "B") from a source
+    door: (source, control, down, vel = 0.8, id = null) => input(source, String(control), !!down, vel, performance.now(), id),
+    breath: () => (ens ? ens.status().breath : null),
     release: (n) => pad(n, 0, false, performance.now() + grid.presentLagMs),
     level: (n, v) => padLevel(n, v),
     fader: (id, v) => { faders[id] = v; applyFaders(performance.now() + grid.presentLagMs); syncFaderUI(); },
