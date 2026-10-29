@@ -76,7 +76,8 @@
 //   distance     the same shot (HALO_LOCK, FOH_WIDE) at CLOSE, MEDIUM and FAR: the rings' on-screen box through the renderer's
 //                own camera (close >= 3x far, medium between), a dolly not a zoom, the picture's luminance and true-black
 //                share, stills distance-<shot>-<stop>.png; the keys Q / Q again / Shift+E / Esc and the F8 fader on the
-//                60 fps virtual clock; the phone segment at 832 x 384 and 915 x 412.
+//                60 fps virtual clock; the phone segment at 667 x 375 to 915 x 412; the high shots at FAR; a held stop
+//                through two moving shots; the cut spacing after a C-key shot.
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -2127,8 +2128,19 @@ async function phasePhoneBar({ S, ev, open, phase, deadline }) {
 //            hands back to the director's pose exactly on a beat line two or more beats on; Shift+E cuts on a beat line
 //            (+-1 frame) with nothing moving before it; Esc hands back; the F8 fader (CC 112 through the engine's ctl event)
 //            does nothing until it crosses the live value, then drives the distance with no jump;
-//   phone    at 832 x 384 and 915 x 412 (touch): the CLOSE . MID . FAR segment sits in the bar's single row, each pad at least
-//            44 x 44 CSS px, clear of both kick strips; a tap on MID lights it and the camera's distance goes manual MEDIUM;
+//   high     (the review's F1, 2026-10-29) the high shots at FAR, where the lens used to rise into the rigging grid and
+//            render black: TOPDOWN_DESCEND u 0.2, HIGH_REAR_CRANE u 0.83, ORRERY_HIGH u 0.39, HALO_ORBIT u 0.73,
+//            TOPDOWN_GODVIEW, ROOF_ESTABLISH, DIVE_FROM_ROOF u 0.1 -- each still neither black nor blown and the lens inside
+//            the shot's own band of the room (1 m or more under the grid's beams);
+//   ride     (F2) a moving shot played by hand through its move at a held stop (CRANE_RISE_REVEAL at FAR, STRAND_FLYTHROUGH
+//            at CLOSE), every 60 fps frame on the live rig: the size never changes faster than e^4.5 a second nor
+//            accelerates past LOG_ACCEL_MAX (outside a cut), the 1.5 m rule every frame (the frames where the director's
+//            own camera is inside 1.5 m -- the flythrough's end -- are judged as: never nearer than his own camera);
+//   spacing  (F6) a C-key shot then Shift+E at once: the distance cut lands 2 beats or more after the C cut, and is in the
+//            director's own cut log (why "distance") on the frame it is drawn;
+//   phone    at 667 x 375, 740 x 360, 780 x 360 (narrow phones: the bar wraps to two rows there, the review's F5), 832 x 384
+//            and 915 x 412 (touch): no pad of the bar over either kick strip, the CLOSE . MID . FAR pads each at least 44 x 44
+//            CSS px; a tap on MID lights it and the camera's distance goes manual MEDIUM;
 //   no exceptions or console errors.
 async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
   await open(`demo=1&vt=1&${BASE}`);
@@ -2181,7 +2193,7 @@ async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
     const P = s.director.pose, M = window.__distModel;
     const clear = Math.min(M.C.clearanceToStrand(P.pos, s.strand.poses, M.m.z), M.C.clearanceToRings(P.pos, M.m.rings));
     const st = s.camDist.status(s.director.shots[P.shot]);
-    return { shot: P.shot, pos: P.pos.slice(), look: P.look.slice(), hfov: P.hfov, ev: P.ev, clear, inside: s.camDist.room.inside(P.pos),
+    return { shot: P.shot, pos: P.pos.slice(), look: P.look.slice(), hfov: P.hfov, ev: P.ev, clear, inside: s.camDist.room.inside(P.pos, s.camDist.last.mount),
              inner: box((e) => e === inner), rings: box((e) => e.id === "ring"),
              luminance: { mean: +(sum / N).toFixed(4), p50: +p50.toFixed(5), p95: +p95.toFixed(4), true_black_share: +(black / N).toFixed(4) },
              distance: { mode: st.mode, stop: st.stop, k: st.k, clamp: st.clamp } };
@@ -2216,8 +2228,52 @@ async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
           [c, m, f].every((r) => r.luminance.mean > 0.004 && r.luminance.mean < 0.6 && r.inside && r.clear >= 1.5),
           [c, m, f].map((r) => ({ mean: r.luminance.mean, p50: r.luminance.p50, true_black: r.luminance.true_black_share, clear_m: +r.clear.toFixed(2), inside: r.inside })));
   }
+  // F1: the high shots at FAR (the lens used to rise into the rigging grid there and render black)
+  const high = {};
+  for (const [id, u] of [["TOPDOWN_DESCEND", 0.2], ["HIGH_REAR_CRANE", 0.83], ["ORRERY_HIGH", 0.39], ["HALO_ORBIT", 0.73], ["TOPDOWN_GODVIEW", 0.5], ["ROOF_ESTABLISH", 0.5], ["DIVE_FROM_ROOF", 0.1]]) {
+    const has = await ev(`!!window.__stage.director.shots["${id}"]`);
+    if (!has) continue;
+    await ev(`(() => { const s = window.__stage; s.setShot("${id}", ${u}); s.distance("far", { now: true }); for (let i = 0; i < 23; i++) window.__vt.step(${F}); return true; })()`);
+    const r = await ev(`(() => { window.__vt.step(${F}); return ${READ}; })()`);
+    r.png = await shot(join(outDir, `distance-high-${id.toLowerCase()}-far.png`));
+    r.mount = await ev("window.__stage.camDist.last.mount.slice()");
+    high[id] = r;
+  }
+  phase.high = high;
+  check("distance: the high shots at FAR -- neither black nor blown, the lens in the shot's own band of the room (1 m or more under the rigging grid)",
+        Object.keys(high).length >= 5 && Object.values(high).every((r) => r.luminance.mean > 0.004 && r.luminance.mean < 0.6 && r.inside && r.clear >= 1.5),
+        Object.fromEntries(Object.entries(high).map(([id, r]) => [id, { mean: r.luminance.mean, p95: r.luminance.p95, true_black: r.luminance.true_black_share, y: +r.pos[1].toFixed(2), director_y: +r.mount[1].toFixed(2), inside: r.inside, k: r.distance.k, clamp: r.distance.clamp }])));
   // the controls, logic only (every 60 fps frame): the keys as the keyboard sends them, the fader as the engine does
   await ev("window.__stage.skipRender = true");
+  // F2: a moving shot played by hand through its move at a held stop, every frame on the live rig
+  const RIDE = String.raw`((id, stop) => {
+    const s = window.__stage, D = s.camDist, M = window.__distModel, out = [];
+    s.playShot(id); s.distance(stop, { now: true });
+    const beats = (s.director.shots[id].bars ?? 4) * 4, n = Math.round(beats * 60 / s.grid.bpm * 60) - 3;   // (not into its loop)
+    for (let i = 0; i < n; i++) {
+      window.__vt.step(1000 / 60);
+      const P = s.director.pose, cl = (q) => Math.min(M.C.clearanceToStrand(q, s.strand.poses, M.m.z), M.C.clearanceToRings(q, M.m.rings));
+      // own: the director's own camera this frame (where it is in the rig, the rule is his guard's, never the layer's)
+      out.push({ lam: D.last.lam, cut: !!P.distCut || !!P.cut, c: cl(P.pos), own: cl(D.last.mount), u: P.u });
+    }
+    let d1 = 0, d2 = 0, cuts = 0, clear = Infinity, own_in_rig = 0, worse = 0, vsOwn = Infinity, where = null, a = null, b = null;
+    for (const r of out) {
+      // (1 cm: a camera within a hair of his pose -- k 1.001 -- is his pose for this rule)
+      if (r.own < 1.5) { own_in_rig++; if (r.c - r.own < vsOwn) { vsOwn = r.c - r.own; where = r; } if (r.c < r.own - 0.01) worse++; a = b = null; continue; }
+      if (r.lam !== 0 && r.c < clear) clear = r.c;
+      if (r.cut) { cuts++; a = b = null; continue; }
+      if (a !== null) d1 = Math.max(d1, Math.abs(r.lam - a));
+      if (b !== null) d2 = Math.max(d2, Math.abs(r.lam - 2 * a + b));
+      b = a; a = r.lam;
+    }
+    return { id, stop, frames: out.length, d1, d2, cuts, clear, own_in_rig, worse_than_own: worse, min_vs_own_m: vsOwn, vs_own_frame: where && { ...where, i: out.indexOf(where), prev: out[out.indexOf(where) - 1], next: out[out.indexOf(where) + 1] }, escapes: D.escapes, lam_range: [Math.min(...out.map((r) => r.lam)), Math.max(...out.map((r) => r.lam))] };
+  })`;
+  const rides = [];
+  for (const [id, stop] of [["CRANE_RISE_REVEAL", "far"], ["STRAND_FLYTHROUGH", "close"]]) rides.push(await ev(`${RIDE}("${id}", "${stop}")`));
+  await ev(`(() => { const s = window.__stage; s.distance("auto", { now: true }); s.clearShot(); return true; })()`);
+  phase.rides = rides;
+  check("distance: a held stop through a moving shot (60 fps, the live rig) -- no step past e^4.5 a second, no jolt, the 1.5 m rule every frame (never nearer the rig than the director's own camera where his own path enters it)",
+        rides.every((r) => r.d1 <= 4.5 / 60 + 1e-6 && r.d2 <= 25 / 3600 + 1e-6 && r.clear >= 1.5 && r.worse_than_own === 0), rides);
   const KEYS = String.raw`((code, shift, frames) => {
     const s = window.__stage, D = s.camDist, out = [];
     const pos = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
@@ -2252,6 +2308,17 @@ async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
   const esc = await ev(`${KEYS}("Escape", false, 110)`);
   check("distance: Esc hands distance back to the director (auto, his pose exactly at the end)",
         esc.status.mode === "auto" && esc.frames.at(-1).k === 1 && esc.frames.at(-1).w === 0, { mode: esc.status.mode, k: esc.frames.at(-1).k });
+  // F6: a C-key shot is a cut: Shift+E pressed right after it lands 2 beats or more later, and the distance cut is in the
+  // director's own log on the frame it is drawn
+  const cPos = await ev(`(() => { const s = window.__stage; window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyC", key: "c" })); window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyC", key: "c" })); window.__vt.step(1000 / 60); return s.director.lastCutPos; })()`);
+  const ce = await ev(`${KEYS}("KeyE", true, 150)`);
+  const ceI = ce.frames.findIndex((r) => r.cut);
+  const ceLog = await ev(`window.__stage.director.cuts.slice(-3)`);
+  phase.c_then_shift = { c_cut_at: cPos, planned: ce.move && ce.move.landAt, cut_at: ceI >= 0 ? ce.frames[ceI].pos : null, director_log: ceLog };
+  check("distance: Shift+E right after a C-key shot lands 2 beats or more after it, on a beat line, and is in the director's cut log",
+        ce.move && ce.move.kind === "cut" && ce.move.landAt - cPos >= 2 - 1e-6 && ceI >= 0 && onFrame(ce.frames[ceI].pos, ce.move.landAt) && ceLog.some((c) => c.why === "distance" && Math.abs(c.pos - ce.move.landAt) < 0.05),
+        phase.c_then_shift);
+  await ev(`(() => { const s = window.__stage; window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape" })); window.dispatchEvent(new KeyboardEvent("keyup", { code: "Escape", key: "Escape" })); s.distance("auto", { now: true }); for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()`);
   // the fader through the engine's ctl event: soft takeover
   const FAD = String.raw`((value, frames) => { const s = window.__stage, D = s.camDist, out = [];
     s.inject({ t: "ctl", id: "cc112", kind: "abs", value });
@@ -2270,7 +2337,7 @@ async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
   const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (await ev("window.__stage.errors.length"));
   // the phone: the segment in the pad bar
   const phone = [];
-  for (const [PW, PH] of [[832, 384], [915, 412]]) {
+  for (const [PW, PH] of [[667, 375], [740, 360], [780, 360], [832, 384], [915, 412]]) {
     await S("Emulation.setDeviceMetricsOverride", { width: PW, height: PH, deviceScaleFactor: 1, mobile: true });
     await S("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
     await open(`demo=1&vt=1&pads=1&w=${PW}&h=${PH}&hud=0&quality=low&set=${opt.set}`);
@@ -2280,7 +2347,8 @@ async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
       const bar = document.querySelector(".tb"), seg = [...document.querySelectorAll(".tb .seg button")];
       const vis = [...bar.querySelectorAll("button")].filter((b) => b.offsetParent !== null);
       const tops = [...new Set(vis.map((b) => Math.round(b.getBoundingClientRect().top)))];
-      return { bar: r(bar), rows: tops.length, seg: seg.map((b) => ({ label: b.textContent, rect: r(b) })), strips: [...document.querySelectorAll(".tbs")].map(r) }; })()`);
+      return { bar: r(bar), rows: tops.length, seg: seg.map((b) => ({ label: b.textContent, rect: r(b) })), strips: [...document.querySelectorAll(".tbs")].map(r),
+               pads: vis.map((b) => ({ label: b.textContent, rect: r(b) })) }; })()`);
     const ov = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
     const mid = g.seg.find((x) => x.label === "mid");
     const cx = (mid.rect[0] + mid.rect[2]) / 2, cy = (mid.rect[1] + mid.rect[3]) / 2;
@@ -2292,10 +2360,11 @@ async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
     const after = await ev(`(() => ({ status: window.__stage.camDist.status(), lit: [...document.querySelectorAll(".tb .seg button.lit")].map((b) => b.textContent) }))()`);
     await shot(join(outDir, `distance-phone-${PW}x${PH}.png`));
     phone.push({ viewport: [PW, PH], ...g, under, after });
-    check(`distance: phone ${PW} x ${PH} -- CLOSE . MID . FAR in the bar's one row, 44 x 44 px or more, clear of the kick strips; a tap on MID lights it and goes manual MEDIUM`,
-          g.rows === 1 && g.seg.length === 3 && g.seg.every((x) => x.rect[2] - x.rect[0] >= 44 - 0.5 && x.rect[3] - x.rect[1] >= 44 - 0.5 && g.strips.every((st) => !ov(x.rect, st)))
+    const over = g.pads.filter((x) => g.strips.some((st) => ov(x.rect, st))).map((x) => x.label);
+    check(`distance: phone ${PW} x ${PH} -- no pad of the bar over a kick strip (${g.rows} row${g.rows > 1 ? "s" : ""}), CLOSE . MID . FAR 44 x 44 px or more; a tap on MID lights it and goes manual MEDIUM`,
+          over.length === 0 && g.seg.length === 3 && g.seg.every((x) => x.rect[2] - x.rect[0] >= 44 - 0.5 && x.rect[3] - x.rect[1] >= 44 - 0.5)
           && under === "mid" && after.status.mode === "manual" && after.status.stop === "medium" && after.lit.length === 1 && after.lit[0] === "mid",
-          { rows: g.rows, seg: g.seg.map((x) => [x.label, Math.round(x.rect[2] - x.rect[0]), Math.round(x.rect[3] - x.rect[1])]), strips: g.strips.map((x) => x.map(Math.round)), under, status: { mode: after.status.mode, stop: after.status.stop }, lit: after.lit });
+          { rows: g.rows, over, seg: g.seg.map((x) => [x.label, Math.round(x.rect[2] - x.rect[0]), Math.round(x.rect[3] - x.rect[1])]), strips: g.strips.map((x) => x.map(Math.round)), under, status: { mode: after.status.mode, stop: after.status.stop }, lit: after.lit });
   }
   phase.phone = phone;
   const errs2 = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (await ev("window.__stage.errors.length"));
