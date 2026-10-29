@@ -149,7 +149,7 @@ const SCENE_POST_MIN_MS = 120;         // the scene report to the engine: newest
 // ?limiter=cpu (the JS twin decides, always), off (the safe mode), late (the twin until two seconds in, then the GPU)
 const LIMITER_MODE = (() => { const m = QS.get("limiter"); return m === "cpu" || m === "off" || m === "late" ? m : "auto"; })();
 // the viewer's flash protection (the warning on a first visit; the show waits for Start): on = the final limiter runs
-const flash = flashProtection({ page: "vj" });
+const protection = flashProtection({ page: "vj" });
 const LATENCY_KEEP = 64;
 const NOTE_NAMES = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
 const PLAY_UNIFORMS = [
@@ -3041,7 +3041,7 @@ function onFrame(rafNow) {
       const mixed = stage && A && A.fb && B && B.fb && B !== A ?
         stage.mix(deck, A.fb.texs[A.fb.read], B.fb.texs[B.fb.read], G.width, G.height, nowMs, nowS) : null;
       const drawn = composite(nowMs, nowS, mixAB, mixed);
-      if (flash.on && limiterLive()) {
+      if (protection.on && limiterLive()) {
         // the look draws into the limiter's input; the limiter meters it, decides and puts the frame on the canvas
         const looked = stage && stage.post(G.width, G.height, drawn, G.limiter.preTarget(G.width, G.height));
         G.limiter.run(looked ? G.limiter.preTexture() : drawn, G.width, G.height, frameDt);
@@ -3076,16 +3076,16 @@ function limiterLive() {
   if (err && G.limiter.fatal() && G.limiterError !== err) {
     G.limiterError = err;
     recordError("compile", "vj-limiter", err);
-    if (flash.on) banner(SAFE_MODE_BANNER);
+    if (protection.on) banner(SAFE_MODE_BANNER);
   }
   return false;
 }
 // the effects may play in full: the limiter guards the frame, or the viewer turned flash protection off (the safe mode's
 // refusals exist only because nothing guards the frame)
-function effectsLive() { return !flash.on || limiterLive(); }
+function effectsLive() { return !protection.on || limiterLive(); }
 // the viewer changed the quiet setting: back on, the limiter starts fresh (as at load: what played while it was off is
 // not its history); a limiter that cannot run puts the page in its safe mode again
-flash.onChange((on) => {
+protection.onChange((on) => {
   if (on && G.limiter && limiterLive()) G.limiter.reset();
   if (on && G.limiter && G.limiter.fatal()) banner(SAFE_MODE_BANNER);
   toast(on ? "flash protection on" : "flash protection off");
@@ -3230,7 +3230,7 @@ function updateHud(nowMs) {
   if (kill.pending !== null) parts.push(kill.pending === 0 ? "KILL on beat" : "revive on beat");
   else if (kill.target < 0.5) parts.push("KILLED");
   setText("hud-fx", parts.length ? parts.join(" · ") : "—");
-  setText("hud-flash", `${flash.on ? "" : "protection off · "}granted ${gate.granted} · refused ${gate.refused} · most in a second ${gate.maxInAnyWindow()} (limit 3)`);
+  setText("hud-flash", `${protection.on ? "" : "protection off · "}granted ${gate.granted} · refused ${gate.refused} · most in a second ${gate.maxInAnyWindow()} (limit 3)`);
   setText("hud-ctl", learnTarget ? `learn: move a control for ${targetLabel(learnTarget)}` :
     lastCtl ? `${lastCtl.id} (${lastCtl.kind}) → ${lastCtl.target ? targetLabel(lastCtl.target) : "unbound"}` + (lastPadSrc ? ` · pads from ${lastPadSrc}` : "") :
     (lastPadSrc ? `pads from ${lastPadSrc}` : "—"));
@@ -3438,9 +3438,9 @@ function wireUi() {
   // the quiet flash protection setting: in the HUD (reachable on a phone through the pad bar's HUD button) and in the
   // Options panel, kept in step
   const hudKeys = document.querySelector("#hud .hud-keys");
-  if (hudKeys) hudKeys.before(protectionCheckbox(document, flash, { id: "hud-opt-flash", className: "check hud-flash-opt" }));
+  if (hudKeys) hudKeys.before(protectionCheckbox(document, protection, { id: "hud-opt-flash", className: "check hud-flash-opt" }));
   const optFlash = $("opt-flash");
-  if (optFlash) { optFlash.checked = flash.on; optFlash.addEventListener("change", () => flash.set(optFlash.checked)); flash.onChange((on) => { optFlash.checked = on; }); }
+  if (optFlash) { optFlash.checked = protection.on; optFlash.addEventListener("change", () => protection.set(optFlash.checked)); protection.onChange((on) => { optFlash.checked = on; }); }
   $("btn-close-panel").addEventListener("click", () => togglePanel(false));
   $("btn-reset-pads").addEventListener("click", () => { padMap = DEFAULT_PAD_MAP.slice(); savePadMap(); renderPadMap(); });
   $("btn-reset-ctl").addEventListener("click", () => { ctlMap = { ...DEFAULT_CTL_MAP }; saveCtlMap(); renderTargets(); });
@@ -3605,8 +3605,8 @@ window.__vj = {
     glitch: glitchState.plan ? { serial: glitchState.serial, ...glitchState.plan } : null,
     options: { ...options }, snapQueued: snapQ.length,
     // gate v2 (no readback here: window.__vj.limiter() reads its state)
-    flashProtection: { on: flash.on, source: flash.source, shown: flash.shown },
-    limiter: { on: flash.on && limiterLive(), mode: G.limiter ? G.limiter.mode() : "", format: G.limiter ? G.limiter.format : null,
+    flashProtection: { on: protection.on, source: protection.source, shown: protection.shown },
+    limiter: { on: protection.on && limiterLive(), mode: G.limiter ? G.limiter.mode() : "", format: G.limiter ? G.limiter.format : null,
                frames: G.limiter ? G.limiter.frames() : 0, compileMs: G.limiter ? G.limiter.compileMs() : null,
                gpuMs: G.limiter ? G.limiter.gpuMs() : null, parallel: G.limiter ? G.limiter.parallel : null,
                error: G.limiterError, fatal: G.limiter ? G.limiter.fatal() : !!G.limiterError, asked: LIMITER_MODE,
@@ -3819,7 +3819,7 @@ async function boot() {
   }
   connectEngine();
   if (DEMO_AT_START) setDemo(true);
-  flash.ready.then(() => requestAnimationFrame(onFrame));   // the show starts once the viewer has made the choice
+  protection.ready.then(() => requestAnimationFrame(onFrame));   // the show starts once the viewer has made the choice
   await Promise.all(sets.map(loadSet));
   if (!validSet(deck.a)) deck.a = nextValid(deck.a);
   deck.b = nextValid(deck.a);

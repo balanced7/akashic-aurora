@@ -49,6 +49,24 @@ Open it from the Arsenal server:
 | `C` / `Esc` | Play the next camera shot in motion, looping over its own bars (v2; every shot in the set, the held RING_THREAD included) / give the camera back to the director (or the phrase). |
 | `H`, `F` | Hide the HUD, go full screen. The HUD's phrase row names the step, the variant, the repeat and the beats left. |
 
+## Flash protection: the viewer's choice (2026-10-28, `../lib/flash-consent.js`)
+
+Daniel: "have it be a toggle, as it should be, you get a siezure warning and its up to you what you do with it, default
+is on, on the warning you can uncheck it". On a first visit, before the show starts, the page shows a photosensitivity
+warning with one checkbox, **Flash protection**, checked, and **Start**. The choice is remembered in this browser (one
+key, `arsenal.flashProtection`, for the Stage and the VJ page); the HUD has a quiet **Flash protection** checkbox to
+change it later. Nothing reminds the viewer afterwards.
+
+| URL | |
+|---|---|
+| `?flash=on` / `?flash=off` | decides from the address, no screen, not remembered (tests, kiosks) |
+| `?flash=ask` | shows the screen again |
+
+A browser driven by automation (`navigator.webdriver`: every house lane) gets protection on and no screen. With
+protection on, `flash.js` judges every frame as it always has. With it off the page asks no limiter: no meter, the apply
+pass is the identity (the canvas is the frame as drawn, receipt `arsenal/lanes/flash_toggle_verify.mjs` phase
+identity), and the kick's flash governor sees a full budget. The FlashGate and the kick strobe's own cap are unchanged.
+
 ## Daniel's phrase ("Halo Levels", `sets/source-v1.json` → `phrases.halo-levels`)
 
 Eight bars, five steps, each landing on its bar line:
@@ -132,7 +150,7 @@ models the stands); the Qlimax-faithful home keeps the 2014 rule: the ring is st
 | `atmos.js` | The haze medium: the hazers, the lag, our own tileable noise, and two caps since VJ V2 (haze and fog 0.26 /m, CO2 and smoke plumes 15 /m: opaque white CO2 is possible; the white-out guard is flash.js and the FlashGate, receipts in tests/stage_atmos.test.mjs). |
 | `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan; v2: the strand frame (shots round the live centre line, the under-ride), the formation-validity filter and the guard (never a shot within 1.5 m of a rung), roll curves, the easings arrive_fast, snap and arrive_u, the dolly zoom, and the landing grammar: one glide while the hoists move, the cut ON the landing bar line to the formation's hero view (`cameras.formation_views`, the ring formations' among them). |
 | `show.js` | Sections (v1: a section may name a phrase), the demo plan, and DROP NOW. |
-| `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. |
+| `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. v2 (2026-10-28): the same windows, counters and limits, met with smooth fields over the cells' corners (a soft dimming, or a glow in the region's own colour) instead of v1's per-cell holds, which froze whole tiles with hard edges; see "Flash protection" below. |
 | `render.js`, `shaders.js` | The three.js r186 renderer and our own GLSL, composed with the house library; v1: the crowd near the lens is not drawn (4 m) and its arms hold still (10 m). |
 
 Tests: `node --test tests/stage_*.test.mjs`. The browser receipt: `node arsenal/lanes/stage_verify.mjs` (default phases
