@@ -814,6 +814,98 @@
     "shots": {
       "FOH_HOLD_ZOOM": {"kind": "static", "pos": [0, 4.5, 50], "look": [0, 13, -6], "hfov": [52, 38], "ev": 0, "source": "footage: front-of-house lock-off, slow zoom"},
       "FOH_WIDE": {"kind": "static", "pos": [0, 5.0, 56], "look": [0, 13, -4], "hfov": 62, "ev": 0, "source": "footage: the drop's hero wide"},
+      "SPEC_EDGE_MID_L": {
+        "kind": "static",
+        "pos": [-38, 13, 58],
+        "look": [4.2, 14.1, 13.1],
+        "hfov": [67, 62],
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (spectacle wides, fix round 1; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the house-left edge of the floor at 13 m, just under the rungs' height and 47 m out from the rings: the strand a straight leading line across the frame into the four rings and the halo, both towers and the beam forest round them, the laser floor below, every PA hang clear of the ring core but the outermost; a slow creep from 67 to 62 degrees"
+      },
+      "SPEC_CORNER_LOW_R": {
+        "kind": "static",
+        "pos": [36, 4, 88],
+        "look": [-1.1, 15.5, 10.7],
+        "hfov": [42, 37],
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (spectacle wides, fix round 1; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the long lens from the rear house-right corner of the floor, 4 m up behind the last of the crowd and 106 m from the rings: the four rings, the halo and the whole strand stacked and compressed into one picture, the strand's cubes stepping across the rings, the beam forest and the laser floor round them; a slow tighten from 42 to 37 degrees"
+      },
+      "SPEC_HALL_CORNER_REAR_L": {
+        "kind": "static",
+        "pos": [-34, 31, 93],
+        "look": [3, 15, 4],
+        "hfov": [50, 46],
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the roof-height rear house-left corner, under the grid and in front of the rear stand: the whole rig in three-quarter from the back of the hall over the laser floor; a slow push from 50 to 46 degrees"
+      },
+      "SPEC_HALL_CORNER_FRONT_R": {
+        "kind": "static",
+        "pos": [34, 28, 52],
+        "look": [0, 12, 18],
+        "hfov": 74,
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the high house-right corner level with the mixing desk, under the side-stand plane: the strand a diagonal leading line into the four rings and the halo, the beam fans raking behind and the laser floor beneath (TRIBUNE_HIGH_R's corner at 1.54 times its lens: the whole strand, both towers and the laser floor in frame, where TRIBUNE_HIGH_R loses the strand's far end and the house-right tower)"
+      },
+      "SPEC_HALL_SIDE_PANO": {
+        "kind": "path",
+        "pos_path": [[-46, 30, 4], [-46, 30.5, 12]],
+        "look_path": [[0.1, 13.9, 9.4], [0.2, 14.1, 11.8]],
+        "hfov": 80,
+        "ease": "linear",
+        "ev": 0.3,
+        "bars": 16,
+        "source": "ours (spectacle wides, fix round 1; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a high side panorama 46 m out on house left, over the side stand's front edge and ahead of its plane (z 32 on): the rings in profile on the left third, the whole strand a skyline stepping out over the crowd, the house-left beam fan a lit curtain across the rings; an 8 m truck"
+      },
+      "SPEC_HALL_ORBIT": {
+        "kind": "orbit",
+        "orbit": {"centre": [0, 14, 10], "radius": 76, "height": 16, "from_deg": 29, "to_deg": -29, "rise": 0},
+        "look": [0, 12.9, 10],
+        "hfov": 48,
+        "ev": 0.3,
+        "bars": 16,
+        "source": "ours (spectacle wides, fix round 1; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a slow 58-degree arc 76 m out round the middle of the rig (the rings and the strand together, not the rings alone), 16 m up, under the strand: house right to house left, the rings read whole under the strand and the strand swings from one side of them to the other, every rung and both towers in frame all the way (77 m, peak 5.6 m/s)"
+      },
+      "SPEC_HALL_REAR_DRIFT": {
+        "kind": "path",
+        "pos_path": [[-30, 18, 93], [30, 18, 93]],
+        "look_path": [[-8, 15.5, 0], [8, 15.5, 0]],
+        "hfov": 48,
+        "ease": "linear",
+        "ev": 0.3,
+        "bars": 16,
+        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a slow lateral drift across the back of the hall at 18 m: the strand turns from a ribbon leaving the rings house left, to a ziggurat on the axis, to a ribbon house right, the whole black room and the beam wall around it (60 m)"
+      },
+      "SPEC_HALL_PULLBACK": {
+        "kind": "path",
+        "pos_path": [[0, 27.5, 11], [0, 29.5, 38], [-4, 31, 68], [-14, 31, 93]],
+        "look_path": [[0, 14, -11], [0, 14, -8], [-1, 13, -2]],
+        "hfov": [60, 54],
+        "ev": 0.3,
+        "bars": 16,
+        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the zoom-out as a move: it opens high over the strand's head, 26 m from the rings' centre with the four rings filling the frame, flies back over the strand 7.5 m or more above its home height and settles at the roof-height rear corner on the whole set (about 84 m; the whole rig is in frame from u 0.6)"
+      },
+      "SPEC_GRAND_ARC": {
+        "kind": "path",
+        "pos_path": [[-44.1, 26, 33.5], [-33, 28.5, 47.5], [-17.6, 30.3, 56.8], [0, 31, 60], [17.6, 30.3, 56.8], [33, 28.5, 47.5], [44.1, 26, 33.5]],
+        "look_path": [[2.9, 13.2, 14.3], [4.7, 13.9, 13.3], [5, 13.7, 11.6], [0, 13, 10.3], [-5, 13.7, 11.6], [-4.7, 13.9, 13.3], [-2.9, 13.2, 14.3]],
+        "hfov": 79,
+        "ev": 0.3,
+        "bars": 16,
+        "source": "ours (spectacle wides, fix round 1; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a 124-degree high arc 50 m round the middle of the rig, house left over the crowd (cresting 31 m) to house right: the four rings and the halo turn as ellipses and the strand stays in frame end to end all the way (109 m, peak 8 m/s)"
+      },
+      "SPEC_SPIRAL_RISE": {
+        "kind": "path",
+        "pos_path": [[39.9, 9, 44.1], [35.4, 10.5, 55], [28, 14.2, 65.2], [17.8, 19, 73.9], [5, 23.8, 80.5], [-9.7, 27.5, 84.2], [-25.7, 29, 84.5]],
+        "look_path": [[-3.6, 15.2, 13.7], [-4.4, 15.5, 13.2], [-4, 14.3, 11.9], [-1.4, 12.4, 10.5], [1, 13.1, 10], [-1.8, 13.8, 9.8], [0.6, 13.9, 10.2]],
+        "hfov": 73,
+        "ev": 0.3,
+        "bars": 16,
+        "source": "ours (spectacle wides, fix round 1; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a rising sweep from 9 m on the house-right edge of the floor, round behind the crowd, climbing to 29 m at the rear house left: the rig turns through 73 degrees as the lens rises over the crowd line, the rings and the halo whole and the strand end to end in frame all the way (86 m, peak 6.3 m/s)"
+      },
       "CRANE_RISE_REVEAL": {
         "kind": "path",
         "pos_path": [[-6, 2.2, 48], [-4, 9, 50], [-1, 19, 53], [0, 26, 56]],
@@ -1124,137 +1216,46 @@
         "bars": 4,
         "source": "ours (v2; fix round 1): the push in toward the gimbals from high house left, straight down a sightline clear of the PA hangs; it ends 18.5 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
       },
-      "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"},
-      "SPEC_FOH_HIGH": {
-        "kind": "static",
-        "pos": [0, 24, 80],
-        "look": [0, 13, -6],
-        "hfov": [46, 40],
-        "ev": 0.3,
-        "bars": 8,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): front-of-house high, 24 m up at the back of the crowd: the whole rig as one picture, the four rings and the halo centred over the strand, both towers, the beams and the laser fans; a slow creep from 46 to 40 degrees"
-      },
-      "SPEC_REAR_LONGLENS": {
-        "kind": "static",
-        "pos": [0, 15, 95],
-        "look": [0, 14, -10],
-        "hfov": [34, 28],
-        "ev": 0.3,
-        "bars": 8,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the long lens on the rear axis at ring height, just inside the rear wall: the strand flattens into a band across the hub and the four rings and the halo read whole and face-on, stacked with the beams and the laser fans; a slow tighten from 34 to 28 degrees"
-      },
-      "SPEC_HIGH_ORBIT": {
-        "kind": "orbit",
-        "orbit": {"centre": [0, 14, -11], "radius": 78, "height": 27, "from_deg": 26, "to_deg": -26, "rise": 0},
-        "look": [0, 14, -8],
-        "hfov": 50,
-        "ev": 0.3,
-        "bars": 16,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a slow high 52-degree arc 78 m out and 27 m up (under the grid), house right to house left: the rings stay whole in frame all the way and the strand swings from one side of them to the other"
-      },
-      "SPEC_HALL_CORNER_REAR_L": {
-        "kind": "static",
-        "pos": [-34, 31, 93],
-        "look": [3, 15, 4],
-        "hfov": [50, 46],
-        "ev": 0.3,
-        "bars": 8,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the roof-height rear house-left corner, under the grid and in front of the rear stand: the whole rig in three-quarter from the back of the hall over the laser floor; a slow push from 50 to 46 degrees"
-      },
-      "SPEC_HALL_CORNER_FRONT_R": {
-        "kind": "static",
-        "pos": [34, 28, 52],
-        "look": [0, 12, 18],
-        "hfov": 74,
-        "ev": 0.3,
-        "bars": 8,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the high house-right corner level with the mixing desk, under the side-stand plane: the strand a diagonal leading line into the four rings and the halo, the beam fans raking behind and the laser floor beneath"
-      },
-      "SPEC_HALL_SIDE_PANO": {
-        "kind": "path",
-        "pos_path": [[-52, 30, 4], [-52, 30.5, 12]],
-        "look_path": [[0, 12, 8], [0, 12, 14]],
-        "hfov": 80,
-        "ease": "linear",
-        "ev": 0.3,
-        "bars": 16,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a high side panorama from the house-left wall in front of the side stand: the rings in profile on the left third, the whole strand a skyline stepping out over the crowd, the house-left beam fan a lit curtain across the rings; an 8 m truck"
-      },
-      "SPEC_HALL_PULLBACK": {
-        "kind": "path",
-        "pos_path": [[0, 27.5, 11], [0, 29.5, 38], [-4, 31, 68], [-14, 31, 93]],
-        "look_path": [[0, 14, -11], [0, 14, -8], [-1, 13, -2]],
-        "hfov": [60, 54],
-        "ev": 0.3,
-        "bars": 16,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): the zoom-out as a move: it opens inside the four rings (a tunnel of ring pixels and beams), flies back over the strand 7.5 m or more above its home height and settles at the roof-height rear corner on the whole set (about 84 m)"
-      },
-      "SPEC_HALL_REAR_DRIFT": {
-        "kind": "path",
-        "pos_path": [[-30, 18, 93], [30, 18, 93]],
-        "look_path": [[-8, 15.5, 0], [8, 15.5, 0]],
-        "hfov": 48,
-        "ease": "linear",
-        "ev": 0.3,
-        "bars": 16,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a slow lateral drift across the back of the hall at 18 m: the strand turns from a ribbon leaving the rings house left, to a ziggurat on the axis, to a ribbon house right, the whole black room and the beam wall around it (60 m)"
-      },
-      "SPEC_GRAND_ARC": {
-        "kind": "path",
-        "pos_path": [[-46.0, 25, 14.0], [-39.84, 26, 37.0], [-23.0, 29, 53.84], [0.0, 31, 60.0], [23.0, 29, 53.84], [39.84, 26, 37.0], [46.0, 25, 14.0]],
-        "look_path": [[0, 12, -2], [0, 12, 6], [0, 12, -2]],
-        "hfov": 72,
-        "ev": 0.3,
-        "bars": 16,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a 180-degree high arc round the whole rig, house left over the crowd (cresting 31 m) to house right: the four rings and the halo stay whole as turning ellipses, the near beam bank a foreground at the ends (145 m, peak 10.6 m/s)"
-      },
-      "SPEC_SPIRAL_CROWN": {
-        "kind": "path",
-        "pos_path": [[-44, 7, 36], [-32, 12, 56], [-6, 19, 64], [20, 25, 58], [30, 29, 44], [12, 31, 46]],
-        "look_path": [[0, 14, 8], [0, 13, 0], [0, 11, 2]],
-        "hfov": 74,
-        "ev": 0.3,
-        "bars": 16,
-        "source": "ours (spectacle wides; Daniel, 2026-10-29: \"we dont have many good zoom out ones so i can appreciate the crazy ring effects and full set magic\"): a rising half-spiral from 7 m on house left, round behind the crowd, climbing house right to crown the rig from 31 m, looking down the strand into the concentric rings over the laser floor (118 m)"
-      }
+      "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"}
     },
     "sequences": {
       "intro": [{"shot": "FOH_HOLD_ZOOM", "bars": 4}, {"shot": "CRANE_RISE_REVEAL", "bars": 4}],
       "build": [{"shot": "STRAND_FLYTHROUGH", "bars": 8}],
       "drop": [
-        {"shot": "SPEC_HALL_CORNER_FRONT_R", "bars": 4},
         {"shot": "TUNNEL_UP", "bars": 2},
+        {"shot": "SPEC_HALL_CORNER_FRONT_R", "bars": 4},
         {"shot": "TOPDOWN_GODVIEW", "bars": 2},
-        {"shot": "SPEC_REAR_LONGLENS", "bars": 4},
         {"shot": "TRIBUNE_34", "bars": 2},
+        {"shot": "HEAD_ORBIT", "bars": 2},
         {"shot": "FOH_WIDE", "bars": 2},
         {"shot": "CROWD_POV", "bars": 2},
         {"shot": "WORM_RING", "bars": 2},
-        {"shot": "SPEC_HALL_CORNER_REAR_L", "bars": 4},
-        {"shot": "HEAD_ORBIT", "bars": 2},
-        {"shot": "SPEC_FOH_HIGH", "bars": 4}
+        {"shot": "SPEC_CORNER_LOW_R", "bars": 4}
       ],
       "break": [
-        {"shot": "SPEC_HALL_REAR_DRIFT", "bars": 16},
+        {"shot": "SPEC_HALL_REAR_DRIFT", "bars": 6},
         {"shot": "DJ_OTS", "bars": 2},
-        {"shot": "SPEC_HIGH_ORBIT", "bars": 8},
+        {"shot": "HEAD_ORBIT_SLOW", "bars": 6},
         {"shot": "SPEC_HALL_SIDE_PANO", "bars": 8},
-        {"shot": "SPEC_FOH_HIGH", "bars": 4},
-        {"shot": "HEAD_ORBIT_SLOW", "bars": 6}
+        {"shot": "DJ_OTS", "bars": 2}
       ],
       "groove": [
         {"shot": "FOH_HOLD_ZOOM", "bars": 4},
-        {"shot": "TRIBUNE_34", "bars": 4},
+        {"shot": "SPEC_HALL_ORBIT", "bars": 8},
         {"shot": "PROFILE_GRAPH", "bars": 4},
+        {"shot": "SPEC_HALL_CORNER_REAR_L", "bars": 4},
         {"shot": "HEAD_ORBIT", "bars": 4},
-        {"shot": "TRIBUNE_HIGH_R", "bars": 4},
-        {"shot": "SPEC_HALL_PULLBACK", "bars": 16},
+        {"shot": "SPEC_CORNER_LOW_R", "bars": 4},
+        {"shot": "SPEC_SPIRAL_RISE", "bars": 16},
         {"shot": "TUNNEL_UP", "bars": 4},
+        {"shot": "SPEC_HALL_PULLBACK", "bars": 16},
         {"shot": "SPEC_GRAND_ARC", "bars": 16},
         {"shot": "REAR_TELE_ZIGGURAT", "bars": 4},
         {"shot": "STRAND_ORBIT_FULL", "bars": 8},
+        {"shot": "TRIBUNE_HIGH_R", "bars": 4},
         {"shot": "ROOF_ESTABLISH", "bars": 4},
-        {"shot": "SPEC_SPIRAL_CROWN", "bars": 16}
+        {"shot": "SPEC_EDGE_MID_L", "bars": 4},
+        {"shot": "TRIBUNE_34", "bars": 4}
       ],
       "showcase": [{"shot": "PROFILE_GRAPH", "bars": 8}, {"shot": "STRAND_ORBIT_FULL", "bars": 16}, {"shot": "TRIBUNE_HIGH_R", "bars": 4}, {"shot": "REAR_TELE_ZIGGURAT", "bars": 4}],
       "build-dive": [{"shot": "VERTIGO_TUNNEL", "bars": 4}, {"shot": "DIVE_FROM_ROOF", "bars": 4}],
@@ -1273,14 +1274,14 @@
     "formation_views": {
       "_about": "v2: the move shows the motion, the cut reveals the arrival. When a formation lands (the set's formation key, a ring formation's key, else its kinetics name), the director plays one glide from the next bar line (between half and twice the glide's own bars) and cuts ON the landing bar line to a hero view; each landing deals the next shot of each list, and a shot that would come within 1.5 m of the strand (or of the rings a ring formation sweeps) is skipped. The ring formations (formations.js): orrery, spiral, vortex, crown, portal.",
       "orrery": {"glide": ["ORRERY_REVEAL"], "hero": ["ORRERY_UNDER", "ORRERY_HERO", "ORRERY_HIGH", "ORRERY_NEAR"], "hero_bars": 8},
-      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "HALO_LOCK", "SPEC_HALL_CORNER_REAR_L"], "hero_bars": 8},
-      "vortex": {"glide": ["VERTIGO_TUNNEL", "SPEC_HIGH_ORBIT"], "hero": ["HALO_LOCK", "SPEC_REAR_LONGLENS", "TRIBUNE_HIGH_R", "FOH_WIDE"], "hero_bars": 8},
-      "crown": {"glide": ["CRANE_RISE_REVEAL", "SPEC_HIGH_ORBIT"], "hero": ["TRIBUNE_34", "SPEC_FOH_HIGH", "ROOF_ESTABLISH", "FOH_WIDE"], "hero_bars": 8},
-      "portal": {"glide": ["FOH_HOLD_ZOOM"], "hero": ["HALO_LOCK", "SPEC_HALL_CORNER_FRONT_R", "STAGE_CORNER_REVERSE", "FOH_WIDE"], "hero_bars": 8},
-      "ramp": {"glide": ["VARINI_RESOLVE", "PROFILE_GRAPH"], "hero": ["REAR_TELE_ZIGGURAT", "SPEC_HALL_SIDE_PANO"]},
-      "stairs": {"glide": ["PROFILE_GRAPH", "STRAND_ORBIT_FULL"], "hero": ["REAR_TELE_ZIGGURAT", "TRUSS_REVERSE", "SPEC_HALL_SIDE_PANO"]},
-      "valley": {"glide": ["STRAND_ORBIT_FULL", "PROFILE_GRAPH"], "hero": ["TRIBUNE_HIGH_R", "CROWD_POPUP", "SPEC_HALL_CORNER_FRONT_R"]},
-      "arch": {"glide": ["PROFILE_GRAPH", "STRAND_ORBIT_FULL"], "hero": ["PROFILE_LOW_SKYLINE", "UNDER_RUNG_ICON", "SPEC_HALL_SIDE_PANO"]},
+      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "SPEC_HALL_SIDE_PANO", "HALO_LOCK"], "hero_bars": 8},
+      "vortex": {"glide": ["VERTIGO_TUNNEL"], "hero": ["HALO_LOCK", "SPEC_EDGE_MID_L", "TRIBUNE_HIGH_R", "FOH_WIDE"], "hero_bars": 8},
+      "crown": {"glide": ["CRANE_RISE_REVEAL", "SPEC_HALL_ORBIT"], "hero": ["SPEC_HALL_CORNER_FRONT_R", "ROOF_ESTABLISH", "TRIBUNE_34", "FOH_WIDE"], "hero_bars": 8},
+      "portal": {"glide": ["FOH_HOLD_ZOOM"], "hero": ["SPEC_EDGE_MID_L", "HALO_LOCK", "STAGE_CORNER_REVERSE", "FOH_WIDE"], "hero_bars": 8},
+      "ramp": {"glide": ["VARINI_RESOLVE", "PROFILE_GRAPH"], "hero": ["REAR_TELE_ZIGGURAT"]},
+      "stairs": {"glide": ["PROFILE_GRAPH", "STRAND_ORBIT_FULL"], "hero": ["REAR_TELE_ZIGGURAT", "TRUSS_REVERSE"]},
+      "valley": {"glide": ["STRAND_ORBIT_FULL", "PROFILE_GRAPH"], "hero": ["TRIBUNE_HIGH_R", "CROWD_POPUP"]},
+      "arch": {"glide": ["PROFILE_GRAPH", "STRAND_ORBIT_FULL"], "hero": ["PROFILE_LOW_SKYLINE", "UNDER_RUNG_ICON"]},
       "helix": {"glide": ["SPIRAL_ASCENT"], "hero": ["HALO_LOCK", "HELIX_CORKSCREW"]}
     }
   },
