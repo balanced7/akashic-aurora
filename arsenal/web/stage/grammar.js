@@ -35,11 +35,15 @@
 //               it: one ensemble, one attack identity. W is frozen when the lineage begins.
 //   3. strum    three or more ADJACENT number positions in one direction, every interval <= 90 ms, span <= 300 ms: the
 //               lineage of the run's first key is reclassified as a strum (lineages of the run in between merge into it)
-//               and the run's later keys join it in their measured order. A reversal closes it.
+//               and the run's later keys join it in their measured order. A reversal closes it. Any other distinct key
+//               within W of the strum's first down joins it too (one gesture, one attack).
 //   4. sweep    three adjacent directional positions, each interval in [max(110, 0.28 B), min(450, 0.95 B)] ms: the THIRD
 //               down establishes BREATH and does not fire its own single; the run's movement so far is the fade's first
 //               move; from then on any adjacent down within 450 ms of the last is a fader step (either direction), never a
 //               single; a gap over 450 ms or a non-adjacent down ends it (that down is then decided as usual).
+//               Only when the fade can move the level that way (canFade): a run up the row at full level, or down it
+//               at black, is ordinary playing and every key fires; a step that cannot move it ends the sweep ("limit").
+//               NB the continuation takes ANY adjacent key within 450 ms, a deliberate hit included (design constant).
 //               Descending positions fade out, ascending fade in (Daniel's "8 7 6 5 4 then 456789").
 //   5. BREATH   B held: the number row is a fader from the first key -- no single fires; the first key anchors, each next
 //               key moves the level by (position - previous position) / 9.
@@ -59,6 +63,8 @@ export const G = Object.freeze({
   slowFrac: 0.28, slowFloorMs: 110, slowCeilFrac: 0.95, slowCeilMs: 450, sweepKeys: 3, sweepEndMs: 450,
   walkBeats: 2, walkCapMs: 800,
   breathStep: 1 / 9,              // a fader step: one number position
+  settleSlackMs: 50,              // a lineage stays open this long past W: a key event handled after a frame's settle can
+                                  // carry an earlier timestamp still inside W (main-thread delay; review F6, 2026-10-29)
 });
 export const BREATH_CONTROL = "B";
 export const CAMERA_CONTROL = "C";
@@ -75,11 +81,14 @@ export function windowsFor(B, o = G) {
 }
 
 export class Grammar {
-  // beatMs(): ms per beat from a fresh, valid clock, or null; positional(source): its controls sit in a row
-  constructor({ beatMs = () => null, positional = (source) => source === "key", opts = {} } = {}) {
+  // beatMs(): ms per beat from a fresh, valid clock, or null; positional(source): its controls sit in a row;
+  // canFade(dir, source): can a fade in this direction (+1 in, -1 out) still move the level? A slow run that cannot move
+  // it (up at full, down at black) is ordinary playing: its keys fire as usual (review F4, 2026-10-29)
+  constructor({ beatMs = () => null, positional = (source) => source === "key", canFade = () => true, opts = {} } = {}) {
     this.o = { ...G, ...opts };
     this.beatMs = beatMs;
     this.positional = positional;
+    this.canFade = canFade;
     this.src = new Map();
     this.seq = 0;
     this.counts = { downs: 0, repeats: 0, dispatched: 0, suppressed: 0, singles: 0, chords: 0, strums: 0, walks: 0, sweeps: 0,
@@ -133,14 +142,15 @@ export class Grammar {
     }
     // 2. an established slow sweep owns adjacent downs within its gap
     if (s.sweep) {
-      if (pos !== null && Math.abs(pos - s.sweep.last) === 1 && t - s.sweep.lastT <= o.sweepEndMs) {
+      const stepDir = pos === null ? 0 : pos - s.sweep.last;
+      if (pos !== null && Math.abs(stepDir) === 1 && t - s.sweep.lastT <= o.sweepEndMs && this.canFade(stepDir, source)) {
         const delta = (pos - s.sweep.last) * step;
         s.sweep.last = pos; s.sweep.lastT = t; s.sweep.steps++;
         press.owner = "breath"; this.counts.suppressed++; this.counts.breathSteps++;
         out.push({ type: "breath", phase: "step", explicit: false, source, t, id, control, delta, sweep: s.sweep.id });
         return out;
       }
-      out.push(this._endSweep(s, t, pos === null ? "other" : t - s.sweep.lastT > o.sweepEndMs ? "gap" : "jump"));
+      out.push(this._endSweep(s, t, pos === null ? "other" : t - s.sweep.lastT > o.sweepEndMs ? "gap" : Math.abs(stepDir) !== 1 ? "jump" : "limit"));
     }
     // 3. the runs this down extends (fast: a strum candidate; slow: a sweep candidate)
     if (pos !== null) {
@@ -148,8 +158,8 @@ export class Grammar {
       s.slow = this._extend(s.slow, press, (a, b, run) => { const iv = b.t - a.t; return iv >= run.win.slowMin && iv <= run.win.slowMax; });
       if (s.slow.list.length === 1) s.slow.win = windowsFor(this.B(), o);
     } else { s.fast = { list: [] }; s.slow = { list: [], win: null }; }
-    // 4. a slow sweep takes over on its third key (that key fires no single)
-    if (s.slow.list.length >= o.sweepKeys) {
+    // 4. a slow sweep takes over on its third key (that key fires no single) -- when the fade can move the level that way
+    if (s.slow.list.length >= o.sweepKeys && this.canFade(Math.sign(s.slow.list[1].pos - s.slow.list[0].pos), source)) {
       const L = s.slow.list, dir = Math.sign(L[1].pos - L[0].pos);
       s.sweep = { id: `sweep${++this.seq}`, dir, last: pos, lastT: t, steps: L.length - 1, keys: L.map((p) => p.control) };
       press.owner = "breath"; this.counts.suppressed++; this.counts.sweeps++; this.counts.breathSteps += L.length - 1;
@@ -178,9 +188,10 @@ export class Grammar {
         return out;
       }
     }
-    // 6. a chord: a distinct control within W of the lineage's first down (a strum takes only its own continuation)
+    // 6. a chord: a distinct control within W of the lineage's first down -- a strum's lineage too (a mash 4 5 6 and 1
+    //    inside W is one gesture, one attack: review F2, 2026-10-29); it stays a strum, the key joins it as a member
     const cur = s.lineage;
-    if (cur && !cur.closed && cur.kind !== "strum" && t - cur.t0 <= cur.win.W && !cur.members.some((m) => m.control === control)) {
+    if (cur && !cur.closed && t - cur.t0 <= cur.win.W && !cur.members.some((m) => m.control === control)) {
       if (cur.kind === "single") { cur.kind = "chord"; out.push({ type: "reclassify", source, lineage: cur.id, from: "single", to: "chord", absorbed: [], t }); }
       this._join(cur, press, out);
       this._pairs(s, cur, t, out);
@@ -293,7 +304,7 @@ export class Grammar {
       const slowLive = sLast && s.slow.win && t - sLast.t <= s.slow.win.slowMax;
       const keep = [];
       for (const L of s.open) {
-        const growing = t <= L.t0 + L.win.W || (fastLive && fl.some((p) => p.lineage === L)) || (slowLive && sl.some((p) => p.lineage === L));
+        const growing = t <= L.t0 + L.win.W + o.settleSlackMs || (fastLive && fl.some((p) => p.lineage === L)) || (slowLive && sl.some((p) => p.lineage === L));
         if (growing && t !== Infinity) { keep.push(L); continue; }
         L.settled = true; L.closed = true;
         if (L.absorbedBy) continue;

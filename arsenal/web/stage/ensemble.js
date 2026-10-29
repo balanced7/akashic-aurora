@@ -35,7 +35,7 @@ export class Ensembles {
     this.o = { ...BREATH, ...opts };
     this.lin = new Map();                  // lineage id -> {transport, camera, attack, members}
     this.breath = { level: 1, target: 1, source: null, active: false, hand: null, lastMs: null };
-    this.stats = { presses: 0, skipped: 0, attacks: 0, joined: 0, cancels: 0, breaths: 0 };
+    this.stats = { presses: 0, skipped: 0, attacks: 0, joined: 0, restrikes: 0, cancels: 0, breaths: 0 };
     this.log = [];                         // the last 64 gestures, for the HUD and the receipts
   }
   _lineage(id) {
@@ -98,14 +98,23 @@ export class Ensembles {
     out.push({ do: "breath", target: B.target });
     return out;
   }
-  // after a kick press of lineage id: the lineage's first attack is its identity; a later member joins it at its age
+  // after a kick press of lineage id: the lineage's first FRESH attack is its identity; a later member joins it at its age.
+  // A join only ever makes a member's punch OLDER (weaker) or leaves it: the flash governor's refusal (-Infinity) stays a
+  // refusal, and a re-strike (kick.js: rec.presses > 1; its punch counts from its first press and never renews) keeps its
+  // old punch -- with protection on, a chord never adds light the same keys as singles would not (review F1, 2026-10-29).
+  // A re-strike never becomes the lineage's identity either: its punch is history, so a fresh kick later in the chord
+  // keeps its own (review F8b).
   attack(lineageId, rec) {
     if (!rec || !("punchFrom" in rec)) return null;
     const L = this._lineage(lineageId);
-    if (L.attack === undefined) { L.attack = rec.punchFrom; this.stats.attacks++; return { own: true, from: rec.punchFrom }; }
-    if (rec.punchFrom !== L.attack) { rec.punchFrom = L.attack; }
+    const restrike = Number.isFinite(rec.presses) && rec.presses > 1;
+    if (L.attack === undefined) {
+      if (restrike) { this.stats.restrikes++; return { own: false, from: rec.punchFrom, restrike: true }; }
+      L.attack = rec.punchFrom; this.stats.attacks++; return { own: true, from: rec.punchFrom };
+    }
+    if (L.attack <= rec.punchFrom) rec.punchFrom = L.attack;          // older or equal: joins at its age (never newer)
     this.stats.joined++;
-    return { own: false, from: L.attack };
+    return { own: false, from: rec.punchFrom };
   }
   // Esc: the level goes back to 1 over handBackBeats (from where it is: an interrupted fade starts from its current value)
   handBack(nowMs, beatMs) {
@@ -133,6 +142,12 @@ export class Ensembles {
     return B.level;
   }
   get level() { return this.breath.level; }
+  // the recogniser's canFade: can a fade this way (+1 in, -1 out) still move the target? (a run up the row at full level is
+  // ordinary playing, never a silent takeover: review F4)
+  canFade(dir) {
+    const T = this.breath.target;
+    return dir > 0 ? T < 1 - 1e-9 : dir < 0 ? T > this.o.floor + 1e-9 : false;
+  }
   // the programmer's layer hook (after the look, the phrase layer and the rings; before the kicks): the look's own light
   apply(tH, tC) {
     const l = this.breath.level;

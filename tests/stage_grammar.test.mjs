@@ -346,3 +346,107 @@ test("ensemble: BREATH anchors at the current level, ramps one step per 120 ms, 
   const start = all.find((d) => d.type === "breath" && d.phase === "start");
   assert.deepEqual(f.plan(start).filter((i) => i.do === "cancel").map((i) => i.control), ["8", "7"]);
 });
+
+// ------------------------------------------------------------------------------- the review's findings (2026-10-29) --
+// a recogniser wired to an ensemble the way stage.js wires it (canFade reads the fade's target); every decision planned
+function coupled({ B = 400 } = {}) {
+  const e = new Ensembles();
+  const g = new Grammar({ beatMs: () => B, canFade: (dir) => e.canFade(dir) });
+  const per = [];
+  const feed = (t, control, down = true) => {
+    const ds = [...g.settle(t), ...g.input({ source: "key", control, down, t, velocity: 0.8, ...(down ? { id: `${control}@${t}` } : {}) })];
+    for (const d of ds) e.plan(d);
+    if (down) per.push({ t, control, down, ds });
+    return ds;
+  };
+  // a tap: down, and up 30 ms later (only the downs are kept in per)
+  const tap = (t, control) => { const ds = feed(t, control); feed(t + 30, control, false); return ds; };
+  return { e, g, per, feed, tap };
+}
+
+test("F1: a chord never adds a punch -- a refused member stays refused, a re-strike member keeps its old punch", () => {
+  // first granted, second refused by the flash governor (kick.js: punchFrom -Infinity)
+  const e = new Ensembles(), a = { punchFrom: 8.0417, presses: 1 }, b = { punchFrom: -Infinity, presses: 1 };
+  e.attack("g1", a); e.attack("g1", b);
+  assert.equal(b.punchFrom, -Infinity, "the governor's refusal must stand");
+  // the chord 1 + 5 where 5 is still lit from a tap 0.6 beat earlier: a re-strike, whose punch counts from its first press
+  const f = new Ensembles(), w = { punchFrom: 8.625, presses: 1 }, c = { punchFrom: 8.0417, presses: 2 };
+  f.attack("g1", w); f.attack("g1", c);
+  assert.equal(c.punchFrom, 8.0417, "a re-strike must not get a fresh punch from the chord");
+  // a fresh later member still joins at its age (older, never newer)
+  const h = new Ensembles(), x = { punchFrom: 10, presses: 1 }, y = { punchFrom: 10.1, presses: 1 };
+  h.attack("g", x); h.attack("g", y);
+  assert.equal(y.punchFrom, 10);
+});
+
+test("F8b: a re-strike first in a chord is not the chord's attack: the first FRESH kick is, and keeps its own punch", () => {
+  const e = new Ensembles(), r = { punchFrom: 5, presses: 3 }, k1 = { punchFrom: 10, presses: 1 }, k2 = { punchFrom: 10.05, presses: 1 };
+  assert.equal(e.attack("g", r).restrike, true);
+  assert.equal(r.punchFrom, 5);
+  assert.equal(e.attack("g", k1).own, true);
+  assert.equal(k1.punchFrom, 10, "the fresh kick keeps its punch");
+  e.attack("g", k2);
+  assert.equal(k2.punchFrom, 10);
+  assert.equal(e.stats.attacks, 1); assert.equal(e.stats.restrikes, 1);
+});
+
+test("F2: a mash 4 5 6 (a strum) and then 1 inside W is ONE gesture: 1 joins the strum's lineage (one attack)", () => {
+  for (const order of [["4", "5", "6"], ["6", "5", "4"]]) {
+    const { all } = play([[1000, order[0]], [1003, order[1]], [1006, order[2]], [1010, "1"]], { settleAt: 9000 });
+    const ls = new Set(presses(all).map((d) => d.lineage));
+    assert.equal(ls.size, 1, `${order.join("")} + 1: ${[...ls]}`);
+    assert.deepEqual(kinds(all), [`strum:${order.join("")}1`]);
+  }
+  // outside W the key is its own gesture, as before
+  const { all } = play([[1000, "4"], [1003, "5"], [1006, "6"], [1150, "1"]], { settleAt: 9000 });
+  assert.equal(new Set(presses(all).map((d) => d.lineage)).size, 2);
+});
+
+test("F4: a slow run that cannot move the fade is ordinary playing -- 1 2 3 4 5 in eighths at full level all fire", () => {
+  const { e, per, tap } = coupled({ B: 60000 / 154 });
+  for (const [i, k] of ["1", "2", "3", "4", "5"].entries()) tap(1000 + i * 195, k);
+  assert.deepEqual(per.map((p) => presses(p.ds).map((d) => d.control).join("")), ["1", "2", "3", "4", "5"]);
+  assert.equal(e.breath.target, 1);
+  // the same run DOWN the row does fade (the target can move), and back up ascends to full and no further:
+  // 9 8 7 (start, -2/9), 8, 9 (+1/9 each: back to 1), then 0 cannot move it: the sweep ends and 0 fires DROP
+  const c = coupled({ B: 400 });
+  for (const [i, k] of ["9", "8", "7", "8", "9", "0"].entries()) c.tap(5000 + i * 200, k);
+  assert.deepEqual(c.per.map((p) => presses(p.ds).map((d) => d.control).join("")), ["9", "8", "", "", "", "0"]);
+  assert.ok(Math.abs(c.e.breath.target - 1) < 1e-9);
+  assert.ok(c.per[5].ds.some((d) => d.type === "breath" && d.phase === "end" && d.why === "limit"));
+});
+
+test("F4: at black, a run down the row fires its keys (nothing left to fade); a run up still fades in", () => {
+  const { e, per, feed, tap } = coupled({ B: 400 });
+  feed(1000, "B");
+  for (const [i, k] of ["9", "8", "7", "6", "5", "4", "3", "2", "1"].entries()) tap(1100 + i * 50, k);
+  feed(1600, "B", false);
+  // a single 1/9 above black: one more step down is possible, then nothing
+  assert.ok(Math.abs(e.breath.target - 1 / 9) < 1e-9);
+  const before = per.length;
+  for (const [i, k] of ["4", "3", "2", "1"].entries()) tap(3000 + i * 200, k);
+  const got = per.slice(before).map((p) => presses(p.ds).map((d) => d.control).join(""));
+  // 4, 3 fire; 2 takes over (-2/9 floors at 0); 1 cannot move a black room further: it fires
+  assert.deepEqual(got, ["4", "3", "", "1"]);
+  assert.equal(e.breath.target, 0);
+  const up0 = per.length;
+  for (const [i, k] of ["2", "3", "4"].entries()) tap(6000 + i * 200, k);
+  assert.deepEqual(per.slice(up0).map((p) => presses(p.ds).length), [1, 1, 0]);
+  assert.ok(e.breath.target > 0);
+});
+
+test("F6: a key handled after a frame's settle, stamped inside W, still joins the chord (the settle keeps a slack)", () => {
+  // the phone and the KeyLab (no number-row runs keep the lineage open) and the keyboard's C: W = 100 at B = 400
+  for (const [source, first, second] of [["phone", "1", "5"], ["midi", "1", "5"], ["key", "C", "5"]]) {
+    const g = new Grammar({ beatMs: () => 400 });
+    g.input({ source, control: first, down: true, t: 1000 });
+    g.settle(1105);                                                   // the frame ran first, 5 ms past W
+    const d = g.input({ source, control: second, down: true, t: 1095 });
+    assert.equal(presses(d)[0].kind, "chord", `${source} ${first}+${second}`);
+    // past W the key is still its own single
+    const h = new Grammar({ beatMs: () => 400 });
+    h.input({ source, control: first, down: true, t: 1000 });
+    h.settle(1105);
+    assert.equal(presses(h.input({ source, control: second, down: true, t: 1101 }))[0].kind, "single");
+  }
+});
