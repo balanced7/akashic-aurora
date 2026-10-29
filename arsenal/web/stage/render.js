@@ -64,10 +64,12 @@ export const LOOKS = Object.freeze({
   // fidelity light setup that has pure black as something that is just in the scene without crushing other things". So
   // black comes from the SCENE (no room glow, no fill: what no fixture lights stays black) and the curve never clips a dim
   // value to zero: black stays 0 in every look (the finish keeps the floor only as an option).
-  classic: { name: "Classic",      sat: 1.08, vig: 0.22, hueKeep: 0,    black: 0, vibrance: 0,    contrast: 0,    bloom: 1,    veil: 1,    ambient: 1 },
-  hdr:     { name: "HDR Night",    sat: 1.20, vig: 0.24, hueKeep: 0.85, black: 0, vibrance: 0.35, contrast: 0,    bloom: 1.3,  veil: 0.15, ambient: 0.2 },
-  punch:   { name: "Laser Punch",  sat: 1.34, vig: 0.26, hueKeep: 1,    black: 0, vibrance: 0.55, contrast: 0.06, bloom: 1.6,  veil: 0.08, ambient: 0.1 },
-  velvet:  { name: "Velvet Black", sat: 1.12, vig: 0.28, hueKeep: 0.7,  black: 0, vibrance: 0.3,  contrast: 0,    bloom: 1.15, veil: 0.04, ambient: 0.05 },
+  // core: the hue-keeping curve hands over to the natural one between core[0] and core[1] (exposed light), and core[2] is
+  // the path to white for the hottest cores ("rich but not ... painted ... a really vibrant light")
+  classic: { name: "Classic",      sat: 1.08, vig: 0.22, hueKeep: 0,    black: 0, vibrance: 0,    contrast: 0,    bloom: 1,    veil: 1,    ambient: 1,    core: [0, 0, 0] },
+  hdr:     { name: "HDR Night",    sat: 1.10, vig: 0.24, hueKeep: 0.8,  black: 0, vibrance: 0.22, contrast: 0,    bloom: 1.35, veil: 0.15, ambient: 0.2,  core: [0.6, 2.4, 0.4] },
+  punch:   { name: "Laser Punch",  sat: 1.18, vig: 0.26, hueKeep: 0.9,  black: 0, vibrance: 0.32, contrast: 0.06, bloom: 1.6,  veil: 0.08, ambient: 0.1,  core: [0.8, 3.2, 0.3] },
+  velvet:  { name: "Velvet Black", sat: 1.06, vig: 0.28, hueKeep: 0.7,  black: 0, vibrance: 0.18, contrast: 0,    bloom: 1.2,  veil: 0.04, ambient: 0.05, core: [0.5, 2.0, 0.45] },
 });
 export const LOOK_ORDER = Object.freeze(["hdr", "punch", "velvet", "classic"]);
 
@@ -266,7 +268,8 @@ export class StageRenderer {
       finish: fs(S.FINISH_FRAGMENT(this.preludeFinish), { uHdr: { value: null }, uBloom: { value: null }, uRes: { value: new THREE.Vector2() },
                                                          uBloomMix: { value: 0.06 }, uExposure: { value: 1 }, uEv: { value: 0 }, uCurve: { value: 0 },
                                                          uSat: { value: 1.08 }, uVig: { value: 0.22 }, uHueKeep: { value: 0 },
-                                                         uBlack: { value: 0 }, uVibrance: { value: 0 }, uContrast: { value: 0 } }),
+                                                         uBlack: { value: 0 }, uVibrance: { value: 0 }, uContrast: { value: 0 },
+                                                         uCoreStart: { value: 0 }, uCoreEnd: { value: 1 }, uCoreWhite: { value: 0 } }),
       meter1: fs(S.METER1_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() },
                                                        uBX: { value: new Float32Array(5) }, uBY: { value: new Float32Array(5) } }),
       meter2: fs(S.METER2_FRAGMENT, { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() } }),
@@ -800,6 +803,7 @@ export class StageRenderer {
       const lk = LOOKS[this.look] || LOOKS.classic;
       u.uSat.value = lk.sat; u.uVig.value = lk.vig; u.uHueKeep.value = lk.hueKeep; u.uBlack.value = lk.black;
       u.uVibrance.value = lk.vibrance; u.uContrast.value = lk.contrast;
+      u.uCoreStart.value = lk.core[0]; u.uCoreEnd.value = Math.max(lk.core[1], lk.core[0] + 1e-3); u.uCoreWhite.value = lk.core[2];
       u.uBloomMix.value *= lk.bloom;
       this._fs(this.post.finish, this.ldrRT);
     }, () => this.ldrRT.texture);
