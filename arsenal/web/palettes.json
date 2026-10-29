@@ -1,7 +1,7 @@
 {
  "format": "arsenal.palettes/v1",
  "date": "2026-10-28",
- "status": "DESIGN. Not yet loaded by any page; the build lane wires it (see DESIGN.md, section 6).",
+ "status": "LOADED by arsenal/web/palettes.js (validated at load against the rig's wheel; a palette that fails is refused and the rest run): the Stage and the VJ page take every colour from it. Copied from research/in-flight/palettes-2026-10-28/palettes.json (the design: DESIGN.md there); the build's changes to a palette are listed in that palette's `changes` (marked 'build 2026-10-28').",
  "daniel": "i love the built in gradients you built for the dna strands can we make more high quality color theme presets and animations. I want us to have 30 color palates that are high quality and what is used for driving the colors so it always looks careful and deliberate, perhaps for the lights we can also have color gradient patches as well as single colors",
  "rules": {
   "red_rule": "encoded OR linear R / (R + G + B) < 0.8 (vj-themes.js isSaturatedRed); every colour that pulses, chases, kicks or is a laser keeps both at or under 0.78; a held pin at or under 0.80",
@@ -10887,10 +10887,10 @@
      }
     }
    ],
-   "kick_rules": "WHITE KICK: the dealt area goes to the palette white #f8f7f0 and decays over the linger; heads punch dimmer and shutter on their slot (no wheel move). COLOUR KICK: each LED cell lifts inside the palette: base cells to #8eed6b (L +0.24), partner cells to #bce2cc; the area keeps its gradient phase and jumps it a quarter cycle. Heads rest on slot 5 green and step to slot 4 lime (with the LEDs), back on the release. RE-STRIKE: the other ladder colour at equal luminance (ratio 0.97) plus the comb flip; never a bright/dark swing, never an equal-L swap alone. Never: slot 1, 11 or 12, a nearest-slot snap, or a colour from outside this palette.",
+   "kick_rules": "WHITE KICK: the dealt area goes to the palette white #f8f7f0 and decays over the linger; heads punch dimmer and shutter on their slot (no wheel move). COLOUR KICK: each LED cell lifts inside the palette: base cells to #8eed6b (L +0.24), partner cells to #bce2cc; the area keeps its gradient phase and jumps it a quarter cycle. Heads rest on white (the regolith under haze) and punch dimmer and shutter only; the green slot is their alternate (beamB), so the hive green is an accent of the rows, not the whole room. RE-STRIKE: the other ladder colour at equal luminance (ratio 0.97) plus the comb flip; never a bright/dark swing, never an equal-L swap alone. Never: slot 1, 11 or 12, a nearest-slot snap, or a colour from outside this palette.",
    "why_it_works": "A near-grey bed makes the one green read as poison light: the strand runs bone to green, the kick lifts bone to hive green and green to pale bone-mint. The heads kick green to lime. The ring ladder keeps a little warmth in the grey so it does not go dead on camera.",
    "sources": ["b19-moon-hive (B)"],
-   "changes": ["kick hive green is 0.22 from white; the bone ladder keeps a little warmth so it does not go dead on camera"],
+   "changes": ["kick hive green is 0.22 from white; the bone ladder keeps a little warmth so it does not go dead on camera", "build 2026-10-28 (the contact sheet): the heads rest on white, alternate green, punch only (was: rest 5 green, kick to 4 lime). On the rig the green wheel slot -- far more saturated than the hive green #67cd4f -- filled the hero view and the bone-grey bed vanished; resting on white keeps the palette what its mood says, neutral plus one accent, like Titanium and Noir. Its heads-only areas take white kicks only."],
    "tempo": {
     "name": "drive",
     "strand": 16,
@@ -10901,41 +10901,22 @@
    },
    "heads": {
     "rest": {
+     "slot": 0,
+     "name": "white",
+     "hex": "#ffffff",
+     "luma": 1.0
+    },
+    "alt": {
      "slot": 5,
      "name": "green",
      "hex": "#19ff4a",
      "luma": 0.722
     },
-    "alt": {
-     "slot": 4,
-     "name": "lime",
-     "hex": "#a8ff2a",
-     "luma": 0.8
-    },
-    "lift": [
-     {
-      "frm": 5,
-      "to": 4,
-      "to_name": "lime",
-      "to_hex": "#a8ff2a",
-      "agrees_within_deg": 7,
-      "follows": "kick colours",
-      "restrike": "alternate"
-     },
-     {
-      "frm": 4,
-      "to": 5,
-      "to_name": "green",
-      "to_hex": "#19ff4a",
-      "agrees_within_deg": 7,
-      "follows": "kick colours",
-      "restrike": "alternate"
-     }
-    ],
+    "lift": [],
     "groups": null,
-    "mixed": "step",
-    "mixed_note": "in an area that also has LEDs (strand, beams) the heads step with the LEDs",
-    "halo_colour_kick": "colour",
+    "mixed": "punch",
+    "mixed_note": "in an area that also has LEDs the heads only punch dimmer and shutter; the LEDs carry the colour",
+    "halo_colour_kick": "white kicks only (no clean colour move from the rest slot)",
     "white_kick": "dimmer and shutter punch on the rest slot (never a wheel move toward white: from 9-12 that lands on CTO)",
     "changes": "a look change of slot happens with the dimmer at 0 or takes the red-free short way; never through slot 1"
    },
@@ -10967,8 +10948,8 @@
     "A": "#8c8672",
     "B": "#67cd4f",
     "W": "#f8f7f0",
-    "beamA": "#19ff4a",
-    "beamB": "#a8ff2a",
+    "beamA": "#ffffff",
+    "beamB": "#19ff4a",
     "warm": "#bce2cc",
     "bumpA": "#bce2cc",
     "bumpB": "#8eed6b",
