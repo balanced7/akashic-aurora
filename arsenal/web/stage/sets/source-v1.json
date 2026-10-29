@@ -1245,7 +1245,7 @@
     "max_hold_beats": 64,
     "chase": {"floor": 0.8, "lag": 0.6},
     "strobe": {"from_level": 0.95, "max_hz": 1.9, "beats": [0.5, 1, 2, 4], "on": 0.35, "floor": 0, "hold_s": 0.25},
-    "governor": {"linger_s": 1.0, "punch_s": 0.15, "equal_luma": 0.35, "comb_floor": 0.35, "need": 2, "defer_s": 2},
+    "governor": {"linger_s": 1.0, "punch_s": 0.15, "equal_luma": 0.35, "comb_floor": 0.35, "need": 2, "defer_s": 2, "bank_min_s": 0.2},
     "view": {"min_share": 0.25, "min_cover": 0.12}
   },
   "laser_groups": {

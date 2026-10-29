@@ -119,7 +119,10 @@
 //                 or a lift: one clean wheel slot apart, turned at the wheel's speed, never red, never pink, never the warm
 //                 white). In the four palettes whose heads rest on white (Rose Fans, Moon Hive, Titanium, Noir) the pair is
 //                 white and the palette's colour slot, far apart on the wheel: a lit head is never run through the slots
-//                 between, it takes the new slot in black.
+//                 between, it takes the new slot in black -- the bank's own MOVE IN BLACK (review fix round): every lit
+//                 head waiting for such a move dips its dimmer to black together, the wheel moves there, the dimmer
+//                 returns (programmer.js bankDip; at most a few frames), once the governor has room for the dip and its
+//                 return (canDip: need + 1); before, the looks never took those heads dark and the beams never changed.
 //   THE LASERS    every laser group takes the bank's laser colours on the frame the bank changes (palettes.js bankLasers:
 //                 the palette's distinct laser colours turned one place a press, the fan's gradient between the two it now
 //                 shows; stage.js lasersFollowBank).
@@ -133,7 +136,9 @@
 //   THE GOVERNOR  the bank's step is one of the kick's optional changes: while the final limiter's most loaded window has
 //                 under governor.need transitions left, the step waits (one step, however many presses waited) and lands
 //                 the frame there is room. The limiter and every limit are untouched; with flash protection off the
-//                 governor sees a full budget.
+//                 governor sees a full budget. Two steps are never closer than governor.bank_min_s (0.2 s): a press
+//                 inside it right after a held-back step landed takes that step as its own, any other waits (review S3:
+//                 a landed step and the next frame's press dealt two whole-stage banks 16.7 ms apart).
 //   THE DEALER    under the bank the colour change is the hit, so a member counts as changed when it takes another colour,
 //                 darker or not (round 2's "never a dimming" stays for every other kind).
 //   Receipts: tests/stage_kick_bank.test.mjs; on the GPU, stage_verify --phases bank (the share of lit pixels whose hue
@@ -200,7 +205,7 @@ export const KICK_DEFAULTS = Object.freeze({
   ]),
   chase: Object.freeze({ floor: 0.8, lag: 0.6 }),
   strobe: Object.freeze({ from_level: 0.95, max_hz: STROBE_HZ_CAP, beats: [0.5, 1, 2, 4], on: 0.35, floor: 0, hold_s: 0.25 }),
-  governor: Object.freeze({ linger_s: 1.0, punch_s: 0.15, equal_luma: 0.35, comb_floor: 0.35, need: 2, defer_s: 2 }),
+  governor: Object.freeze({ linger_s: 1.0, punch_s: 0.15, equal_luma: 0.35, comb_floor: 0.35, need: 2, defer_s: 2, bank_min_s: 0.2 }),
   view: Object.freeze({ min_share: 0.25, min_cover: 0.12 }),
   recent_fall_per_beat: 0.15,
 });
@@ -353,7 +358,7 @@ function legacyConfig(rig) {
     release_beats: 0.3, tap_hold_beats: 0, max_hold_beats: KICK_DEFAULTS.max_hold_beats, recent_fall_per_beat: KICK_DEFAULTS.recent_fall_per_beat,
     level: { from_velocity: [0.6, 1], slew_s: KICK_DEFAULTS.level.slew_s, floor: 0, gamma: 1 },
     bands: [{ name: "lift", from: 0 }], chase: { ...KICK_DEFAULTS.chase }, strobe: { ...KICK_DEFAULTS.strobe, from_level: Infinity },
-    governor: { linger_s: 0, punch_s: 0, equal_luma: 0, comb_floor: 1, need: 0, defer_s: 0 }, view: { min_share: 0 },
+    governor: { linger_s: 0, punch_s: 0, equal_luma: 0, comb_floor: 1, need: 0, defer_s: 0, bank_min_s: 0 }, view: { min_share: 0 },
     kinds: { kick: { ...LEGACY_KIND, name: "kick" } }, kindNames: ["kick"],
     cards: [{ name: "strand", zone: "strand", heads: Int32Array.from(heads), cells: Int32Array.from(cells), pan: null, tilt: null,
               headSide: new Float64Array(heads.length).fill(1), headLower: new Uint8Array(heads.length), headRank: Int32Array.from(heads.map((_, i) => i)),
@@ -488,6 +493,7 @@ export function validateKick(rig) {
   if (!(isNum(gv.comb_floor) && gv.comb_floor >= 0.3 && gv.comb_floor <= 1)) err("governor.comb_floor: the combed members' share of the level, 0.3..1");
   if (!(isNum(gv.need) && gv.need >= 1 && gv.need <= 5)) err("governor.need: the limiter headroom the kick keeps (transitions), 1..5");
   if (!(isNum(gv.defer_s) && gv.defer_s >= 0 && gv.defer_s <= 4)) err("governor.defer_s: seconds a fade may wait, 0..4");
+  if (!(isNum(gv.bank_min_s) && gv.bank_min_s >= 0 && gv.bank_min_s <= 1)) err("governor.bank_min_s: the least seconds between two whole-stage bank steps, 0..1");
   return out;
 }
 
@@ -574,8 +580,12 @@ export class Kicks {
     // to dim a hit; a press always lights.
     // (and, round 2's last addition, a live area's motion and LED chase STAND STILL while the budget is spent: frames, in
     // gov.still; they move on from where they stood once a window has room again)
-    this.headroom = 5; this.gov = { punch: 0, colour: 0, comb: 0, motion: 0, fade: 0, strobe: 0, still: 0, bank: 0 };
+    this.headroom = 5; this.gov = { punch: 0, colour: 0, comb: 0, motion: 0, fade: 0, strobe: 0, still: 0, bank: 0, bank_taken: 0, dip: 0 };
     this.bankWait = false;                // a bank step the governor held back (taken once the limiter has room)
+    // (review S3, 2026-10-29: a waited step that landed and a press on the very next frame dealt two whole-stage banks
+    // 16.7 ms apart.) Bank steps are at least governor.bank_min_s apart (the time of the last, s); a press inside that
+    // interval right after a WAITED step landed takes that step as its own (bankLanded), any other waits for the interval
+    this.bankAtS = -Infinity; this.bankLanded = false;
     // the pre-kick state of the last frame (the dealer judges a row on it) and each member's recent peak level
     this.preH = new Float64Array(prog.nH * 7); this.preC = new Float64Array(prog.nC * 4);
     this.recentH = new Float32Array(prog.nH); this.recentC = new Float32Array(prog.nC);
@@ -611,6 +621,8 @@ export class Kicks {
   _headColour(i) { const o = i * 16, h = this.p.heads; return [h[o + 3], h[o + 4], h[o + 5]]; }
   // may the kick make an optional luminance change now?
   _can(what) { if (this.cfg.legacy || this.headroom >= this.cfg.governor.need) return true; this.gov[what]++; return false; }
+  // may the bank's move in black start (the beams' dip to black and back: two transitions, so one more than need)?
+  canDip() { if (this.cfg.legacy || this.headroom >= this.cfg.governor.need + 1) return true; this.gov.dip++; return false; }
   // An area already showing its lift (what its cells show and what the lift would paint, each the area's mean, closer than
   // dEOK 0.10) takes the swapped ladder: the colour kick always reads as a change
   _liftSwap(card) {
@@ -742,7 +754,9 @@ export class Kicks {
     // KICK round 3: a bank kind deals the palette's next colour bank to the WHOLE stage on every press, a re-strike too
     // (the burst below still lands on one area); while the limiter's budget is spent the step waits for room
     if (spec.colour === "bank" && !cfg.legacy) {
-      if (this._can("bank")) { this.p.bankAdvance(pos); this.bankWait = false; }
+      const since = this._secs(pos) - this.bankAtS;
+      if (this.bankLanded && since < cfg.governor.bank_min_s) { this.bankLanded = false; this.gov.bank_taken++; }
+      else if (since >= cfg.governor.bank_min_s - 1e-9 && this._can("bank")) this._bankStep(pos, false);
       else this.bankWait = true;
     }
     // a press while this button's area is still lit RE-STRIKES it: the same area, held again, and the kind's repeat (the
@@ -806,6 +820,8 @@ export class Kicks {
     this._log(rec, passed, false);
     return rec;
   }
+  // one whole-stage bank step now (waited: a step the governor held back, landing)
+  _bankStep(pos, waited) { this.p.bankAdvance(pos); this.bankWait = false; this.bankAtS = this._secs(pos); this.bankLanded = waited; }
   _paint(rec, col, restrike = false) { rec.slots = col ? this._slotsFor(rec.card, col, { restrike, prev: rec.slots }) : null; rec.colour = col; }
   _restrike(k, vel, pos, band, level, hold, spec) {
     this.restrikes++;
@@ -916,7 +932,9 @@ export class Kicks {
     const dB = this.lastPos === null ? 0 : Math.max(0, pos - this.lastPos);
     this.lastPos = pos;
     // a bank step the governor held back lands once the limiter has room (one step, however many presses waited)
-    if (this.bankWait && this.headroom >= cfg.governor.need) { this.bankWait = false; p.bankAdvance(pos); }
+    // (and never within governor.bank_min_s of the last step)
+    if (this.bankWait && this.headroom >= cfg.governor.need && this._secs(pos) - this.bankAtS >= cfg.governor.bank_min_s - 1e-9) this._bankStep(pos, true);
+    else if (this.bankLanded && this._secs(pos) - this.bankAtS >= cfg.governor.bank_min_s) this.bankLanded = false;
     const fall = cfg.recent_fall_per_beat * dB;
     for (let i = 0; i < p.nH; i++) { const d = tH[i * 7 + 2]; this.recentH[i] = Math.max(d, this.recentH[i] - fall); }
     for (let c = 0; c < p.nC; c++) { const d = tC[c * 4]; this.recentC[c] = Math.max(d, this.recentC[c] - fall); }

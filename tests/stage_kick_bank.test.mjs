@@ -48,9 +48,11 @@ const GROUPS = (() => {
 // palettes fall short on the slats -- their two-colour cells (a gradient between two close colours of one family) cross the
 // next bank's gradient at some mixes, about a quarter of the group at worst (cyan-hold 75.9 %, titanium 76.8 %,
 // emerald-laser 84.9 %, glacier 87.4 %) -- so for those four the bar is 75 %, and every group's mean colour must still move
-// (dEOK 0.04) in every palette.
+// (dEOK 0.04) in every palette. Review fix round (2026-10-29, V6): Molten's cycle lost its washed-out peach (#ffcc9e, the
+// bed's own hue at half its chroma, which turned the cubes and rings cream) and is now three warm colours 44 degrees of hue
+// apart, amber to yellow-lime: one family like the four, measured 76.7 % on the slats (intro, bank 2), so it joins them.
 const SHARE = Number(process.env.BANK_SHARE ?? 0.9);
-const ONE_FAMILY = new Set(["cyan-hold", "titanium", "emerald-laser", "glacier"]);
+const ONE_FAMILY = new Set(["cyan-hold", "titanium", "emerald-laser", "glacier", "molten"]);
 // palettes with a single chromatic laser colour among their lasers, gradient and lift colours: their lasers turn through
 // their own colours, white included
 const ONE_HUE = new Set(LIB.list.filter((pl) => { const lin = [...pl.lasers, ...PAL.bankLaserExtras(pl)].map(PAL.hexToLin).filter((c) => PAL.lchOfLin(c).C >= 0.06 && !PAL.isSaturatedRed(c)); return !lin.some((c) => PAL.deOK(c, lin[0]) >= 0.05); }).map((pl) => pl.id));
@@ -142,8 +144,9 @@ test("EVERY press changes EVERY group's colour: in every palette, in every look,
             assert.ok(share >= shareFor(pl.id), `${pl.id} ${look} bank ${k + 1} ${name}: ${(100 * share).toFixed(1)} % of ${r.lit} lit LEDs changed colour`);
           }
           // a lit head changes colour at once where its pair is one slot apart; in the palettes whose heads rest on white
-          // (the pair white / colour, far apart on the wheel) it takes the new slot in black
-          if (r.litHeads && !farApart(pl)) assert.equal(r.headChanged, r.litHeads, `${pl.id} ${look} bank ${k + 1} ${name}: ${r.headChanged} of ${r.litHeads} lit heads changed colour`);
+          // (the pair white / colour, far apart on the wheel) it takes the new slot in black -- the bank's own move in black,
+          // a dip of its dimmer (review V1: before it, Noir's and Titanium's lit beams never changed; no exemption since)
+          if (r.litHeads) assert.equal(r.headChanged, r.litHeads, `${pl.id} ${look} bank ${k + 1} ${name}: ${r.headChanged} of ${r.litHeads} lit heads changed colour`);
         }
       }
     }
@@ -266,6 +269,109 @@ test("the red rule and the plans under the bank: every palette, every look, eigh
     assert.equal(bad, 0, `${pl.id}: lit heads on 1, 11 or 12`);
     assert.equal(off, 0, `${pl.id}: heads off the plan`);
   }
+});
+
+// REVIEW FIX ROUND (2026-10-29). V1: in the four palettes whose heads rest on white the bank's pair is white and a colour
+// far apart on the wheel, a lit head may not run through the slots between, and no look takes those heads dark -- so the
+// lit beams never changed (0 of 44 in Noir's and Titanium's groove, 64 beats after a press). The bank now takes its own
+// move in black: every lit head waiting for a far move dips its dimmer to black together, the wheel moves there, the dimmer
+// returns -- when the flash governor has room for the dip and its return (headroom need + 1), and not before.
+test("the move in black (V1): in Noir, Titanium, Rose Fans and Moon Hive every lit head shows its bank slot within two beats of a press, its dip to black at most 12 frames, and only once the governor has room", () => {
+  for (const id of ["noir", "titanium", "rose-fans", "moon-hive"]) for (const look of ["intro", "build", "groove", "drop", "break"]) {
+    const g = locked(), p = fresh(id, look);
+    let pressAt = null;
+    const darkRun = new Int32Array(p.nH), maxDark = new Int32Array(p.nH), litBefore = new Uint8Array(p.nH);
+    play(p, g, 0, 6, (pos) => {
+      if (pressAt === null && pos >= 4) { pressAt = pos; for (let i = 0; i < p.nH; i++) litBefore[i] = headLit(p, i) ? 1 : 0; p.pad(C, 0.8, pos, { hold: false }); }
+      // (the dip: from the frame it starts to the frame the wheel moves, in black)
+      if (pressAt !== null) for (let i = 0; i < p.nH; i++) { darkRun[i] = p.bankDip[i] ? darkRun[i] + 1 : 0; maxDark[i] = Math.max(maxDark[i], darkRun[i]); }
+    });
+    let lit = 0, on = 0;
+    for (let i = 0; i < p.nH; i++) { if (!headLit(p, i)) continue; lit++; if (p.wheelSlotOf(i) === p.bank.slot[i]) on++; }
+    assert.ok(lit > 20, `${id} ${look}: ${lit} lit heads`);
+    assert.equal(on, lit, `${id} ${look}: ${on} of ${lit} lit heads on their bank slot 2 beats after the press`);
+    for (let i = 0; i < p.nH; i++) assert.ok(maxDark[i] <= 12, `${id} ${look} head ${i}: its dip lasted ${maxDark[i]} frames`);
+    assert.ok(maxDark.some((x) => x > 0), `${id} ${look}: the heads dipped`);
+  }
+  // the governor: with the limiter's budget at need (2) the dip waits (the heads stay lit on their old slot); with room for
+  // the dip and its return (need + 1) it lands
+  const g = locked(), p = fresh("noir", "groove");
+  play(p, g, 0, 4);
+  p.pad(C, 0.8, g.posAt(4 * g.period), { hold: false });
+  const waiting = () => { let n = 0; for (let i = 0; i < p.nH; i++) if (headLit(p, i) && p.wheelSlotOf(i) !== p.bank.slot[i]) n++; return n; };
+  play(p, g, 4, 6, () => { p.kick.headroom = 2; });
+  assert.equal(p.bank.count, 1);
+  assert.ok(waiting() > 20 && p.kick.gov.dip > 0, `waiting ${waiting()}, held back ${p.kick.gov.dip}`);
+  play(p, g, 6, 8, () => { p.kick.headroom = 3; });
+  assert.equal(waiting(), 0, "with room for the dip and its return every lit head moved");
+});
+
+// S3: a step the governor held back landed, and a press on the very next frame dealt another: two whole-stage banks 16.7 ms
+// apart (and three colour changes inside three frames round a palette swap). Bank steps are now governor.bank_min_s (0.2 s)
+// apart at least, and a press inside that interval right after a WAITED step landed takes that step as its own.
+test("bank steps are never closer than governor.bank_min_s: a press right after a held-back step landed takes it as its own (S3), and a roll steps at most five times a second", () => {
+  const g = locked(), p = fresh("source-violet", "drop");
+  const F = 1000 / FPS, steps = [];
+  let t = 0, last = 0;
+  const frame = (room) => { p.kick.headroom = room; p.tick(g, t, DT); if (p.bank.count !== last) { steps.push(t); last = p.bank.count; } t += F; };
+  for (let i = 0; i < 60; i++) frame(5);
+  p.kick.headroom = 1; p.pad(C, 1, g.posAt(t), { hold: false });
+  assert.equal(p.kick.bankWait, true, "the press waits while the budget is spent");
+  frame(1); frame(1);
+  frame(5);                                                        // room: the waited step lands
+  assert.equal(p.bank.count, 1);
+  p.pad(C, 1, g.posAt(t), { hold: false });                         // the next frame's press
+  frame(5);
+  assert.equal(p.bank.count, 1, "the press takes the step that just landed");
+  assert.equal(p.kick.gov.bank_taken, 1);
+  // a roll at 8 a second for 3 s with the budget full: every step at least 0.2 s after the one before
+  for (let i = 0; i < 30; i++) frame(5);
+  for (let f = 0; f < 180; f++) { if (f % 8 === 0) p.pad(C, 1, g.posAt(t), { hold: false }); frame(5); }
+  const gaps = steps.slice(1).map((x, i) => x - steps[i]);
+  assert.ok(gaps.every((d) => d >= 200 - F - 1e-6), `the closest two steps: ${Math.min(...gaps).toFixed(1)} ms`);
+  assert.ok(steps.length >= 1 + 12, `a 3 s roll at 8 a second still steps ${steps.length - 1} times`);
+});
+
+// V2 / V3: Molten's laser turn alternated two yellows 25 degrees apart (no visible change on screen); Titanium's turned
+// into grey and white. The turn now takes spread colours: every two 30 degrees of hue apart (else dEOK 0.1 apart), the
+// palette's own first, then its lasers gradient, kick, beam slots, bed, partner and highlight.
+test("the lasers' turn is spread (V2, V3): in every palette at least two chromatic colours, never white or grey, every two apart; Molten and Titanium visibly turn", () => {
+  for (const pl of LIB.list) {
+    const ex = PAL.bankLaserExtras(pl), seen = [];
+    for (let k = 1; k <= 6; k++) for (const c of PAL.bankLasers(pl.lasers, k, ex).colours) if (!seen.some((u) => PAL.deOK(u, c) < 1e-6)) seen.push(c);
+    assert.ok(seen.length >= 2, `${pl.id}: ${seen.length} colours`);
+    for (const c of seen) assert.ok(PAL.lchOfLin(c).C >= 0.06, `${pl.id}: ${PAL.linToHex(c)} is white or grey`);
+    for (let i = 0; i < seen.length; i++) for (let j = i + 1; j < seen.length; j++)
+      assert.ok(PAL.deOK(seen[i], seen[j]) >= 0.05, `${pl.id}: ${PAL.linToHex(seen[i])} and ${PAL.linToHex(seen[j])} too close`);
+  }
+  for (const id of ["molten", "titanium"]) {
+    const pl = LIB.byId[id], ex = PAL.bankLaserExtras(pl);
+    const a = PAL.bankLasers(pl.lasers, 1, ex).colours, b = PAL.bankLasers(pl.lasers, 2, ex).colours;
+    for (let i = 0; i < a.length; i++) assert.ok(PAL.hueGap(PAL.lchOfLin(a[i]).h, PAL.lchOfLin(b[i]).h) >= PAL.LASER_BANK_HUE, `${id} laser ${i}: ${PAL.linToHex(a[i])} -> ${PAL.linToHex(b[i])}`);
+  }
+});
+
+// V6: a near-white or pastel role on a group's bed washed it out (Molten bank 3: the cubes and rings amber to cream; with
+// Synthwave Dusk's #fdf1fc and Leviathan Royal's #f8f5fe in their cycles a bank fell to 36 % and 27 % of the look's mean
+// lit chroma). In every palette whose bed has a colour, no bank's mean lit chroma (the LEDs, weighted by level) falls
+// under half the look's. (The grey-bedded palettes deal their greys as colours: Noir, Titanium and Moon Hive.)
+test("no bank washes the stage out (V6): in every palette whose bed has a colour, no white in its cycle and no bank's mean lit chroma under half the look's", () => {
+  const chromaOf = (p) => { let s = 0, w = 0; for (let c = 0; c < p.nC; c += 3) { const l = p.pixels[c * 4 + 3]; if (l < 0.05) continue; s += PAL.lchOfLin([p.pixels[c * 4] / l, p.pixels[c * 4 + 1] / l, p.pixels[c * 4 + 2] / l]).C * l; w += l; } return w ? s / w : 0; };
+  const rows = [];
+  for (const pl of LIB.list) {
+    const p0 = fresh(pl.id);
+    if (PAL.lchOfLin(p0.roleRGB[ROLE_NAMES.indexOf("A")]).C < 0.04) continue;
+    for (const r of p0.bank.cycle) assert.ok(PAL.lchOfLin(p0.roleRGB[r]).C >= 0.04, `${pl.id}: ${ROLE_NAMES[r]} ${PAL.linToHex(p0.roleRGB[r])} is a white`);
+    let worst = 1, at = "";
+    for (const look of ["groove", "drop", "intro"]) {
+      const g = locked(), vals = [];
+      for (let k = 0; k <= 4; k++) { const p = fresh(pl.id, look); for (let j = 0; j < k; j++) p.bankAdvance(); play(p, g, 0, 5); vals.push(chromaOf(p)); }
+      for (let k = 1; k <= 4; k++) if (vals[k] / vals[0] < worst) { worst = vals[k] / vals[0]; at = `${look} bank ${k}`; }
+    }
+    rows.push(`${pl.id.padEnd(17)} ${(100 * worst).toFixed(1)} % (${at})`);
+    assert.ok(worst >= 0.5, `${pl.id}: ${at} shows ${(100 * worst).toFixed(1)} % of the look's mean lit chroma`);
+  }
+  console.log(`  the worst bank's mean lit chroma, of the look's:\n  ${rows.join("\n  ")}`);
 });
 
 // (The drop look is left out on purpose: at 150 BPM its own chases make this coarse frame -- one cell per group -- busy enough

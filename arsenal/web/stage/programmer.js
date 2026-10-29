@@ -99,6 +99,9 @@ export const BANK_ORD = Object.freeze({ A: 0, beamA: 0, accent: 0, bumpB: 1, B: 
 export const BANK_GROUPS = Object.freeze(["rings.slats", "rings.rims", "truss.heads", "lip.heads", "vert", "vert.strips", "delay.30", "delay.55",
                                           "halo", "strand.heads", "strand.cubes", "strand.dots", "strand.bars"]);
 const BANK_SAME = 0.05;
+const BANK_GREY = 0.04;                   // OKLCh chroma under this: a white or a grey (no bank colour unless the bed is grey)
+const BANK_PASTEL = 0.6;                  // a role under this share of the cycle's most colourful chroma is a pastel
+const BANK_TWIN_DEG = 10;                 // ... and a washed-out twin when a more colourful role is this close in hue
 // a role's place on from its group's (near: the partner roles one place on instead of two)
 const ordOf = (r, near = 0) => { const o = BANK_ORD[ROLES[r]] ?? 1; return near && o === 2 ? 1 : o; };                   // two roles closer than this (dEOK) are one colour of the cycle
 const BANK_ENGAGE_DE = 0.08;              // the first bank moves a group's colours at least this far from the look's
@@ -186,12 +189,31 @@ export function nearestSlot(wheel, rgb, allowed = null) {
 // places apart moving to the next pair's (the helix, the slats' two-colour cells); between orders as good, the one whose
 // steps move the hue most.
 export function bankCycle(roleRGB) {
-  const cand = [];
+  let cand = [];
+  // (review V6, 2026-10-29: a near-white or pastel role on the bed washed whole groups out -- Molten's bank 3 took the
+  // cubes and rings from amber to cream -- and swung the stage's light up to 9.6 x across the cycle, S2.) In a palette
+  // whose bed has a colour, a role of OKLCh chroma under BANK_GREY (a white by another name: Synthwave Dusk's #fdf1fc,
+  // Leviathan Royal's #f8f5fe) is no bank colour, and while more than three remain the palest washed-out twin goes (never
+  // the bed or its partner: they are the palette). A palette whose bed is grey (Noir, Titanium, Moon Hive) keeps its greys.
+  const chroma = (r) => lchOfLin(roleRGB[r]).C, greyBed = roleRGB[ROLE.A] && chroma(ROLE.A) < BANK_GREY;
   for (const name of BANK_ROLES) {
     const r = ROLE[name], c = roleRGB[r];
     if (!c || isSaturatedRed(c)) continue;
+    if (!greyBed && chroma(r) < BANK_GREY) continue;
     if (cand.some((x) => deOK(roleRGB[x], c) < BANK_SAME)) continue;
     cand.push(r);
+  }
+  if (!greyBed) {
+    const cmax = Math.max(0, ...cand.map(chroma));
+    while (cand.length > 3) {
+      let lo = -1;
+      // (a pastel: under BANK_PASTEL of the most colourful's chroma, with a more colourful role within BANK_TWIN_DEG of
+      // its hue -- a washed-out twin that adds no hue of its own, like Molten's peach #ffcc9e beside its amber bed)
+      const twin = (j) => cand.some((x, k) => k !== j && chroma(x) > chroma(cand[j]) && hueGap(lchOfLin(roleRGB[x]).h, lchOfLin(roleRGB[cand[j]]).h) <= BANK_TWIN_DEG);
+      for (let j = 0; j < cand.length; j++) if (cand[j] !== ROLE.A && cand[j] !== ROLE.B && chroma(cand[j]) < BANK_PASTEL * cmax && twin(j) && (lo < 0 || chroma(cand[j]) < chroma(cand[lo]))) lo = j;
+      if (lo < 0) break;
+      cand = cand.filter((_, j) => j !== lo);
+    }
   }
   if (cand.length < 2) return cand;
   const hue = (x, y) => { const a = lchOfLin(x), b = lchOfLin(y); return a.C >= 0.04 && b.C >= 0.04 ? hueGap(a.h, b.h) : 0; };
@@ -293,6 +315,11 @@ export class Programmer {
     this.wheelOwn = new Uint8Array(this.nH);
     this.wheelPos = new Float64Array(this.nH).fill(-1);
     this.wheelWait = new Float64Array(this.nH).fill(-1);
+    // KICK 5's move in black (review V1, 2026-10-29): a lit head the bank sends further than one clean slot (the palettes
+    // whose heads rest on white: white and a colour far apart on the wheel) has its dimmer taken to black (bankDip 1) until
+    // it is dark, the wheel moves there, and the dimmer comes back -- in Noir and Titanium the lit beams otherwise kept their
+    // colour for good, since no look ever takes them dark
+    this.bankDip = new Uint8Array(this.nH);
     // PALETTES: the members' place in the palette (a split's or a pin's cells, a split's heads and their own wheel plan),
     // the colour kick's light on each cell (kickC: r, g, b and its weight, written by kick.js each frame), a pin's held level
     this.cellKind = new Uint8Array(this.nC);
@@ -564,6 +591,7 @@ export class Programmer {
       B.pairs[i] = bankPair(w, rest, alt, this.headLift[i], { red: this.redSlotsOf(i) });
     }
     B.on = false; B.count = 0; B.serial++; B.idx.fill(0); B.near.fill(0); B.slot.fill(-1);
+    if (this.bankDip) this.bankDip.fill(0);
   }
   // KICK 5: every group one place on round the cycle (the first press from the palette's own colours puts each group where
   // its colours move furthest from the look's), every head to the other slot of its pair. Lands on the next frame.
@@ -931,10 +959,13 @@ export class Programmer {
     // 4-6. masters, colour, physics -> FrameState (a palette's dip dims the whole rig with the grand master)
     const M = this.masters, dipL = this.dipLevel;
     const tol = this.kick.wheelTol;
+    // the bank's move in black: may heads waiting for one start their dip on this frame? (asked once a frame, so every
+    // waiting head dips together: one dip of the beams, not a ripple of them)
+    let dipOK = null;
     for (let i = 0; i < nH; i++) {
       const b = i * 7, o = i * HEAD_FLOATS, s = this.slews[i];
       const master = M.grand * dipL * (this.strandHead[i] ? M.strand : M.beams);
-      const dim = Math.max(0, Math.min(1, s.dim.step(Math.max(0, Math.min(1, this.tH[b + 2])) * master, dt)));
+      const dim = Math.max(0, Math.min(1, s.dim.step(this.bankDip[i] ? 0 : Math.max(0, Math.min(1, this.tH[b + 2])) * master, dt)));
       const pan = s.pan.step(this.tH[b], dt), tilt = s.tilt.step(this.tH[b + 1], dt);
       const zt = this.tH[b + 3] > 0 ? this.tH[b + 3] : this.zoomHome[i];
       const zoom = s.zoom.step(Math.min(this.zoomMax[i], Math.max(this.zoomMin[i], zt)), dt);
@@ -954,13 +985,18 @@ export class Programmer {
         let target = ks >= 0 ? ks : look;
         if (ks < 0 && target !== at && resting) {
           const one = Math.min(((target - at) % n + n) % n, ((at - target) % n + n) % n) === 1 && wayLumaCleanFor(wheel, at, target, red, tol);
-          if (dim < 0.02) { x = target; this.wheelWait[i] = -1; }           // dark: the move in black
+          if (dim < 0.02) { x = target; this.wheelWait[i] = -1; this.bankDip[i] = 0; }           // dark: the move in black
           else if (!one) {
             if (this.wheelWait[i] < 0) this.wheelWait[i] = pos;
-            // lit: wait (up to a beat) for black; a bank's far move (white to a colour) waits for black however long
-            if (pos - this.wheelWait[i] < 1 || (this.bank.on && this.bank.slot[i] === target)) target = at;
+            // lit: wait (up to a beat) for black; a bank's far move (white to a colour) is never run lit through the slots
+            // between: it takes its dimmer to black (the move in black), as soon as the flash governor has room for the
+            // dip and its return (kick.js canDip), and waits until then
+            if (this.bank.on && this.bank.slot[i] === target) {
+              if (!this.bankDip[i]) { if (dipOK === null) dipOK = this.kick.canDip(); if (dipOK) this.bankDip[i] = 1; }
+              target = at;
+            } else if (pos - this.wheelWait[i] < 1) target = at;
           }
-        } else if (ks >= 0 || target === at) this.wheelWait[i] = -1;
+        } else if (ks >= 0 || target === at) { this.wheelWait[i] = -1; this.bankDip[i] = 0; }
         const cur = ((Math.round(x) % n) + n) % n;
         if (Math.abs(x - target) > 1e-9) {
           const way = wheelWay(cur, target, n, red, wheel, tol);
