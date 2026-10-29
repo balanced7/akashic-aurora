@@ -65,10 +65,19 @@ def main() -> int:
     for prefix in plan.excluded:
         counts[prefix] = sum(1 for _ in src.scan_iter(match=f"{prefix}*", count=500))
 
+    # The lesson inventory (origin id + content hash + generation) is computed from the SOURCE
+    # (read-only) and rides in the manifest -- never on the lessons (operator Q2). Only when
+    # applying (a dry run computes nothing: the report is the point, and the inventory is
+    # metadata about a write that has not happened).
+    inventory = None
+    if args.apply and "learn:" in plan.prefixes:
+        inventory = S.content_inventory(src)
+
     if args.apply:
         from datetime import datetime, timezone
         S.write_manifest(dst, plan, counts,
-                         datetime.now(timezone.utc).isoformat(timespec="seconds"))
+                         datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                         lesson_inventory=inventory)
 
     print(plan.render(counts=counts, applied=args.apply))
     print(f"\n  source {plan.source} :{WORLDS[plan.source].redis_port} "

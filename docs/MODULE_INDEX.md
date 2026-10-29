@@ -344,6 +344,7 @@
 - `bifrost_runner_sol.py` — bifrost_runner_sol -- make Sol (gpt-5.6-sol, OpenAI Responses API) a FIRST-CLASS Bifrost citizen.
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.
 - `bifrost_wake.py` — bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
+- `bootstrap_world.py` — bootstrap_world -- one command that proves "install → seeded → recall works out of the gate".
 - `canary_oracle.py` — The canary oracle -- the control that separates "the system improved" from "the attackers tired".
 - `capture_apple_hig.py` — capture_apple_hig.py — harvest Apple HIG component sub-sections into refs/design-inspiration.
 - `check_fresh_clone.py` — check_fresh_clone -- the T180 gate: "the working tree is not the repo" fails LOUDLY.

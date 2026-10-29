@@ -158,7 +158,7 @@ def resolve_es() -> Optional[str]:
     """Return the full path to ``es.exe``, or None if it cannot be found.
 
     Order: an explicit ``ES_EXE`` env override (for a non-default install), then
-    PATH (``shutil.which``), then the three default install roots. Never raises.
+    PATH (``shutil.which``), then the default install roots. Never raises.
     """
     import os
 
@@ -177,6 +177,63 @@ def resolve_es() -> Optional[str]:
     return None
 
 
+#: The POSIX indexed finders, in preference order. ``fd`` is the modern fd-find (fast, respects
+#: gitignore by default); ``locate`` is the older mlocate/plocate index tool. Either gives a
+#: whole-machine name lookup WITHOUT a full walk — the Linux analogue of Everything. If none is
+#: installed, the bounded walk (with POSIX roots) is the fallback, exactly as on Windows.
+_POSIX_FINDERS = ("fd", "locate")
+
+
+def resolve_platform_finder():
+    """The right whole-machine finder for THIS platform, or None (walk it).
+
+    Returns an ``(engine_label, path_or_None)`` tuple:
+
+      - Windows  -> "everything" + es.exe path, when installed (Everything is Windows-only).
+      - POSIX    -> "fd" or "locate" + the binary, in preference order, when installed.
+
+    None means "no indexed finder; use the bounded walk" — the honest fallback, never a false
+    "0 results". The engine label is what the `find` verb surfaces so whoever sets up Aurora
+    (or reads a find answer) knows WHICH engine answered, and what to install to upgrade:
+    Windows wants Everything + es.exe; Linux wants fd (or locate). Never raises.
+    """
+    es = resolve_es()
+    if es is not None:
+        return "everything", es
+    import sys
+    if sys.platform.startswith("win"):
+        return "walk", None          # Windows, no Everything -> bounded walk (already Honest)
+    for name in _POSIX_FINDERS:
+        p = shutil.which(name)
+        if p:
+            return name, p
+    return "walk", None
+
+
+def describe_finder() -> str:
+    """One line for the person/agent SETTING UP Aurora: what `find` does on THIS machine, and
+    what to install to make it indexed (fast) rather than a bounded walk (slow, honest).
+
+    This is the setup-facing companion to resolve_platform_finder(): the resolver chooses, this
+    explains the choice and the upgrade path. One glance answers "why is find returning 'walk',
+    and what do I install to fix it?" — the exact question a fresh Linux deploy hits first.
+    """
+    label, path = resolve_platform_finder()
+    if label == "everything":
+        return f"find engine: Everything index via es.exe ({path}) - whole-machine, fast"
+    if label == "fd":
+        return f"find engine: fd ({path}) - whole-machine name index, fast"
+    if label == "locate":
+        return f"find engine: locate ({path}) - whole-machine name index (may need 'updatedb')"
+    import sys
+    if sys.platform.startswith("win"):
+        return ("find engine: bounded WALK - Everything is NOT installed. For indexed, "
+                "whole-machine find, install 'Everything' (voidtools) and put es.exe on PATH.")
+    return ("find engine: bounded WALK - neither fd nor locate is installed. For indexed, "
+            "whole-machine find, install 'fd-find' (`apt install fd-find` / `brew install fd`) "
+            "or 'locate' (`apt install plocate` + `sudo updatedb`).")
+
+
 
 #: Roots the fallback walks, in order. Deliberately NOT bare ``C:\\``: a full-volume walk
 #: on Windows spends its entire budget in WinSxS and package caches and never reaches the
@@ -190,6 +247,31 @@ _WALK_ROOTS = (
     r"C:\Tools",
     r"C:\ffmpeg",
 )
+
+#: POSIX fallback roots (Linux/macOS), used when no Everything/indexed finder exists there.
+#: These are the Windows _WALK_ROOTS' analogue, and the reason they exist is the same: a
+#: bare ``/`` walk spends its whole budget in /usr/share, /proc, /sys and never reaches
+#: where a project actually lives. $HOME first (most deployments clone into a home dir),
+#: then the common build/tool roots. Every entry is filtered by os.path.isdir at walk time,
+#: so platform-specific paths that do not exist are simply skipped, never errored.
+_WALK_ROOTS_POSIX = (
+    os.environ.get("HOME") or "",
+    "/opt",
+    "/srv",
+    "/usr/local",
+    "/workspaces",   # GitHub Codespaces / devcontainers mount here
+    "/home",
+)
+
+
+def _platform_roots() -> tuple:
+    """The walk roots for THIS platform. Windows keeps the Windows set; POSIX gets the POSIX
+    set INSTEAD — a Linux `find` that walks only Windows paths returns a false "0 results",
+    which is exactly the absence-lie this module exists to prevent."""
+    import sys
+    if sys.platform.startswith("win"):
+        return _WALK_ROOTS
+    return _WALK_ROOTS_POSIX
 
 #: Directories with enormous fan-out and near-zero chance of holding a program a human
 #: installed. Skipped by name at any depth. Each one is a budget sink, not a hiding place.
@@ -506,7 +588,7 @@ def walk_search(query: str, *, max_results: int = None, match_path: bool = False
     exhaustive = True
     cap = None if max_results is None or int(max_results) <= 0 else int(max_results)
 
-    for root in (roots if roots is not None else _WALK_ROOTS):
+    for root in (roots if roots is not None else _platform_roots()):
         if not root or not os.path.isdir(root):
             continue
         seen_roots.append(root)
@@ -545,6 +627,77 @@ def walk_search(query: str, *, max_results: int = None, match_path: bool = False
     return SearchResult(query=q, paths=hits, ok=True, engine="walk",
                         exhaustive=exhaustive, scanned_dirs=scanned,
                         roots=seen_roots, elapsed_s=round(time.monotonic() - started, 2))
+
+
+def _posix_finder_search(engine: str, binary: str, query: str, *,
+                         max_results: int = 200, match_path: bool = False,
+                         dirs_only: bool = False, files_only: bool = False,
+                         scope: Optional[str] = None, regex: bool = False,
+                         case: bool = False, timeout: float = 15.0) -> SearchResult:
+    """Run a POSIX indexed finder (fd or locate) for `query` and return its paths.
+
+    The Linux/macOS analogue of the es.exe half of `search`: a whole-machine NAME lookup
+    that is faster than a walk WITHOUT depending on Everything. It maps the same clean flags
+    to fd's grammar where trivially possible, and reports engine="fd" / "locate" so the
+    `find` verb's render can tell the reader WHICH index answered (or that none existed and
+    the walk was used instead).
+
+    Fail-soft: a finder that is installed but errors (stale locate db, no permission) returns
+    ok=False WITH the reason, never a false "no results" -- the same honest-refusal contract
+    as the rest of this module. List argv, never a shell string.
+    """
+    q = (query or "").strip()
+    if not q:
+        return SearchResult(query=query or "", ok=False, error="empty query", engine=engine)
+    if engine == "fd":
+        # fd's grammar: fd [PATTERN] [PATH]; -t d (dirs) / -t f (files); -g for glob (case-sensitive);
+        # -i case-insensitive; -p full-path (match against the whole path); -a show hidden too.
+        argv = [binary, ".",
+                "-a",            # include hidden files (Everything does not hide them either)
+                "--max-results", str(int(max_results) or 2000)]
+        if case:
+            argv.append("-s")                    # fd's -s = case-sensitive
+        else:
+            argv.append("-i")                    # default match Like Everything: case-insensitive
+        if match_path:
+            argv.append("-p")                    # -p = full path, the fd analogue of -match-path
+        if dirs_only:
+            argv.append("-t"); argv.append("d")
+        elif files_only:
+            argv.append("-t"); argv.append("f")
+        if regex:
+            argv.append("-e"); argv.append(q)    # -e = regex pattern
+        else:
+            argv.append(q)
+        if scope:
+            argv.append(str(scope))
+    else:  # locate
+        argv = [binary, "-i"] if not case else [binary]
+        if regex:
+            argv.append("-r")
+        argv.append(q)
+        if max_results:
+            argv.extend(["--limit", str(int(max_results))])
+    try:
+        proc = subprocess.run(argv, capture_output=True, timeout=timeout or 15.0)
+    except subprocess.TimeoutExpired:
+        return SearchResult(query=query, ok=False, engine=engine,
+                            error=f"{engine} timed out after {timeout}s")
+    except Exception:
+        return SearchResult(query=query, ok=False, engine=engine,
+                            error=f"{engine} could not run (missing or unavailable)")
+    if proc.returncode != 0:
+        return SearchResult(query=query, ok=False, engine=engine,
+                            error=f"{engine} exited {proc.returncode}: "
+                                  f"{(proc.stderr.decode('utf-8', 'replace') if hasattr(proc.stdout, 'decode') else str(proc.stderr))[:120]}")
+    out = proc.stdout.decode("utf-8", "replace") if isinstance(proc.stdout, bytes) else str(proc.stdout)
+    paths = [ln for ln in out.splitlines() if ln.strip()]
+    if not paths:
+        return SearchResult(query=query, paths=[], ok=True, engine=engine)
+    ranked = _rank_exact_first(paths, q)
+    cap = int(max_results) if max_results and int(max_results) > 0 else None
+    return SearchResult(query=query, paths=ranked[:cap] if cap else ranked,
+                        ok=True, engine=engine, exhaustive=(cap is None))
 
 
 def search(query: str, *,
@@ -588,6 +741,16 @@ def search(query: str, *,
         # it said plainly that no search had run -- but an honest refusal is still a door
         # that does not open, and on a machine without Everything this verb did not exist
         # for anybody. A bounded answer that admits its bounds beats no answer.
+        #
+        # POSIX first: if this is Linux/macOS and fd or locate is installed, use THAT (a real
+        # whole-machine index) before degrading to the bounded walk -- the Linux analogue of
+        # Everything. If no indexed finder exists on either platform, the walk is the fallback.
+        posix = resolve_platform_finder()
+        if posix[0] in ("fd", "locate"):
+            return _posix_finder_search(posix[0], posix[1], query,
+                                        max_results=max_results, match_path=match_path,
+                                        dirs_only=dirs_only, files_only=files_only,
+                                        scope=scope, regex=regex, case=case, timeout=timeout)
         return walk_search(query, max_results=max_results, match_path=match_path)
 
     # ES FLAG SHAPES, verified against es.exe 1.1.0.38 -h rather than assumed. Two of the three

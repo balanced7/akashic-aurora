@@ -133,6 +133,62 @@ def canary_events_kind_filter():
     return ALIVE, f"all {len(rows)} rows are kind={want}"
 
 
+def canary_eye_freq():
+    """`eye freq` must return a mechanical verdict for a phrase family whose answer we know.
+
+    THE EYE'S load-bearing axis (T336): `eye freq` is the only door that returns a verdict on the
+    OPERATOR'S OWN AXIS -- unheard / mentioned-once / recurring / standing-directive. A grep cannot
+    produce it; it is a measurement, not a search. This canary asks a phrase family that IS
+    documented here as recurring (`fan out`, from core/eye/directives.py's own founding wound: the
+    operator said "remember to fan out so you dont get bogged down in mechanics" twice, lost it,
+    and the Eye surfaced it only by accident). If the frequency organ cannot reach THAT, it cannot
+    reach anything.
+
+    Verdict is the canary's heartbeat: a run that exits 0 but prints no verdict line is DEAD (the
+    organ ran and said nothing -- the exact class this whole checker exists to catch).
+    """
+    rc, out = run("agent_cli.py", "eye", "freq", "fan out", "fanout", "fan-out")
+    if rc < 0:
+        return UNCHECKED, f"eye freq did not run: {out[:160]}"
+    if not out.strip():
+        return DEAD, "eye freq returned no output at all"
+    # A verdict line is the mechanical answer; its absence is silence wearing a zero exit code.
+    verdicts = ("unheard", "mentioned-once", "recurring", "standing-directive")
+    low = out.lower()
+    if not any(v in low for v in verdicts):
+        return DEAD, ("eye freq ran but returned no mechanical verdict for a known recurring "
+                      "phrase family -- the measurement axis is silent")
+    return ALIVE, f"eye freq answered with a verdict ({len(out.splitlines())} lines)"
+
+
+def canary_find():
+    """`find` must return, BY NAME, a file we know exists -- and name WHICH engine answered.
+
+    This is the T278/T336 class one layer down from eye: `find` (the Search Everything verb) is
+    the ONLY read verb not scoped to the project root. A file that landed outside the root is
+    invisible to read_file/search_files/list_directory, so `find` is the locator of last resort.
+    A canary that only checks "did it exit 0" would pass a find that returns a bare zero (the
+    false-absence this module exists to prevent). So: ask for `agent_cli.py`, a file that MUST
+    exist in every checkout, and require it to come back WITH an engine label.
+
+    Also doubles as the platform smoke: on Windows it reports 'everything' (or 'walk' if
+    Everything is absent, which is honest-but-degraded); on Linux 'fd'/'locate'/'' -- and the
+    canary treats a named engine as alive regardless of which one, but DEAD if it returns no
+    engine at all (a find that answers without saying how is a find that cannot be trusted).
+    """
+    rc, out = run("agent_cli.py", "find", "agent_cli.py", "--limit", "5")
+    if rc < 0:
+        return UNCHECKED, f"find did not run: {out[:160]}"
+    if "agent_cli.py" not in out:
+        return DEAD, ("find returned results but none was agent_cli.py -- a file that exists in "
+                      "every checkout -- so the locator is lying or blind")
+    # The engine label proves the answer knows its own authority (everything vs walk vs fd/locate).
+    low = out.lower()
+    if not any(e in low for e in ("everything", "walk", "[engine", "engine:", "fd", "locate")):
+        return DEAD, "find returned agent_cli.py but named NO engine -- an answer with no authority"
+    return ALIVE, f"find located agent_cli.py and named its engine ({len(out.splitlines())} lines)"
+
+
 def canary_connectome_has_edges():
     """The Eye's connectome must hold edges, or say plainly that it is unbuilt.
 
@@ -159,6 +215,107 @@ def canary_connectome_has_edges():
     if not events:
         return UNCHECKED, "the index holds no events; a canary here would measure nothing"
     return ALIVE, f"{edges:,} edges over {events:,} events"
+
+
+def canary_recall_fires_on_seed():
+    """recall-at must surface, AT THE TOOL-CALL SEAM (core.recall.at_action.recall_at), a
+    lesson whose id is named in the SEED MANIFEST -- otherwise "install → recall works out of
+    the gate" is asserted, never proven.
+
+    This is a positive control on a negative result (Nikitenko, Mnemosyne): we already know the
+    seeded lesson exists, so recall either surfaces it or is broken. It drives the REAL
+    recall_at() function (the same one the PreToolUse hook and the CLI both call), not the
+    knowledge_recall search verb, so it proves the injection path, not the lookup path.
+
+    Provenance comes from the MANIFEST JOIN, not a stamp on the lesson (operator decision Q2,
+    2026-10-27): the seed manifest records WHICH ids were carried. If the manifest carries only
+    counts and no id list, this canary is UNCHECKED — it cannot name a lesson it did not seed,
+    and ZERO IS NOT NO.
+
+    retire_when defined separately in the registry (see CANARIES).
+    """
+    try:
+        from core.recall.at_action import recall_at
+        from core.comm.bus import get_bus
+    except Exception as exc:
+        return UNCHECKED, f"recall_at / bus import failed: {type(exc).__name__}: {exc}"
+
+    # 1. The seed manifest names the carried lesson ids. Absent/unreadable -> can't claim.
+    try:
+        client = get_bus("organ-canary")._client
+        if client is None:
+            return UNCHECKED, "no store client -- cannot read the seed manifest"
+        from core.world_seed import read_manifest
+        manifest = read_manifest(client)
+    except Exception as exc:
+        return UNCHECKED, f"seed manifest unreadable: {type(exc).__name__}: {exc}"
+    if not manifest:
+        return UNCHECKED, ("no world:seed:manifest -- without a record of what was seeded, "
+                           "recall firing on a lesson cannot be attributed to the seed")
+    inv = manifest.get("lesson_inventory") or []
+    if not inv:
+        return UNCHECKED, ("the seed manifest carries no lesson_inventory -- it cannot name a "
+                           "seeded lesson to prove. (lesson_inventory is the [{id,sha256,"
+                           "generation}...] list the canary joins against; see spec (a.5).)")
+    seeded_ids = [e.get("id") for e in inv if isinstance(e, dict) and e.get("id")]
+
+    # 2. Pick ONE seeded lesson and draw a target from its own text, so the query is grounded
+    #    in a lesson we KNOW exists, and recall must clear the floor against it.
+    from core.learning.learning_store import get_learning_store
+    try:
+        ls = get_learning_store()
+    except Exception as exc:
+        return UNCHECKED, f"learning store unavailable: {type(exc).__name__}: {exc}"
+    proven = None
+    for sid in seeded_ids:
+        rec = ls._load_experiment(str(sid).removeprefix("learn:experiment:"))
+        if not rec:
+            continue
+        rec_text = " ".join(str(rec.get(k) or "") for k in
+                            ("recommendation", "what_tried", "actual", "root_cause"))
+        if rec_text.strip():
+            proven = (sid, rec_text)
+            break
+    if proven is None:
+        return UNCHECKED, f"{len(seeded_ids)} seeded ids named but none load a record with text"
+
+    sid, text = proven
+    # Inject the learning_store EXPLICITLY: recall_at(learning_store=None) reads a TTL disk
+    # cache at %TEMP%/akashic_recall/lesson_items.json that is NOT world-scoped, so a beta
+    # self-check would rank PROD's cached lessons (or a stale mix) and falsely report DEAD.
+    # Passing the store bypasses the cache (documented: "an INJECTED store bypasses the cache")
+    # and reads the LIVE seeded store the manifest names. (2026-10-29, found live while seeding
+    # prod->beta: the canary reported the seeded lesson absent even though a direct read found it.)
+    r = recall_at(command=text[:400], limit=5, count_surface=False,
+                  learning_store=ls)
+    if r.get("error"):
+        return UNCHECKED, f"recall_at raised: {r.get('error')}: {r.get('error_detail','')}"
+    sources = [str(l.get("source") or "") for l in r.get("lessons", [])]
+    wanted = str(sid)
+    if not wanted.startswith("learn:experiment:"):
+        wanted = f"learn:experiment:{sid}"
+    if wanted in sources:
+        # Integrity check (spec a.5): if the manifest recorded a content hash for this lesson,
+        # verify the CURRENT record's content matches -- recall firing on a drifted/edited copy
+        # is a different fact from firing on our shipped bytes.
+        want_hash = next((e.get("sha256") for e in inv
+                          if isinstance(e, dict) and e.get("id") == wanted), None)
+        if want_hash:
+            import hashlib
+            from core.world_seed import _content_bytes
+            rec = ls._load_experiment(str(sid).removeprefix("learn:experiment:"))
+            if rec and hashlib.sha256(_content_bytes(rec)).hexdigest() == want_hash:
+                return ALIVE, (f"recall-at surfaced seeded lesson {sid} against its own text "
+                               f"AND its content hash matches the seed inventory")
+            return DEAD, (f"recall-at surfaced seeded lesson {sid} but its content hash "
+                          f"MISMATCHES the seed inventory -- the surfaced lesson drifted from "
+                          f"what was shipped")
+        return ALIVE, f"recall-at surfaced seeded lesson {sid} against its own text"
+    if not sources:
+        return DEAD, (f"recall-at fired nothing for a seeded lesson's own text "
+                      f"({sid}) -- the seam is live but blind to the seeded base")
+    return DEAD, (f"recall-at surfaced {len(sources)} lesson(s) but NONE was the seeded "
+                  f"{sid} -- the injection path is firing on something other than the seed")
 
 
 def canary_ledger_receipts_resolve():
@@ -245,6 +402,11 @@ def canary_approved_rows_age():
 #: thing it watches has become structurally impossible. A canary whose death condition is "never"
 #: is a debt with a nice interface.
 CANARIES = {
+    "recall-at surfaces a seeded lesson": (
+        canary_recall_fires_on_seed,
+        "retire when recall-at is retired as a verb, OR when seeding becomes structural so an "
+        "unpopulated corpus is unrepresentable and the bootstrap gate asserts recall directly",
+    ),
     "lookback answers a known question": (
         canary_lookback,
         "retire when lookback is retired as a verb, or when its rationale role is taken over by "
@@ -254,6 +416,16 @@ CANARIES = {
         canary_events_kind_filter,
         "retire when the events read path is replaced by a typed query layer whose filter is "
         "enforced by its schema rather than by a branch",
+    ),
+    "eye freq returns a verdict": (
+        canary_eye_freq,
+        "retire when eye freq is retired as a verb, or when the directive-watcher (core/eye/"
+        "directives.py) is folded into a plane whose own liveness is proven by construction",
+    ),
+    "find locates a known file and names its engine": (
+        canary_find,
+        "retire when find is retired as a verb, or when the filesystem locator is replaced by an "
+        "index whose presence is asserted at boot (never silently walked)",
     ),
     "the connectome holds edges": (
         canary_connectome_has_edges,

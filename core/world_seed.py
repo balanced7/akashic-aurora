@@ -150,7 +150,8 @@ def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedP
                     prefixes=prefixes, excluded=excluded)
 
 
-def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> dict:
+def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str,
+                   lesson_inventory: Optional[List[Dict[str, str]]] = None) -> dict:
     """Record in the TARGET what it inherited, from where, and when.
 
     THE HOLE THIS PARTIALLY FILLS, stated plainly because it is only partially filled.
@@ -181,6 +182,12 @@ def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> di
         "caveat": ("corpus-level provenance only -- individual keys carry no world stamp, "
                    "so a key copied out of here by hand is indistinguishable from a native one"),
     }
+    if lesson_inventory is not None:
+        # The lesson inventory (origin id + content hash + generation) is SEED METADATA, held
+        # INSIDE the manifest value, never a separate knowledge prefix: the MANIFEST_KEY law
+        # says a manifest must not ride down as knowledge and claim a lineage that is not its
+        # own. The canary (a) and the --seeded-vs-organic view join against THIS, not a stamp.
+        doc["lesson_inventory"] = lesson_inventory
     dst.set(MANIFEST_KEY, json.dumps(doc))
     return doc
 
@@ -212,6 +219,85 @@ def read_manifest(client) -> Optional[dict]:
         return json.loads(raw.decode() if isinstance(raw, bytes) else raw)
     except Exception:
         return None                     # present but unparseable; the caller sees "no manifest"
+
+
+CONTENT_FIELDS = (
+    "recommendation", "what_tried", "actual", "expected", "root_cause", "anti_pattern",
+    "category", "domain", "agent_id", "source", "metrics", "files_affected",
+)
+
+
+def _content_bytes(rec: Dict[str, Any]) -> bytes:
+    """The stable serialization a content hash runs over — CONTENT-BEARING fields only,
+    EXCLUDING volatile/state fields (timestamp, success, graduated, benched, bench_reason,
+    enforced_by). Lifecycle state must not move a hash: a lesson the curator benches or
+    unbenches did not change its content, so its content hash must not change either, or the
+    seed inventory would flag a false drift for an untouched lesson.
+
+    Keys are sorted so field insertion order can never yield two bytes for the same record;
+    json.dumps with sort_keys is deterministic across runs and Python minor versions.
+    """
+    import json
+    # JSON fields (metrics, files_affected) arrive in TWO forms: the RAW stored form ("{}",
+    # "[]" -- what content_inventory hashes at seed time) and the PARSED form ({} , [] -- what
+    # _load_experiment returns at check time). Both must hash IDENTICALLY or the canary reports a
+    # false drift. Canonicalize: a JSON field's canonical value is its COMPACT json.dumps string,
+    # whether it arrives as a string or a dict/list. (2026-10-29, found live: `or ""` collapsed
+    # the parsed {} to "", so seed-hash "{}" != check-hash "" for every lesson with empty metrics.)
+    _JSON_FIELDS = {"metrics", "files_affected"}
+
+    def _norm(k: str, v: Any) -> str:
+        if k in _JSON_FIELDS:
+            if isinstance(v, (dict, list)):
+                return json.dumps(v, sort_keys=True, separators=(",", ":"))
+            # a string: re-dump through json so a stored "{}" and a parsed "{}" collide; but a
+            # non-JSON string (should not happen) is kept as-is after a json round-trip attempt.
+            s = str(v or "")
+            try:
+                return json.dumps(json.loads(s), sort_keys=True, separators=(",", ":"))
+            except Exception:
+                return s
+        return str(v if v is not None else "")
+
+    body = {k: _norm(k, rec.get(k)) for k in CONTENT_FIELDS}
+    return json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def content_inventory(src, generation: str = "seed-v1", batch: int = 500) -> List[Dict[str, str]]:
+    """The lesson inventory for the seed manifest: every seeded lesson's origin id + content
+    hash + generation. Read-only on the source.
+
+    The hash is a CONTENT hash (integrity: byte-for-byte the lesson we shipped), not a lineage
+    stamp — lineage is the `generation` field. Origin id is the lesson's own stable
+    learn:experiment:<id> (already unique; recall already surfaces it as `source`). Nothing is
+    written onto the source or the lesson; this is pure metadata for the manifest.
+
+    Skips a record whose hash cannot be computed (missing id) rather than inventing one — a
+    lesson we cannot name is a lesson we cannot later verify, and honesty beats a full table.
+    """
+    import hashlib
+    out: List[Dict[str, str]] = []
+    for key in src.scan_iter(match="learn:experiment:*", count=batch):
+        # key is bytes (Redis scan_iter); decode for the id, then read the hash values back
+        k = key.decode("utf-8") if isinstance(key, bytes) else str(key)
+        exp_id = k.removeprefix("learn:experiment:")
+        if not exp_id:
+            continue
+        rec = src.hgetall(k)
+        if isinstance(rec, dict):
+            # redis-py decode_responses=True gives str values; a raw client may give bytes
+            def _s(v):
+                return v.decode("utf-8") if isinstance(v, bytes) else str(v or "")
+            rec = {_s(fk): _s(fv) for fk, fv in rec.items()}
+        if not rec:
+            continue
+        out.append({
+            "id": f"learn:experiment:{exp_id}",
+            "sha256": hashlib.sha256(_content_bytes(rec)).hexdigest(),
+            "generation": generation,
+        })
+    out.sort(key=lambda r: r["id"])
+    return out
 
 
 def copy_prefix(src, dst, prefix: str, apply: bool = False, batch: int = 500) -> int:
