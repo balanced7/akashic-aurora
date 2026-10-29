@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { STOPS, WIDTH, LN_RANGE, LOG_RATE_MAX, MIN_MOVE_BEATS, HANDBACK_BEATS, SUBJECT_MIN_M, widthOf, vOfWidth, stopOf,
+import { STOPS, WIDTH, LN_RANGE, LOG_RATE_MAX, LOG_ACCEL_MAX, MIN_MOVE_BEATS, HANDBACK_BEATS, SUBJECT_MIN_M, widthOf, vOfWidth, stopOf,
          comfortSeconds, landingBeat, cutBeat, quintic, Channel, shotFrame, makeRoom, CameraDistance, KEY_STOPS }
   from "../arsenal/web/stage/distance.js";
 import { prepareShot, shotPose, cameraModel, clearanceToStrand, clearanceToRings, CLEARANCE_M, DRONE, formationPoseSets }
@@ -293,4 +293,153 @@ test("the HUD names the distance and whether it is manual or auto", () => {
   D.auto({ t: 14 * SPB, pos: 14, spb: SPB, shot });
   assert.match(D.hudText(shot), /^distance auto \(handing back\)/);
   assert.equal(D.takeChange(), true); assert.equal(D.takeChange(), false);
+});
+
+// ------------------------------------------------------------------------------------- the review's findings (F1-F6) --
+// a shot held at one stop through its whole move at 60 fps, the director's u on the pose (so the room is read ahead)
+function hold(id, stop, poses = HOME, { fps = 60 } = {}) {
+  const shot = SHOTS[id], D = mk(); D.v.set(STOPS[stop]); D.w.set(1); D.mode = "manual"; D.stop = stop; D.source = "key";
+  const beats = (shot.bars ?? 4) * 4, N = Math.round(beats * SPB * fps), out = [];
+  for (let i = 0; i <= N; i++) {
+    const u = i / N, pos = 100 + u * beats, p = shotPose(shot, u, pos, newPose()); p.u = u;
+    const own = Math.min(clearanceToStrand(p.pos, poses, MODEL.z), clearanceToRings(p.pos, MODEL.rings));
+    const mount = p.pos.slice();
+    const st = D.apply(p, shot, { t: pos * SPB, pos, poses, rings: null });
+    out.push({ u, lam: st.lam, cut: !!p.distCut, own, mount, pos: p.pos.slice(), clamp: st.clamp,
+               c: Math.min(clearanceToStrand(p.pos, poses, MODEL.z), clearanceToRings(p.pos, MODEL.rings)) });
+  }
+  return { D, out };
+}
+
+test("F1 the rigging grid: no stop lifts the lens into or over the grid's beams (a shot below it stays 1 m under them)", () => {
+  const G = ROOM.grid;
+  assert.ok(G.lo > 32 && G.hi < 34.5, JSON.stringify(G));
+  let worst = -Infinity, where = "";
+  for (const [id, shot] of Object.entries(SHOTS)) {
+    if (shot.held || shotFrame(shot).fixed) continue;
+    for (const stop of ["medium", "far"]) {
+      for (const r of hold(id, stop, HOME, { fps: 20 }).out) {
+        if (r.mount[1] > (G.lo + G.hi) / 2) continue;        // (no shot of the set stands above the grid)
+        if (r.pos[1] > worst) { worst = r.pos[1]; where = `${id} ${stop} u=${r.u.toFixed(3)}`; }
+        assert.ok(ROOM.inside(r.pos, r.mount), `${id} ${stop} u=${r.u.toFixed(3)}: ${r.pos.map((x) => x.toFixed(2))}`);
+      }
+    }
+  }
+  assert.ok(worst <= G.lo - 1 + 1e-9, `highest lens ${worst.toFixed(2)} m at ${where} (the grid's beams start at ${G.lo})`);
+  // the review's black frames: TOPDOWN_DESCEND at FAR is held under the grid, and the HUD says so
+  const { D, out } = hold("TOPDOWN_DESCEND", "far");
+  const r = out[Math.round(0.2 * (out.length - 1))];
+  assert.ok(r.pos[1] <= G.lo - 1 + 1e-9 && r.clamp === "grid", JSON.stringify({ y: r.pos[1], clamp: r.clamp }));
+  assert.match(D.hudText(SHOTS.TOPDOWN_DESCEND), /held at the rigging grid/);
+});
+
+test("F2 held at a stop through every shot's whole move (60 fps): no jolt, no oscillation, the 1.5 m rule every frame, no forced cut", () => {
+  const RATE = LOG_RATE_MAX / 60, ACC = LOG_ACCEL_MAX / 3600;
+  let d1 = 0, d2 = 0, rev = 0, cuts = 0, clear = Infinity;
+  const where = {};
+  for (const [id, shot] of Object.entries(SHOTS)) {
+    if (shot.held || shotFrame(shot).fixed) continue;
+    for (const stop of ["close", "medium", "far"]) {
+      const { out } = hold(id, stop);
+      let a = null, b = null, last = 0, n = 0;
+      for (const r of out) {
+        if (r.own < CLEARANCE_M) { a = b = null; continue; }     // the director's own pose in the rig is his guard's business
+        if (r.lam !== 0 && r.c < clear) { clear = r.c; where.clear = `${id} ${stop} u=${r.u.toFixed(3)}`; }
+        assert.ok(ROOM.inside(r.pos, r.mount) || r.lam === 0, `${id} ${stop} u=${r.u.toFixed(3)} outside the room`);
+        if (r.cut) { cuts++; a = b = null; continue; }
+        if (a !== null) {
+          const s1 = r.lam - a;
+          if (Math.abs(s1) > d1) { d1 = Math.abs(s1); where.d1 = `${id} ${stop} u=${r.u.toFixed(3)}`; }
+          if (Math.abs(s1) > 2e-3) { const sg = Math.sign(s1); if (last && sg !== last) n++; last = sg; }
+          if (b !== null) { const s2 = Math.abs(r.lam - 2 * a + b); if (s2 > d2) { d2 = s2; where.d2 = `${id} ${stop} u=${r.u.toFixed(3)}`; } }
+        }
+        b = a; a = r.lam;
+      }
+      if (n > rev) { rev = n; where.rev = `${id} ${stop}`; }
+    }
+  }
+  const msg = JSON.stringify({ d1, d2, rev, cuts, clear, where });
+  assert.ok(d1 <= RATE * (1 + 1e-9), `the size never changes faster than e^4.5 a second: ${msg}`);
+  assert.ok(d2 <= ACC * (1 + 1e-6), `nor accelerates faster than LOG_ACCEL_MAX: ${msg}`);
+  assert.ok(rev <= 5, `no oscillation (direction reversals of more than 0.002 a frame): ${msg}`);
+  assert.equal(cuts, 0, `the rig at home never forces a cut: ${msg}`);
+  assert.ok(clear >= CLEARANCE_M, msg);
+});
+
+test("F2 the formations: the review's jitter shots ride smoothly; the rare forced cut is a cut, on a beat line when one comes first", () => {
+  const RATE = LOG_RATE_MAX / 60, ACC = LOG_ACCEL_MAX / 3600;
+  const sets = Object.fromEntries(Object.entries(RIG.formations).map(([k, fd]) => [k, (formationPoseSets(fd, MODEL.z.length, 1) || [])[0]]).filter(([, s]) => s));
+  for (const [id, stop, key] of [["THREAD_THE_ZIPPER", "close", "high-wave"], ["TUBE_RIDE", "far", "high-wave"], ["TUBE_RIDE", "close", "home"],
+                                 ["STRAND_FLYTHROUGH", "close", "home"], ["HEAD_ORBIT", "close", "home"], ["CRANE_RISE_REVEAL", "far", "home"],
+                                 ["WING_LAYERS", "far", "home"], ["CRANE_RISE_REVEAL", "medium", "high-wave"], ["SPIRAL_ASCENT", "close", "high-wave"]]) {
+    const poses = key === "home" ? HOME : sets[key];
+    const { out } = hold(id, stop, poses);
+    let a = null, b = null;
+    for (const r of out) {
+      if (r.own < CLEARANCE_M || r.cut) { a = b = null; continue; }
+      assert.ok(r.lam === 0 || r.c >= CLEARANCE_M, `${id} ${stop} ${key} u=${r.u.toFixed(3)}: ${r.c.toFixed(2)} m`);
+      if (a !== null) assert.ok(Math.abs(r.lam - a) <= RATE * (1 + 1e-9), `${id} ${stop} ${key} u=${r.u.toFixed(3)}: step ${(r.lam - a).toFixed(3)}`);
+      if (b !== null) assert.ok(Math.abs(r.lam - 2 * a + b) <= ACC * (1 + 1e-6), `${id} ${stop} ${key} u=${r.u.toFixed(3)}: jolt`);
+      b = a; a = r.lam;
+    }
+  }
+  // CRANE_RISE_REVEAL in the high wave: its scaled rise meets a rung no move can clear -- one cut, on the beat line
+  const { D } = hold("CRANE_RISE_REVEAL", "close", sets["high-wave"]);
+  assert.ok(D.cuts.length <= 1 && D.cuts.every((c) => c.why === "rig, on the beat" && c.pos === Math.round(c.pos)), JSON.stringify(D.cuts));
+});
+
+test("F3 a press the room holds short of its stop: the HUD says what holds it, and the next shot gets the stop itself", () => {
+  const D = mk(), halo = SHOTS.HALO_LOCK, foh = SHOTS.FOH_WIDE;
+  frame(D, halo, 20);
+  const r = D.press("far", { t: 20 * SPB, pos: 20, spb: SPB, shot: halo });
+  assert.ok(r.v < 1, "planned to the venue's edge");
+  for (let pos = 20; pos <= r.at + 0.5; pos += 1 / 24) frame(D, halo, pos);
+  assert.equal(D.stop, "far");
+  assert.match(D.hudText(halo), /^distance FAR manual · held at the venue's edge/);
+  // the director cuts to FOH_WIDE: FAR there is the full 80 m
+  const c = frame(D, foh, r.at + 1, { cut: true });
+  const w = 2 * dist(c.p.pos, c.p.look) * Math.tan((c.p.hfov * Math.PI) / 360);
+  close(w, WIDTH.far, 1e-6, "FOH_WIDE at FAR after the cut");
+  assert.doesNotMatch(D.hudText(foh), /held/);
+});
+
+test("F4 the fader's soft takeover survives a key press: a brush of the fader after Q does not grab the camera", () => {
+  const D = mk(), shot = SHOTS.FOH_WIDE;
+  frame(D, shot, 10);
+  D.fader(1.0, { t: 10 * SPB, shot });
+  assert.equal(D.fader(0.6, { t: 10.1 * SPB, shot }).caught, true);        // caught from above
+  for (let pos = 10.1; pos < 14; pos += 1 / 24) frame(D, shot, pos);
+  D.press("close", { t: 14 * SPB, pos: 14, spb: SPB, shot });
+  for (let pos = 14; pos < 18; pos += 1 / 24) frame(D, shot, pos);
+  const k = D.last.k;
+  const n = D.fader(0.61, { t: 18 * SPB, shot });
+  assert.equal(n.caught, false, "0.60 -> 0.61 never passed the live value (0, CLOSE)");
+  for (let pos = 18; pos < 20; pos += 1 / 24) frame(D, shot, pos);
+  assert.equal(D.last.k, k); assert.equal(D.status().source, "key");
+  // it catches when it really passes through the live value
+  D.fader(0.01, { t: 20 * SPB, shot });
+  assert.equal(D.fader(0.0, { t: 20.1 * SPB, shot }).caught, true);
+});
+
+test("F6 Shift during a move: the move eases to rest within a quarter second (no jolt), then nothing moves until the cut on its beat", () => {
+  const D = mk(), shot = SHOTS.FOH_WIDE;
+  frame(D, shot, 40);
+  D.press("close", { t: 40 * SPB, pos: 40, spb: SPB, shot });
+  let pos = 40;
+  for (; pos < 40.1 - 1e-9; pos += 1 / 24) frame(D, shot, pos);
+  const p0 = pos;
+  const r = D.press("far", { t: pos * SPB, pos, spb: SPB, shot, cut: true, lastCutPos: 30, nextCutPos: 60 });
+  assert.equal(r.kind, "cut"); assert.equal(r.at, 41);
+  const ks = [];
+  for (pos += 1 / 24; pos < r.at - 1e-9; pos += 1 / 24) ks.push({ pos, k: sizeK(frame(D, shot, pos)) });
+  for (let i = 1; i < ks.length; i++) assert.ok(ks[i].k <= ks[i - 1].k + 1e-12, "it keeps going the way it was going, slowing");
+  const after = ks.filter((x) => (x.pos - p0) * SPB > 0.25 + 1e-9);
+  assert.ok(after.length >= 3 && after.every((x) => Math.abs(x.k - after[0].k) < 1e-12), "at rest after a quarter second");
+  // an ease-out, not a stop: no step faster than the comfort, and the last steps before rest tiny
+  const steps = ks.map((x, i) => (i ? Math.log(ks[i - 1].k / x.k) : 0)).slice(1);
+  assert.ok(Math.max(...steps) <= LOG_RATE_MAX * (SPB / 24) + 1e-9);
+  const lastMove = steps.findLastIndex((x) => x > 1e-12);
+  assert.ok(lastMove >= 1 && steps[lastMove] < 0.25 * Math.max(...steps), JSON.stringify(steps.map((x) => +x.toFixed(4))));
+  const c = frame(D, shot, r.at);
+  assert.equal(c.p.distCut, true);
 });
