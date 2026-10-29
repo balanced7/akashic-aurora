@@ -284,7 +284,8 @@ function mountStrip({ label, sub, pad, side, floor = 0.15, tint = null }) {
 
 // The Stage's keys (stage/stage.js, the keyboard block; the set's pad map in sets/source-v1.json): kick white 1 and
 // kick colour 5 (both step aside for the strips), lasers 2, phrase go 3 / next 4 / stop 7, fly-out 6, drop 0, the
-// rings' MORPH 8 and HERO 9, C for the next camera shot, and P for the next palette (it lands on the next 16-bar line).
+// rings' MORPH 8 and HERO 9, C for the next camera shot, P for the next palette (it lands on the next 16-bar line), and O
+// for the next colour setup (the next bar line).
 export const STAGE_PADS = [
   { label: "kick", code: "Digit1", key: "1", sub: "white", stripped: true },
   { label: "kick", code: "Digit5", key: "5", sub: "colour", stripped: true },
@@ -298,6 +299,9 @@ export const STAGE_PADS = [
   { label: "hero", code: "Digit9", key: "9", sub: "beam" },
   { label: "shot", code: "KeyC", key: "c", sub: "camera" },
   { label: "palette", code: "KeyP", key: "p", sub: "next", palette: true },
+  // the next colour SETUP (setups.js; O; lands on the next bar line). Daniel, 2026-10-29, from his phone: "Latest version
+  // seems to have only one color theme"
+  { label: "setup", code: "KeyO", key: "o", sub: "next" },
 ];
 
 // The Stage's camera distance segment (stage/distance.js): CLOSE, MID and FAR press Q, W and E.
