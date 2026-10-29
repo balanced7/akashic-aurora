@@ -57,5 +57,5 @@ the room goes black while anything that emits light still shows.
   Light below half for 0.731 of the playing time, ends at 0.
 
 ## Merge notes for stage-v3
-No edits to kick.js, programmer.js, lasers*.js or atmos.js. The ensemble reads two kick.js record fields, `presses` and
-`from`, and lowers `punchFrom`. The page's cancelPending still writes `holdEnd`.
+No edits to kick.js, programmer.js, lasers*.js or atmos.js. The ensemble reads the kick.js record field `presses`
+and lowers `punchFrom`; the GPU lane also reads `from`. The page's cancelPending still writes `holdEnd`.
