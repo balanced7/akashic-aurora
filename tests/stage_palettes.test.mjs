@@ -22,6 +22,7 @@ import { LaserEngine, extraHeadsFrom, SEG, SEG_FLOATS } from "../arsenal/web/sta
 import * as KICK from "../arsenal/web/stage/kick.js";
 import * as PAL from "../arsenal/web/palettes.js";
 import { mountTouchBar, STAGE_PADS, STAGE_STRIPS } from "../arsenal/web/lib/touchbar.js";
+import { FrameLimiter } from "../arsenal/web/stage/flash.js";
 
 const RAW = JSON.parse(readFileSync(new URL("../arsenal/web/palettes.json", import.meta.url), "utf8"));
 const SCENE = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
@@ -287,6 +288,26 @@ test("a palette change lands on the next 16-bar line: a neighbour crossfades its
     for (let k = 1; k < rows.length; k++) rows[k].heads.forEach(([s, d], i) => { if (s !== rows[k - 1].heads[i][0] && d > 0.02) litMoves++; });
     assert.equal(litMoves, 0, "no wheel turned while its head was lit");
     assert.equal(p.palette.id, "glacier");
+  }
+});
+
+test("a palette change is inside the flash gate: the one-beat dip at 128, 150 and 174 BPM, and a crossfade, never make the final limiter act (the whole rig as one frame)", () => {
+  for (const bpm of [128, 150, 174]) for (const dip of [true, false]) {
+    const g = locked(bpm), p = fresh("source-violet", "drop");
+    p.beginPalette(PAL.stageTheme(LIB.byId[dip ? "glacier" : "dreaming-city"]), 16, { dip, beats: 16 });
+    const lim = new FrameLimiter();
+    let worst = 0;
+    for (let t = 0; t < 40 * g.period; t += 1000 / 60) {
+      p.tick(g, t, 1 / 60);
+      let lum = 0;
+      for (let c = 0; c < p.nC; c += 3) lum += 0.2126 * p.pixels[c * 4] + 0.7152 * p.pixels[c * 4 + 1] + 0.0722 * p.pixels[c * 4 + 2];
+      for (let i = 0; i < p.nH; i++) lum += 4 * p.heads[i * HEAD_FLOATS + H.DIM] * (0.2126 * p.heads[i * HEAD_FLOATS + H.R] + 0.7152 * p.heads[i * HEAD_FLOATS + H.G] + 0.0722 * p.heads[i * HEAD_FLOATS + H.B]);
+      worst = Math.max(worst, lum);
+      const L = new Float64Array(16).fill(Math.min(1, lum / 400));
+      lim.step({ L, R: new Float64Array(16) }, t / 1000, 1 / 60);
+    }
+    assert.ok(worst > 0, "the rig is lit");
+    assert.equal(lim.stats().interventions, 0, `${bpm} BPM, ${dip ? "dip" : "crossfade"}: the limiter acted on ${lim.stats().interventions} frames`);
   }
 });
 
