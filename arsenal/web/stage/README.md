@@ -34,6 +34,17 @@ Open it from the Arsenal server:
   the pad map's `palette-next` / `palette-prev` (KeyLab pads 11 and 12): the change lands on the next 16-bar line, a
   neighbour crossfading over 4 bars, anything else through a one-beat dip. The white kick is the palette's white and never
   turns a wheel; the colour kick lifts each cell inside the palette and keeps the strand's helix.
+- HAL 4000 cubes (2026-10-29, `cubes.js`, shaders.js `CUBE_HAL_*`): the strand's cubes drawn as light. Round 2: two
+  pillowy rounded-square loops a face (the outer one hot on the face that looks at the viewer and dim on the others, the
+  inner a hairline in the glow's colour), only the outer loop on the far faces, a low inner bloom, edge-on faces faded out,
+  and the cubes BLEND BY MAX so faces and neighbours never sum to cream. They spin slowly on the rung's axle with a gentle
+  wobble (the rung's dot strip always meets the inner face square). The core is the programmer's own cube colour; the
+  glow runs the whole strand from the palette's deep to its B (each end at unit brightness, mixed through OKLCh), and a
+  kick on a cube's cells takes its glow with it (a white kick turns the whole cube white, as the solid cube does). A setup
+  names its own colours through `window.__stage.cubeTint({glowTop, glowBottom, coreTop, coreBottom, glowMix})` (linear
+  RGB, null fields keep the palette's; `cubeTint(null)` clears); as a URL A/B `?cubeglow=0040ff,ff2000&cubecore=a0f0ff,ffb040`
+  (first and last rung). `?cubes=hal|solid` (a viewer gets HAL, automation the solid cubes), key `U` toggles,
+  `?cubetumble=0` (or `window.__stage.cubes({style, tumble})`, tumble 0..1) holds them square.
 - Kinetics wave A and the orrery (2026-10-27): `?ring=orrery` (or `spiral`, `vortex`, `crown`, `portal`) opens with the
   rings in that formation; pad 8 (key `8`) MORPHs to the next one on the next bar line and pad 9 (key `9`) fires the
   energy beam's discharge. Drawn for the Dreaming City palette: `index.html?demo=1&theme=dreaming-city&ring=orrery`.
