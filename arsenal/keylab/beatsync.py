@@ -73,24 +73,16 @@ PLAYING = 4                      # SMTC GlobalSystemMediaTransportControlsSessio
 
 
 def now_playing() -> Optional[dict]:
-    """Best-effort Windows SMTC read -> {title, artist, status} (None if unavailable)."""
-    try:
-        import asyncio
-        from winrt.windows.media.control import \
-            GlobalSystemMediaTransportControlsSessionManager as MM
+    """Best-effort Windows SMTC read of the current session -> {title, artist, status} (None if unavailable).
 
-        async def _get():
-            mgr = await MM.request_async()
-            session = mgr.get_current_session()
-            if not session:
-                return None
-            props = await session.try_get_media_properties_async()
-            info = session.get_playback_info()
-            return {"title": props.title, "artist": props.artist, "status": int(info.playback_status)}
-
-        return asyncio.run(_get())
-    except Exception:
+    A memory read: the process's one SMTC watcher (nowplaying.py) holds a single session manager and keeps the record
+    current from Windows' events. Until 2026-10-29 every call asked Windows for a new session manager, and the VJ
+    engine's track thread calls this every 2 s (NPSMSvc ran at 3-4 cores beside the play tracker doing the same)."""
+    from .nowplaying import CURRENT, read
+    rec = read(CURRENT)
+    if rec is None:
         return None
+    return {"title": rec["title"], "artist": rec["artist"], "status": rec["status"]}
 
 
 def _open_loopback(pa):

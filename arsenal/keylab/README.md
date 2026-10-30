@@ -170,7 +170,11 @@ back is kept for the life of the process from the moment it is parked, even if t
 against a fake driver in `tests/test_keylab_winmidi.py`) · `ledframe.py` the delta renderer · `governor.py` the
 burst ceiling as a guarantee, per port across processes and held at the driver call (every SysEx passes it; the
 `bench`/`ledbench` limit probes opt out) · `theory.py` chord naming · `chordview.py` live chord viewer, schemes
-and `Voicing` (held keys + sustain) · `beatsync.py` loopback beat march + SMTC now-playing · `tempo.py` BPM seed
+and `Voicing` (held keys + sustain) · `beatsync.py` loopback beat march + SMTC now-playing, read through
+`nowplaying.py`: ONE session manager per process on its own thread, kept current by Windows' events with a 15 s
+safety poll, so a read is a memory read (until 2026-10-29 every read asked Windows for a new manager, and with the play
+tracker doing the same every 2 s NPSMSvc ran at 3-4 cores; `py arsenal/keylab/nowplaying.py measure` measures it;
+tested against a fake winrt in `tests/test_keylab_nowplaying.py`) · `tempo.py` BPM seed
 from the databases, pure analysis that never imports the port (Heimdall's lane) · `beat_a.py` the house beat
 tracker (blind-pair winner) · `beat_b.py` the other blind contestant · `beat_g.py` / `beat_h.py` / `beat_w.py`
 the grid-tracker contestants (Daniel's "detect the grid", 2026-10-22; scored in
