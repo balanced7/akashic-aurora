@@ -5782,6 +5782,38 @@ def cmd_doctor_deploy() -> int:
         if not ok and name != "AGENTS.md":
             bad.append("%s missing from the repo root -- this is not a complete checkout" % name)
 
+    # THE LOCAL LAYER (2026-10-30, modular-core phase 1). Daniel's frame: the core architecture
+    # should be modular "with the trickier local variables and customizations also being
+    # importable and exportable modules", so a sync never has to detangle critical
+    # infrastructure. local/ is that home -- entry points, wiring exceptions, and (as it grows)
+    # seat rosters, ports, paths, peer names. It is instance DATA, so a deploy that is missing it
+    # is not "clean", it is UNINFORMED: the checkers that read it refuse rather than report a
+    # zero. This line is also what makes core/local.py reachable from a production door, so the
+    # loader is provably wired rather than merely present.
+    try:
+        from core.local import status as _local_layer_status
+        _local_layer = _local_layer_status()
+        print("  %-14s : %s (%d file(s))" % (
+            "local layer", _local_layer["dir"], len(_local_layer["files"])))
+        if not _local_layer["exists"]:
+            bad.append("local/ is missing -- the Local layer (entry points, wiring exceptions, "
+                       "seat/port/path values) is instance data every checker reads. Restore "
+                       "local/ (see local/README.md).")
+        elif _local_layer["missing"]:
+            bad.append("local/ is incomplete (missing %s) -- checkers that read the Local layer "
+                       "will refuse rather than guess." % ", ".join(_local_layer["missing"]))
+        if _local_layer.get("unreadable"):
+            # "adopted and broken" is a different answer from "not adopted", and only one of them
+            # is a deploy defect. Saying so here is the whole reason status() separates them.
+            bad.append("local/ has %d unreadable file(s): %s" % (
+                len(_local_layer["unreadable"]),
+                "; ".join(f"{f['file']} ({f['why']})" for f in _local_layer["unreadable"])))
+    except Exception as _local_exc:                                  # noqa: BLE001
+        # A deploy check must never raise: the whole point is to be runnable on a broken machine.
+        print("  %-14s : UNREADABLE (%s)" % ("local layer", type(_local_exc).__name__))
+        bad.append("local/ could not be read (%s: %s) -- the Local layer is part of a working "
+                   "deploy." % (type(_local_exc).__name__, _local_exc))
+
     try:
         from core.comm.bus import get_bus
         get_bus("control")._client.ping()

@@ -1,0 +1,109 @@
+{
+  "_readme": "local/README.md",
+  "_what": "The Local layer for THIS deployment: which files are production entry points, and which core/ modules are known-standalone. Consumed by scripts/checkers/check_wiring.py through core/local.py. Values only -- rules that DERIVE (enumerate every seat runner, every hook dir) stay in code.",
+  "entry_points": [
+    {
+      "path": "agent_cli.py",
+      "why": "THE door: every seat's hooks, runners, bus traffic and recall pass through it. Nothing else in this list is load-bearing for as many seats."
+    },
+    {
+      "path": "ai_setup_mcp.py",
+      "why": "the MCP twin of the same door -- two doors, one verb table."
+    },
+    {
+      "path": "bootstrap.py",
+      "why": "the bootstrap/install path a fresh machine starts from."
+    },
+    {
+      "path": "config.py",
+      "why": "the shared config loader the doors read at startup."
+    },
+    {
+      "path": "scripts/bifrost_runner.py",
+      "why": "the generic seat runner (the per-seat runners derive from it)."
+    },
+    {
+      "path": "scripts/bifrost_ui.py",
+      "why": "the Bifrost cockpit -- the surface a human watches the fleet on."
+    },
+    {
+      "path": "scripts/bifrost_wake.py",
+      "why": "the wake watcher: mail arrives, a sleeping seat is re-invoked."
+    },
+    {
+      "path": "scripts/deepseek_chat.py",
+      "why": "the runner's chat/tool loop; the runner imports it, so anything reachable only from here is still production."
+    },
+    {
+      "path": "scripts/revive.py",
+      "why": "W: the recovery ladder's own front door, on TWO paths -- the Discord !revive lever and the scheduled task that runs `--target gateway` as L1's supervisor. Added 2026-08-24 after the gate refused core/fleet/app_package.py as unwired when it was wired to exactly this door; the register was accurate and had stopped being about anything."
+    },
+    {
+      "path": "scripts/seed_world.py",
+      "why": "W156 (2026-08-14): a real CLI door -- argparse + __main__ -- run by a human to seed a twin's memory from a higher world. Added BY NAME deliberately: the general fix (enumerate every __main__ script) would change what this gate MEANS, and widening a gate is a gate decision, not a midnight one."
+    },
+    {
+      "path": "scripts/world_diff.py",
+      "why": "W159: the at-a-glance world comparison."
+    },
+    {
+      "path": "scripts/world_savepoint.py",
+      "why": "W160: a world's restore point (code + memory)."
+    },
+    {
+      "path": "scripts/world_fidelity.py",
+      "why": "W163: what a checkout can and cannot do."
+    },
+    {
+      "path": "scripts/dawe_census.py",
+      "why": "W164: verbs whose answer nobody outside can check."
+    },
+    {
+      "path": "scripts/lens_ledger.py",
+      "why": "W168: score fan lenses by what survived."
+    },
+    {
+      "path": "scripts/bifrost_daemon.py",
+      "why": "the 24/7 SUPERVISOR -- it spawns runners and owns wake. Added 2026-08-18: it was never an entry point, so core/comm/discord_feed.py (called from the daemon's own loop) reported built-not-wired while being precisely wired."
+    },
+    {
+      "path": "agent/harness/dsh_plugin/bridge.py",
+      "why": "the out-of-tree DSH/cordis adapter, DEPLOYED to $DSH_HOME so no in-tree walk reaches it. Added 2026-08-24: core/comm/roster.py::go_offline (called only from here) reported built-not-wired while being precisely wired. This is also the line that keeps an out-of-tree seat VISIBLE to the gate that governs it."
+    }
+  ],
+  "exceptions": {
+    "core/comm/wedge_discriminator.py": "KEEP built-ahead: T376 S5 decision core (half_a section 2.3 verbatim, 8 pins green in tests/test_t376_s5_wedge_discriminator.py, authored deepseek); the production consumer is the doctor/OOB py-spy executor which needs a live runner PID -- lands at the S6 drill (F004's own dies_when). Wire it there, then remove this entry.",
+    "core/codex/lifecycle.py": "KEEP built-ahead: Codex Wave-2 (docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md) C2 DONE, C3+ paused; TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
+    "core/codex/schema.py": "KEEP built-ahead: Codex Wave-2 (docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md) C2 DONE, C3+ paused; TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
+    "core/comm/dispatcher.py": "built-ahead: mesh doorbell->wake. BLOCKED on the W3 wake-adapter 'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an architecture choice vs the live bifrost_wake mechanism -- wire when W3 lands (arch-triage 2026-07-07)",
+    "core/comm/interject.py": "built-ahead: human-interjection router; not wired yet",
+    "core/comm/bridge_seal.py": "built-ahead (2026-09-17, claude/Vandor): the sealed envelope + chain for the midpoint mail cache (design research/in-flight/bridge-midpoint-cache-2026-09-17/design.md; 14 pins green in tests/test_bridge_seal_red.py). Steps 1-2 of a strangler rollout -- step 3 wires it into remote_relay behind a flag, off by default. UNWIRE-WHEN: remote_relay seals an outbound envelope. That waits on Serge's fleet countering the schema AND sending their verify key, because sealing stays off until both halves exist. NOT wired blind on purpose: a wire format committed before the other endpoint has answered is a format we would then have to break. Owner: claude.",
+    "core/toolbelt/contest.py": "built-ahead (28ffd5b): the chorus door, kimi's build, claude-run green. UNWIRE-WHEN: a production caller invokes contest -- today only its pins exercise it. Owner: kimi lane / T099 self-tooling.",
+    "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
+    "core/coord/metrics.py": "built-ahead: coordination metrics watchdog",
+    "core/learning/consolidation.py": "built-ahead: memory->chronicle consolidation",
+    "core/narrative/drift.py": "built-ahead: narrative drift detector (prototype)",
+    "core/narrative/tag_audit.py": "built-ahead: tag mis-tag detector",
+    "core/narrative/tag_governance.py": "built-ahead: governed re-tag write path",
+    "core/perspectives/reinforce.py": "built-ahead: perspectives ReinforcedGraph",
+    "core/perspectives/schema.py": "built-ahead: perspectives Map/Lens schema",
+    "core/comm/role_queue.py": "built-ahead (3919731, T108 S1): the role work queue. Design settled by the T108 fence and gated by Daniil 2026-07-28. VERIFIED NEVER RUN 2026-08-01 -- bifrost:role:*, *rolefence*, *rolegen* all hold ZERO keys and no production module imports it; the reaper still routes around it (reaper.py:228 strips to_incarnation, :239 re-sends onto the shared inbox). UNWIRE-WHEN: the T108 migration routes directed/role mail through it. Owner: T108.",
+    "core/recall/gate_rules.py": "built-ahead (dc8584e, R2 slice 1a): the silence-gate rules, written deliberately BEFORE the gate that consumes them -- its own docstring says so, because a rule stated by pointing at the census sample would be a fit rather than a principle. UNWIRE-WHEN: the silence gate lands and imports them. Owner: recall-heuristics.",
+    "core/oneworld/journal.py": "built-ahead (W0, one-world UI core; spec atom art_20261008_one-world-ui-core-reconciled-spec_d622ac): the authored world-state journal, the settled foundation every surface replays from (Heimdall's authored/derived plane). 6 pins green in tests/test_oneworld_journal.py; replay() is its reader and the journal is a durable tracked file, so this is NOT a process-local decoration -- it answers the gate's real question (who reads this) with a real reader and a real store. No production surface consumes it YET, and a fake wire to clear this gate would be the name-it-to-evade move the gate itself warns against. UNWIRE-WHEN: the W0.1 projection reader or the serve.py surface imports it. Owner: claude / one-world UI (H9).",
+    "core/oneworld/projection.py": "built-ahead (W0.1, one-world UI core; spec atom d622ac): the projection reader -- a pure fold of the journal into a derived surface state, one journal -> N projections. 6 pins green in tests/test_oneworld_projection.py, incl. the drift test (a redelivered fact counts once). Reachable only from its pins today; production surfaces fold it. UNWIRE-WHEN: the serve.py surface or a world CLI verb projects through it. Owner: claude / one-world UI (H9).",
+    "core/oneworld/mode.py": "built-ahead (W2, one-world UI core; spec atom d622ac section 3): the mode primitive -- a surface's typed declaration of regions/verbosity/reach(+confessed), with verdict_guard enforcing 'declare your boundary before you judge the whole'. 8 pins green in tests/test_oneworld_mode.py. The specific modes each surface declares arrive WITH that surface; this is the shape + validation. UNWIRE-WHEN: the serve.py surface (or any surface) builds a mode and renders through it. Owner: claude / one-world UI (H9).",
+    "core/oneworld/floor.py": "built-ahead (W3, one-world UI core; spec atom d622ac section 4): the floor -- a shadow-first, toggleable manifest of loud absence (off/shadow/live per entry, named modes, three-state sensors, found-vs-taken legend, per-entry falsifiers). 12 pins green in tests/test_oneworld_floor.py. SHADOW-FIRST and the four default sensors are honestly UNWIRED (report 'unavailable', never all-clear), so nothing can interrupt and nothing lies. UNWIRE-WHEN: each real sensor adapter lands (roster x inbox scan, guard-execution audit, egress detector, external last-eval watchdog) AND a surface calls evaluate() -- wiring each is safe incrementally because everything starts in shadow. Owner: claude / one-world UI (H9).",
+    "core/oneworld/surface.py": "built-ahead (one-world UI surface adapter; spec atom d622ac): the standalone 'what to show' half -- agents_view() assembles a serializable live agent-presence payload from the roster, carrying its bounds legend, failing soft to 'unavailable' rather than a false empty roster. 5 pins green in tests/test_oneworld_surface.py; live-verified against the real roster (6 agents). UNWIRE-WHEN: Heimdall's /api/world endpoint in bifrost_ui.py calls agents_view (his lane -- the web surface). Owner: claude authors the adapter, deepseek wires the serve layer.",
+    "core/recall/shadow_shelf.py": {
+      "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): the isolated observation/judgment substrate has 37 preregistered pins but the pilot explicitly forbids a production caller, live hook, resident watcher, model call, or canonical writer until replay, resource, kill/restart, and independent-review gates clear. Wiring it merely to satisfy this checker would violate the safety boundary. RENEWED 2026-10-01 by claude (the 09-30 expiry blocked every commit in the tree; T370 still untouched in the ledger, the module still has no production caller, the safety boundary stands). UNWIRE-WHEN: the separately reviewed T370 live adapter asks the real detector seam and hands terminal slots to this module; remove this entry then, or delete the module if the pilot is rejected. Owner: Sunshine; independent reconciler: Vandor.",
+      "expires": "2026-11-30"
+    },
+    "core/state/session_recovery.py": "unwired but KEPT (P2 2026-07-07): session-HISTORY recovery from local files, distinct from session_checkpoint's crash-resume. Class-name collision RESOLVED (checkpoint's helper renamed CheckpointRecovery). Still unwired (exported by __init__, no live consumer) -- wire when a session-history consumer lands, or retire then. RE-CONFIRMED UNWIRED 2026-08-03 (T134b): this entry read STALE for two days because self_invoking_modules absolved it on a two-line `recovery = main()` stub. Traced -- no importer, no shell caller. The gate was wrong, not the entry; see tests/test_t134_self_invoking_is_not_a_library.py."
+  },
+  "_enumeration_stays_in_code": [
+    "scripts/bifrost_runner_<seat>.py  (every seat runner, by glob)",
+    "agent/harness/hooks/*.py          (every harness adapter, by glob)",
+    "scripts/githooks/*.py             (every commit guard, by glob)"
+  ],
+  "_provenance_moved": "These whys lived as Python comments beside the hardcoded list until 2026-10-30 (modular-core phase 1). They travel WITH each value now: a register that loses its history is how a list stays accurate while ceasing to be about anything."
+}
