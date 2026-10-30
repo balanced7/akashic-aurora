@@ -167,10 +167,19 @@ def _dotted(rel):
 
 
 def module_map():
-    """dotted-name -> relpath for core/ + agent/ (dotted) and scripts/ (also by bare basename, since
-    scripts add themselves to sys.path and import each other bare)."""
+    """dotted-name -> relpath for core/ + agent/ + verbs/ (dotted) and scripts/ (also by bare
+    basename, since scripts add themselves to sys.path and import each other bare).
+
+    `verbs/` joined this walk on 2026-10-30, the day it was created, and it is the SAME lesson the
+    out-of-tree bridge ENTRY POINT records above: a module the walk cannot see is a module whose
+    readers the FUNCTION gate cannot see either. Concretely, moving `cmd_orient` out of the door
+    script made `core/coord/orient.py::render_orientation` report built-not-wired -- not
+    because anything stopped calling it, but because its only caller now lives in a package this
+    map never walked. The gate was accurate and had stopped being about anything. A new top-level
+    package is a gate-visibility decision; make it here, deliberately, the day it lands.
+    """
     m = {}
-    for pkg in ("core", "agent"):
+    for pkg in ("core", "agent", "verbs"):
         for dp, _dn, fn in os.walk(os.path.join(ROOT, pkg)):
             if "__pycache__" in dp:
                 continue

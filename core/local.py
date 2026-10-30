@@ -23,7 +23,7 @@ own named offender, and the documented blind spot for a seat deployed out of tre
 
 WHAT IS DELIBERATELY NOT HERE: RULES THAT DERIVE. "Enumerate every scripts/bifrost_runner_*.py"
 is a rule, and it is executed in code (check_wiring still globs the runner and hook directories).
-"agent_cli.py is an entry point" is a value, and it lives in local/wiring.json. Moving a
+"the door script is an entry point" is a value, and it lives in local/wiring.json. Moving a
 derivation into data would freeze it at today's answer -- the exact failure the enumeration
 was written to fix.
 
@@ -54,8 +54,8 @@ from typing import Any, Dict, Optional
 
 LOCAL_DIR_NAME = "local"
 
-# The marker that identifies an instance root. agent_cli.py is the door and it is present in
-# every checkout, worktree, zip-export and data-carrying deploy of this repo.
+# The marker that identifies an instance root: the door script is present in every checkout,
+# worktree, zip-export and data-carrying deploy of this repo.
 _MARKERS = ("agent_cli.py",)
 
 _MISSING = object()

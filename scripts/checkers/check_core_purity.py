@@ -9,7 +9,7 @@ against a COMMITTED baseline.
 
 WHY IT IS A RATCHET AND NOT A FLAG DAY
 --------------------------------------
-`agent_cli.py` alone carried 229 hits when this landed, and `core/fleet/seat_launchers.py` 118.
+The door script alone carried 229 hits when this landed, and `core/fleet/seat_launchers.py` 118.
 Blocking every commit on the whole debt would have been a rule that gets reverted within a day
 (the file's own lesson, from `check_wiring`'s EXCEPTIONS expiry block). So today's tree is FROZEN
 and the gate enforces the direction: counts may fall, never rise. Freezing debt is not the same
@@ -129,7 +129,7 @@ def snapshot(files):
         "_what": "The frozen Local-in-Core debt for the Core surface, per file. "
                  "scripts/checkers/check_core_purity.py enforces the direction: counts may FALL, "
                  "never rise. Re-freeze with --write-baseline when they fall.",
-        "_why": "agent_cli.py carried 229 of these on 2026-10-30 and the brief that asked for "
+        "_why": "The door script carried 229 of these on 2026-10-30 and the brief that asked for "
                 "this gate also said not to clean them now: freeze them so they can only go "
                 "down. A missing baseline is UNKNOWN, not zero, so the checker refuses rather "
                 "than passes when this file is gone.",

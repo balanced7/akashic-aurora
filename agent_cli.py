@@ -53,6 +53,17 @@ from core.foundation.timeutil import render_iso
 # the verbs stay reachable through the same names the parser has always bound (pins: test_w169_*).
 from core.recall.surface import (cmd_recall_at, cmd_recall_feedback, cmd_recall_curate,
                                  cmd_recall_prevention)
+# modular-core phase 2 (2026-10-30): the verb bodies start moving out of this file. `verbs._legacy`
+# re-exports every extracted verb under its ORIGINAL cmd_* name, so `import agent_cli;
+# agent_cli.cmd_orient` keeps resolving for the out-of-tree bridge, the hooks, the MCP twin and the
+# identity pins -- and `set_defaults(fn=...)` below binds the very same object, so `parsed.fn is
+# agent_cli.cmd_<verb>` still holds. The registry is the ONE verb table (the 2026-09-17 attack C):
+# every verb, moved or not, is published into it by build_parser, and the checkers read it there.
+# (Attribution for the attack this answers -- 2026-09-17, "attack C" -- lives in the commits and in
+# local/README.md, not here: Core code must not name a seat, and that includes a colleague's name
+# in a comment. The gate counts prose, deliberately.)
+from verbs import registry as _verb_registry
+from verbs._legacy import cmd_orient                                  # noqa: F401  (set_defaults)
 
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
@@ -1305,14 +1316,17 @@ def cmd_repeat(args):
 
 # ------------------------------------------------------------------------ discover
 def list_verbs(query=""):
-    """Introspect the live argparse subparsers -> [(verb, purpose)]. ONE source of truth (the parser
-    itself), so the door can never describe a verb that doesn't exist or omit one that does."""
-    sa = next((a for a in build_parser()._actions if isinstance(a, argparse._SubParsersAction)), None)
-    verbs = [(ca.dest, (ca.help or "").strip()) for ca in (sa._choices_actions if sa else [])]
-    q = (query or "").strip().lower()
-    if q:
-        verbs = [(n, h) for n, h in verbs if q in n.lower() or q in h.lower()]
-    return verbs
+    """Introspect the live verb table -> [(verb, purpose)]. ONE source of truth (the parser, which
+    publishes itself into verbs.registry as its last act), so the door can never describe a verb
+    that doesn't exist or omit one that does.
+
+    COMPAT CONTRACT (unmoved since W169): `core/coord/{capability_search,compare}.py` and
+    `tests/test_door.py` import THIS name from THIS module and expect [(name, purpose)] in parser
+    order. It now delegates to verbs.registry, which is the single table the checkers and the MCP
+    twin read -- extraction must not give a consumer a different answer from the dispatch table.
+    """
+    build_parser()                       # publishes REGISTRY (see verbs/registry.py::publish)
+    return _verb_registry.list_verbs(query)
 
 
 def cmd_compare(args):
@@ -7582,32 +7596,10 @@ def cmd_sweep(args):
     return 0
 
 
-def cmd_orient(args):
-    """Compose awareness and typed focus into one renderer-neutral scene."""
-    subject = str(getattr(args, "agent", "") or
-                  os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
-    if not subject:
-        print("ERROR: orient subject is required: pass --agent <id> or set "
-              "AKASHIC_AGENT_ID")
-        return 2
-    try:
-        from core.coord.orient import build_orientation, render_orientation
-        scene = build_orientation(
-            subject,
-            str(getattr(args, "target", "") or ""),
-            density=str(getattr(args, "density", "compact") or "compact"),
-            depth=str(getattr(args, "depth", "surface") or "surface"),
-            per_stream=int(getattr(args, "per_stream", 1000) or 1000),
-        )
-    except (ValueError, RuntimeError) as exc:
-        print(f"ERROR: {exc}")
-        return 2
-    if getattr(args, "json", False):
-        print(json.dumps(scene, ensure_ascii=False, indent=2, default=str))
-    else:
-        print(render_orientation(scene))
-    return 0
-
+# cmd_orient MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/coord/scene.py.
+# The NAME still resolves here: it is imported from verbs._legacy at the top of this file, and
+# that is the same object `set_defaults(fn=cmd_orient)` binds below. This is the strangler rail --
+# the body left, the contract stayed.
 
 def cmd_shadow(args):
     """Render one deterministic proposed-action ghost without executing it."""
@@ -10482,6 +10474,11 @@ def build_parser():
     ki.add_argument("--json", action="store_true")
     ki.set_defaults(fn=cmd_kit)
 
+    # LAST ACT, deliberately: the table is filled from the parser that actually dispatches, so it
+    # cannot be stale against it. Every consumer -- list_verbs, the door-parity and advertised-verb
+    # checkers, the MCP twin, the coordinate domains -- reads this one table instead of re-deriving
+    # the verb set from the file, which is what makes moving a body out safe (attack C).
+    _verb_registry.publish(p)
     return p
 
 
