@@ -16,7 +16,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { expandScene } from "../arsenal/web/stage/rig.js";
-import { Programmer, H, HEAD_FLOATS, ROLE_NAMES, BANK_GROUPS, resolveTheme } from "../arsenal/web/stage/programmer.js";
+import { Programmer, H, HEAD_FLOATS, ROLE_NAMES, BANK_GROUPS, resolveTheme, nearestSlot } from "../arsenal/web/stage/programmer.js";
 import { BeatGrid } from "../arsenal/web/stage/grid.js";
 import * as PAL from "../arsenal/web/palettes.js";
 import * as SU from "../arsenal/web/stage/setups.js";
@@ -301,4 +301,95 @@ test("the page wires it: the set's pads 13 and 14, key O, the pad actions, the H
   assert.match(html, /<kbd>O<\/kbd> next setup/);
   const lane = readFileSync(new URL("../arsenal/lanes/stage_stills.mjs", import.meta.url), "utf8");
   assert.match(lane, /setup: \{ type: "string"/);
+});
+
+// THE BEAMS FOLLOW THE SETUP (Lane S job 1, 2026-10-30). The report that opened this: "in Ice Spine, Aurora Column, Source Fan
+// and Ember Cathedral the moving heads' beams stay on the palette's wheel plan (violet), so those setups change the halo,
+// cubes and lasers but not the beams". What is pinned here is the mechanism that claim is about: a head's wheel range is
+// derived from the colours the setup places on ITS OWN GROUP over the whole bank turn -- so a beam can only ever show its own
+// placement, can never take a colour another part of the rig owns, and can never fall back onto the palette's plan. The
+// colours below are read from the library JSON directly (not from setups.js), so this is not the same derivation the code
+// does: it is an independent re-statement of "the truss got gold, so the truss may only show gold's slot".
+const roleColour = (v, roles) => (v.startsWith("#") ? PAL.hexToLin(v.toLowerCase()) : roles[PAL.STAGE_ROLES.indexOf(v.slice(1))]);
+const nonRed = (wheel, red) => wheel.map((_, i) => i).filter((i) => !red.includes(i));
+function groupNames(raw, gname) {
+  const pl = raw.place[gname], out = new Set([pl.a]);
+  if (pl.b) out.add(pl.b);
+  out.add(pl.w || "white");
+  for (const side of ["left", "right"]) if (pl[side]) { out.add(pl[side].a); if (pl[side].b) out.add(pl[side].b); }
+  // the bank turns every colour that is on the cycle to the next ones, so the group may show the whole cycle; a group whose
+  // colours are all off it but which says it JOINS takes cycle colours from the first press (setups.js compileSetup)
+  if (Number.isInteger(pl.join) || [...out].some((n) => raw.cycle.includes(n))) for (const c of raw.cycle) out.add(c);
+  return out;
+}
+test("the beams follow the setup: a head group's wheel range is the colours the setup places on THAT group, never another part's", () => {
+  const planSlots = new Set([0]);
+  for (const id of PLIB.ids) { const pl = PAL.planOf(PLIB.byId[id]); for (const s of pl.slots) planSlots.add(s); }
+  for (const raw of RAW.setups) {
+    const S = LIB.byId[raw.id], p = fresh(), g = locked(150);
+    p.setLook("drop", 0); play(p, g, 0, 8); p.setSetupNow(S); play(p, g, 8, 12);
+    for (let gi = 0; gi < p.bankG.names.length; gi++) {
+      const gname = p.bankG.names[gi];
+      for (let i = 0; i < p.nH; i++) {
+        if (p.bankG.headG[i] !== gi || !p.wheels[i]) continue;
+        const wheel = p.wheels[i], red = p.redSlotsOf(i), allowed = nonRed(wheel, red);
+        const want = new Set([0]);
+        for (const n of groupNames(raw, gname)) want.add(nearestSlot(wheel, roleColour(raw.colours[n], p.roleRGB), allowed));
+        const got = p._setupAllowed(i);
+        assert.deepEqual(got, [...want].sort((a, b) => a - b), `${raw.id} ${gname} head ${i}: the range is the group's own colours`);
+        // the palette's plan slots are NOT reachable, unless this group itself has a colour that maps to one
+        const mine = new Set([...want]);
+        for (const s of planSlots) if (raw.place[gname] && !mine.has(s) && s !== 0) assert.ok(!got.includes(s), `${raw.id} ${gname} head ${i}: slot ${s} is the palette's plan, not this group's`);
+      }
+    }
+  }
+});
+test("the beams follow the setup: every lit beam sits on the slot nearest the colour its group was given, at every bank", () => {
+  for (const raw of RAW.setups) {
+    const S = LIB.byId[raw.id], p = fresh(), g = locked(150);
+    p.setLook("drop", 0); play(p, g, 0, 8); p.setSetupNow(S); play(p, g, 8, 12);
+    const seen = new Map();
+    for (let press = 0; press < 4; press++) {
+      const slots = groupState(p, "truss.heads");
+      for (const s of slots.slots) seen.set(s, (seen.get(s) || 0) + 1);
+      p.pad("kick-colour", 0.9, g.posAt(12 * g.period + press * 4 * g.period));
+      play(p, g, 12 + press * 4, 13 + press * 4);
+    }
+    assert.ok(seen.size >= 1, `${raw.id}: the truss beams are lit under the drop and show a colour`);
+    const truss = [...Array(p.nH).keys()].find((i) => p.bankG.names[p.bankG.headG[i]] === "truss.heads" && p.wheels[i]);
+    assert.ok(truss >= 0, `${raw.id}: the rig has truss heads with a wheel`);
+    for (const s of seen.keys()) {
+      assert.ok(!p.redSlotsOf(truss).includes(s), `${raw.id}: the beams never rest on a red slot`);
+      // the beam's colour is the wheel's, and it is one of the truss group's own (never the palette's plan unless it has it)
+      assert.ok(p._setupAllowed(truss).includes(s), `${raw.id}: beam slot ${s} is in the truss group's own range`);
+    }
+  }
+});
+
+// THE PHONE BAR'S COLOUR STRIP (Lane S job 2b, 2026-10-30). The strip wore the palette's two kick LIFT colours, which is what
+// kick 5 dealt while it was a palette-lift colour kick; kick 5 then became the colour BANK (kick.js header, KICK round 3), so
+// the strip promised colours a press no longer deals and stage_verify's phonebar check kept asserting the stale pair. Now the
+// page publishes the bank's colours on its palette and setup events, the strip wears them, and both the check and these pins
+// read the same source -- a strip that falls back to the ladder while the bank deals something else is the stale state the
+// re-registered check fails on.
+test("the bank's colours (kick 5) as hex: the setup's own cycle under a setup, the palette's bank cycle without one", () => {
+  for (const id of LIB.ids) {
+    const S = LIB.byId[id], p = fresh(), g = locked(150);
+    p.setLook("drop", 0); play(p, g, 0, 8); p.setSetupNow(S); play(p, g, 8, 12);
+    const hex = p.bankHex(), cy = SU.cycleOf(S, p.roleRGB);
+    assert.equal(hex.length, cy.length, `${id}: one colour for every colour on the cycle`);
+    for (let i = 0; i < cy.length; i++) assert.equal(hex[i].toLowerCase(), PAL.linToHex(SU.colourOf(S, cy[i], p.roleRGB).slice()).toLowerCase(), `${id}: ${cy[i]}`);
+  }
+  const q = fresh(), g = locked(150); q.setLook("drop", 0); play(q, g, 0, 8);
+  const hex = q.bankHex();
+  assert.ok(hex.length >= 2 && hex.every((h) => /^#[0-9a-f]{6}$/i.test(h)), `the palette's bank: ${hex.join(" ")}`);
+  // the page publishes them on BOTH events and the strip reads them (the wiring the phonebar phase then exercises on the GPU)
+  const page = readFileSync(new URL("../arsenal/web/stage/stage.js", import.meta.url), "utf8");
+  assert.equal((page.match(/bank: programmer\.bankHex\(\)/g) || []).length, 2, "both the palette and the setup events carry the bank");
+  const bar = readFileSync(new URL("../arsenal/web/lib/touchbar.js", import.meta.url), "utf8");
+  assert.match(bar, /Array\.isArray\(d\.bank\)/);
+  assert.match(bar, /addEventListener\("arsenal:setup"/);
+  const lane = readFileSync(new URL("../arsenal/lanes/stage_verify.mjs", import.meta.url), "utf8");
+  assert.match(lane, /the colour strip wears the bank's colours/);
+  assert.match(lane, /deals kick 5's bank one place/);
 });

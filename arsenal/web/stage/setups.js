@@ -239,6 +239,16 @@ export function cubesAt(S, k, roles = null) {
            glowMix: S.cubes.glowMix, names: { glow, core } };
 }
 
+// THE BANK'S COLOURS as hex: what kick 5 deals, in the order it deals them -- the setup's cycle (its own colours, as the
+// bank turns them) under a setup. The phone bar's colour strip wears these: before 2026-10-30 it wore the palette's kick
+// LADDER, which is what kick 5 dealt when it was a palette-lift colour kick, and it kept wearing them after kick 5 became
+// the colour bank (kick.js header, KICK round 3) -- so the strip promised colours the press no longer deals.
+export function bankColoursHex(S, roles) {
+  if (!S) return { setup: null, names: [], hex: [] };
+  const cy = cycleOf(S, roles);
+  return { setup: S.id, names: cy.slice(), hex: cy.map((n) => linToHex(colourOf(S, n, roles).slice())) };
+}
+
 // ------------------------------------------------------------------------------------------------- validation --
 // Every problem with one setup, as sentences ([] = it passes). roles: a palette's live roles to resolve "@Role" colours
 // (without them only the static colours are checked).
@@ -392,12 +402,33 @@ export function nextAutoLine(pos, barAnchor, landedAt, { bars = 16, minBars = 8 
 }
 // the next bar line after pos (O lands there)
 export function nextBarLine(pos, barAnchor) { return barAnchor + 4 * (Math.floor((pos - barAnchor) / 4 + 1e-6) + 1); }
-// which wheel slots a setup's beams may show: the slot nearest each of its colours (never a saturated-red slot)
-export function setupSlots(S, wheel, red = [], roles = null, nearest = null) {
+// The colours ONE GROUP can show under a setup over a whole bank turn: for each of its parts (centre, left, right) its a,
+// its b and its white at every bank k, so the set follows the placement through kick 5's cycle and nothing else. This is
+// what a group's wheel may be drawn from -- another part's colour (the lasers', the cubes', the halo's) is NOT this group's
+// business, and a beam that takes it reads as a different fixture's colour on the frame.
+export function groupColours(S, g, cycle = null) {
+  const out = new Set();
+  if (!S || !S.place[g]) return out;
+  const cy = cycle || S.cycle, pl = S.place[g], n = Math.max(1, cy.length);
+  // (k runs one PAST the cycle's length: a group that JOINS at an offset takes cycle[join] on the first press, so its range
+  //  reaches cycle[join] .. cycle[m-1] over m presses and the colour before its offset only on the press after)
+  for (let k = 0; k <= n; k++) {
+    for (let part = 0; part < 3; part++) {
+      if (part && !pl.sided) continue;
+      out.add(nameAt(S, g, part, "a", k, cy)); out.add(nameAt(S, g, part, "b", k, cy)); out.add(nameAt(S, g, part, "w", k, cy));
+    }
+  }
+  return out;
+}
+// which wheel slots a head may show: the slot nearest each colour of the group it belongs to (group, the placement's own
+// colours: THE BEAMS FOLLOW THE SETUP), or -- with no group -- each of the setup's colours (the whole rig's range, which is
+// right for a crossfade's "what it replaces" set and wrong for a lit group). Never a saturated-red slot.
+export function setupSlots(S, wheel, red = [], roles = null, nearest = null, group = null) {
   if (!S || !wheel) return null;
   const allowed = [];
   for (let i = 0; i < wheel.length; i++) if (!red.includes(i)) allowed.push(i);
   const set = new Set([0]);
-  for (const n of S.names) set.add(nearest(wheel, colourOf(S, n, roles), allowed));
+  const names = group ? groupColours(S, group, cycleOf(S, roles)) : S.names;
+  for (const n of names) set.add(nearest(wheel, colourOf(S, n, roles), allowed));
   return [...set].sort((a, b) => a - b);
 }
