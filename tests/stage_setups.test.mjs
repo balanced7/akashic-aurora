@@ -365,3 +365,31 @@ test("the beams follow the setup: every lit beam sits on the slot nearest the co
     }
   }
 });
+
+// THE PHONE BAR'S COLOUR STRIP (Lane S job 2b, 2026-10-30). The strip wore the palette's two kick LIFT colours, which is what
+// kick 5 dealt while it was a palette-lift colour kick; kick 5 then became the colour BANK (kick.js header, KICK round 3), so
+// the strip promised colours a press no longer deals and stage_verify's phonebar check kept asserting the stale pair. Now the
+// page publishes the bank's colours on its palette and setup events, the strip wears them, and both the check and these pins
+// read the same source -- a strip that falls back to the ladder while the bank deals something else is the stale state the
+// re-registered check fails on.
+test("the bank's colours (kick 5) as hex: the setup's own cycle under a setup, the palette's bank cycle without one", () => {
+  for (const id of LIB.ids) {
+    const S = LIB.byId[id], p = fresh(), g = locked(150);
+    p.setLook("drop", 0); play(p, g, 0, 8); p.setSetupNow(S); play(p, g, 8, 12);
+    const hex = p.bankHex(), cy = SU.cycleOf(S, p.roleRGB);
+    assert.equal(hex.length, cy.length, `${id}: one colour for every colour on the cycle`);
+    for (let i = 0; i < cy.length; i++) assert.equal(hex[i].toLowerCase(), PAL.linToHex(SU.colourOf(S, cy[i], p.roleRGB).slice()).toLowerCase(), `${id}: ${cy[i]}`);
+  }
+  const q = fresh(), g = locked(150); q.setLook("drop", 0); play(q, g, 0, 8);
+  const hex = q.bankHex();
+  assert.ok(hex.length >= 2 && hex.every((h) => /^#[0-9a-f]{6}$/i.test(h)), `the palette's bank: ${hex.join(" ")}`);
+  // the page publishes them on BOTH events and the strip reads them (the wiring the phonebar phase then exercises on the GPU)
+  const page = readFileSync(new URL("../arsenal/web/stage/stage.js", import.meta.url), "utf8");
+  assert.equal((page.match(/bank: programmer\.bankHex\(\)/g) || []).length, 2, "both the palette and the setup events carry the bank");
+  const bar = readFileSync(new URL("../arsenal/web/lib/touchbar.js", import.meta.url), "utf8");
+  assert.match(bar, /Array\.isArray\(d\.bank\)/);
+  assert.match(bar, /addEventListener\("arsenal:setup"/);
+  const lane = readFileSync(new URL("../arsenal/lanes/stage_verify.mjs", import.meta.url), "utf8");
+  assert.match(lane, /the colour strip wears the bank's colours/);
+  assert.match(lane, /deals kick 5's bank one place/);
+});

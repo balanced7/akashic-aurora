@@ -75,9 +75,10 @@
 //   palettes     the contact sheet: each palette (--pal-ids a,b; all thirty by default) landed through the page's door, the
 //                --pal-look (drop) from --pal-shot (FOH_WIDE), settled, drawn; --pal-kick adds the same view with a colour
 //                kick on the rings and on the strand. PNGs to --sheet-dir (else the receipt folder).
-//   phonebar     the headless phone check (915 x 412, touch): the PALETTE pad's label, the colour strip's wash of the lift
-//                colours, a touch that queues the next palette, the page's palette event only on a change, the frame time
-//                with the bar against without it, a finger on the colour strip, and the landing on the 16-bar line.
+//   phonebar     the headless phone check (915 x 412, touch): the PALETTE pad's label, the colour strip's wash of the BANK's
+//                colours (kick 5 deals them: the setup's own cycle, else the palette's bank cycle), a touch that queues the
+//                next palette, the page's palette event only on a change, the frame time with the bar against without it, a
+//                finger on the colour strip dealing the bank one place, and the landing on the 16-bar line.
 // CAMERA DISTANCE phase (2026-10-29, arsenal/web/stage/distance.js; not in the default list: run it attended, --gpu):
 //   distance     the same shot (HALO_LOCK, FOH_WIDE) at CLOSE, MEDIUM and FAR: the rings' on-screen box through the renderer's
 //                own camera (close >= 3x far, medium between), a dolly not a zoom, the picture's luminance and true-black
@@ -2534,15 +2535,27 @@ async function phasePhoneBar({ S, ev, open, phase, deadline }) {
   const read = () => ev(`(() => { const b = [...document.querySelectorAll(".tb button")].find((x) => x.dataset.code === "KeyP");
     const st = document.querySelector(".tbs.right"), r = b.getBoundingClientRect(), rs = st.getBoundingClientRect(), s = window.__stage.state();
     return { label: b.textContent, small: b.querySelector("small").textContent, tinted: st.classList.contains("tinted"), k0: st.style.getPropertyValue("--k0"), k1: st.style.getPropertyValue("--k1"),
+             bankTag: st.getAttribute("data-bank"),
              rect: [r.left + r.width / 2, r.top + r.height / 2], strip: [rs.left + rs.width / 2, rs.top + rs.height / 2],
-             palette: s.palette, events: window.__palEvents, pos: s.pos, bar: s.grid.barAnchor, errors: s.errors.slice(), ladder: window.__palette && window.__palette.ladder }; })()`);
+             palette: s.palette, events: window.__palEvents, pos: s.pos, bar: s.grid.barAnchor, errors: s.errors.slice(), ladder: window.__palette && window.__palette.ladder,
+             // THE BANK (kick 5): the colours the next press deals and how many places the bank has been stepped
+             bank: window.__palette && window.__palette.bank, bankSetup: window.__palette && window.__palette.bankSetup,
+             bankCount: window.__stage.programmer.bank.count }; })()`);
   const touch = async (type, x, y, id = 1) => S("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id }] });
   await frames(30);
   const msBar = await frames(90);
   const a = await read();
   phase.before = a; phase.ms = { bare: +msBare.toFixed(1), bar: +msBar.toFixed(1) };
   check("phonebar: the PALETTE pad shows the palette playing", a.small === a.palette.name, { small: a.small, palette: a.palette.name });
-  check("phonebar: the colour strip wears the palette's two lift colours", a.tinted && a.k0.startsWith(a.ladder[0]) && a.k1.startsWith(a.ladder[1]), { k0: a.k0, k1: a.k1, ladder: a.ladder });
+  // THE BANK'S SEMANTICS (re-registered 2026-10-30): kick 5 became the colour BANK, so the strip wears the colours a press
+  // DEALS (setups.js THE BANK WITHIN A SETUP: the setup's own cycle under a setup, else the palette's bank cycle) -- not the
+  // palette's kick LADDER, which is what it wore while kick 5 was a palette-lift colour kick. The check still fails the way
+  // the old one did: a strip that falls back to the ladder while the bank deals something else is exactly the stale state.
+  const wearsBank = (r) => !!(r.tinted && Array.isArray(r.bank) && r.bank.length >= 2 && r.k0.startsWith(r.bank[0]) && r.k1.startsWith(r.bank[1]));
+  const ladderOnly = (r) => !!(r.ladder && r.ladder.length === 2 && r.k0.startsWith(r.ladder[0]) && r.k1.startsWith(r.ladder[1]));
+  const bankDiffers = (r) => !!(Array.isArray(r.bank) && r.ladder && r.ladder.length === 2 && (r.bank[0] !== r.ladder[0] || r.bank[1] !== r.ladder[1]));
+  check("phonebar: the colour strip wears the bank's colours (kick 5 deals them), not the palette's lift ladder", wearsBank(a) && !(bankDiffers(a) && ladderOnly(a)),
+        { k0: a.k0, k1: a.k1, bank: a.bank, bankTag: a.bankTag, ladder: a.ladder });
   // press the PALETTE pad with a finger: the next palette is queued for the next 16-bar line, and the pad says so
   await touch("touchStart", a.rect[0], a.rect[1]); await frames(2); await touch("touchEnd", a.rect[0], a.rect[1]);
   await frames(2);
@@ -2559,17 +2572,20 @@ async function phasePhoneBar({ S, ev, open, phase, deadline }) {
   await touch("touchStart", a.strip[0], a.strip[1], 2); await frames(10);
   await touch("touchMove", a.strip[0], a.strip[1] - 40, 2); await frames(10);
   const k = await ev("window.__stage.state().kick.live.map((x) => [x.kind, x.colour])");
+  const kAfter = await read();
   await touch("touchEnd", a.strip[0], a.strip[1] - 40, 2); await frames(10);
   phase.kick = k;
-  check("phonebar: a finger on the colour strip kicks in the palette's lift colours", k.some(([kind, col]) => kind === "kick-colour" && a.ladder.includes(col)), k);
+  // (re-registered 2026-10-30: the press DEALS the bank one place -- it used to be the palette's lift colours on one area)
+  check("phonebar: a finger on the colour strip deals kick 5's bank one place, and a colour kick is live", k.some(([kind]) => kind === "kick-colour") && kAfter.bankCount === a.bankCount + 1,
+        { live: k, bankBefore: a.bankCount, bankAfter: kAfter.bankCount, bank: kAfter.bank, bankSetup: kAfter.bankSetup });
   // to the landing: the new palette shows, the pad and the strip follow it
   const toLand = Math.ceil(((b.palette.at - c.pos) + 1) * 24) + 4;
   if (Date.now() < deadline - 30000) {
     await frames(toLand, false); await frames(2);
     const d = await read();
     phase.landed = d;
-    check("phonebar: on the 16-bar line the queued palette lands, and the pad and the strip follow it", d.palette.id === b.palette.queued && !d.palette.queued && d.small === d.palette.name && d.k0.startsWith(d.ladder[0]) && d.events === c.events + 1,
-          { id: d.palette.id, small: d.small, k0: d.k0, ladder: d.ladder, events: d.events });
+    check("phonebar: on the 16-bar line the queued palette lands, and the pad and the strip follow it", d.palette.id === b.palette.queued && !d.palette.queued && d.small === d.palette.name && wearsBank(d) && d.events === c.events + 1,
+          { id: d.palette.id, small: d.small, k0: d.k0, k1: d.k1, bank: d.bank, ladder: d.ladder, events: d.events });
   } else check("phonebar: the landing was reached inside the burst", false, { deadline: "short" });
   check("phonebar: no exceptions or console errors", !phase.exceptions.length && !phase.console.some((x) => x.type === "error" || x.type === "log-error") && !(await ev("window.__stage.state().errors.length")), { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((x) => x.type === "error" || x.type === "log-error").slice(0, 3) });
 }

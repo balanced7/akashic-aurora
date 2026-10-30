@@ -59,8 +59,8 @@ import { EffectInstance, hashSeed } from "./effects.js";
 import { hexToLinear } from "./lasers.js";
 import { aimPreset } from "./phrases.js";
 import { Kicks, redSlots, wheelWay, wayLumaClean as wayLumaCleanKick } from "./kick.js";
-import { STAGE_ROLES, planOf, tableOf, sampleTable, mixLch, isSaturatedRed, deOK, lchOfLin, hueGap, mixLin } from "../palettes.js";
-import { partOfSide, tableInto, whitesTurn, cycleOf, pathOf, mixPath, lasersAt, cubesAt, setupSlots, levelOf, NR as SETUP_NR } from "./setups.js";
+import { STAGE_ROLES, planOf, tableOf, sampleTable, mixLch, isSaturatedRed, deOK, lchOfLin, hueGap, mixLin, linToHex } from "../palettes.js";
+import { partOfSide, tableInto, whitesTurn, cycleOf, pathOf, mixPath, lasersAt, cubesAt, setupSlots, levelOf, bankColoursHex, NR as SETUP_NR } from "./setups.js";
 
 export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
@@ -721,6 +721,16 @@ export class Programmer {
     const B = this.bank;
     if (this.setupOn) return this.setupView[g * 3][ROLE.A];
     return B.on && B.cycle.length ? this.roleRGB[B.cycle[B.idx[g] % B.cycle.length]] : this.roleRGB[ROLE.A];
+  }
+  // THE BANK'S COLOURS, as hex (kick 5): what the next press deals, in the order it deals it -- the setup's own cycle under
+  // a setup, else the palette's bank cycle. The phone bar's colour strip wears these, so the strip and the press can never
+  // promise different colours (before this the strip wore the palette's kick LADDER, which kick 5 no longer deals).
+  bankHex() {
+    const S = this.setupOn && this.sx.def ? this.sx.def : null;
+    if (S) return bankColoursHex(S, this.roleRGB).hex;
+    const B = this.bank;
+    if (!B || !B.cycle || B.cycle.length < 2) return [];
+    return B.cycle.map((r) => linToHex(this.roleRGB[r].slice()));
   }
   bankStatus() {
     const B = this.bank;

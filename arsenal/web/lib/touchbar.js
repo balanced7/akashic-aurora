@@ -221,15 +221,25 @@ function paletteLabel(small) {
   show(window.__palette);
 }
 const HEX6 = /^#[0-9a-f]{6}$/i;
-// the colour strip's wash: the palette's two lift colours at a low alpha (event-driven: arsenal:palette)
+// the colour strip's wash: the colours kick 5 DEALS, at a low alpha -- the page publishes them as `bank` on both its
+// palette and its setup events (2026-10-30: kick 5 is the colour BANK, so the strip wears the bank's colours, the setup's
+// own cycle when one is up; wearing the palette's kick LADDER promised colours the press no longer deals). The ladder stays
+// as the fallback for a page that publishes no bank.
 function ladderTint(el) {
-  const show = (d) => {
-    const L = d && Array.isArray(d.ladder) && d.ladder.length === 2 && d.ladder.every((h) => HEX6.test(h)) ? d.ladder : null;
-    if (!L) return;
-    el.style.setProperty("--k0", `${L[0]}40`); el.style.setProperty("--k1", `${L[1]}1c`);
+  const paint = (a, b, tag) => {
+    el.style.setProperty("--k0", `${a}40`); el.style.setProperty("--k1", `${b}1c`);
     el.classList.add("tinted");
+    if (tag) el.setAttribute("data-bank", tag); else el.removeAttribute("data-bank");
+  };
+  const show = (d) => {
+    if (!d) return;
+    const K = Array.isArray(d.bank) && d.bank.length >= 2 && d.bank.every((h) => HEX6.test(h)) ? d.bank : null;
+    if (K) { paint(K[0], K[1], d.bankSetup || "palette"); return; }
+    const L = Array.isArray(d.ladder) && d.ladder.length === 2 && d.ladder.every((h) => HEX6.test(h)) ? d.ladder : null;
+    if (L) paint(L[0], L[1], null);
   };
   window.addEventListener("arsenal:palette", (e) => show(e.detail));
+  window.addEventListener("arsenal:setup", (e) => show(e.detail));
   show(window.__palette);
 }
 

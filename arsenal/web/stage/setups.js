@@ -239,6 +239,16 @@ export function cubesAt(S, k, roles = null) {
            glowMix: S.cubes.glowMix, names: { glow, core } };
 }
 
+// THE BANK'S COLOURS as hex: what kick 5 deals, in the order it deals them -- the setup's cycle (its own colours, as the
+// bank turns them) under a setup. The phone bar's colour strip wears these: before 2026-10-30 it wore the palette's kick
+// LADDER, which is what kick 5 dealt when it was a palette-lift colour kick, and it kept wearing them after kick 5 became
+// the colour bank (kick.js header, KICK round 3) -- so the strip promised colours the press no longer deals.
+export function bankColoursHex(S, roles) {
+  if (!S) return { setup: null, names: [], hex: [] };
+  const cy = cycleOf(S, roles);
+  return { setup: S.id, names: cy.slice(), hex: cy.map((n) => linToHex(colourOf(S, n, roles).slice())) };
+}
+
 // ------------------------------------------------------------------------------------------------- validation --
 // Every problem with one setup, as sentences ([] = it passes). roles: a palette's live roles to resolve "@Role" colours
 // (without them only the static colours are checked).

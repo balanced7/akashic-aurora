@@ -305,7 +305,9 @@ function start({ rig, R, renderMod, palettes, setups }) {
   function announcePalette() {
     const cur = pal.id && palettes.byId[pal.id], nxt = pal.queued && palettes.byId[pal.queued];
     const d = { id: pal.id, name: cur ? cur.name : theme.name, next: pal.queued, nextName: nxt ? nxt.name : null, at: pal.at,
-                ladder: cur ? cur.kick.ladder.slice() : null, nextLadder: nxt ? nxt.kick.ladder.slice() : null };
+                ladder: cur ? cur.kick.ladder.slice() : null, nextLadder: nxt ? nxt.kick.ladder.slice() : null,
+                // THE BANK'S COLOURS (kick 5): what a press deals now -- the strip on the phone bar wears these
+                bank: programmer.bankHex(), bankSetup: programmer.setupOn && programmer.sx.def ? programmer.sx.def.id : null };
     window.__palette = d;
     window.dispatchEvent(new CustomEvent("arsenal:palette", { detail: { ...d } }));
   }
@@ -350,7 +352,10 @@ function start({ rig, R, renderMod, palettes, setups }) {
   }
   function announceSetup() {
     const cur = su.id && setups ? setups.byId[su.id] : null, nxt = su.queued && setups ? setups.byId[su.queued] : null;
-    const d = { on: su.on, id: su.id, name: cur ? cur.name : null, next: su.queued, nextName: nxt ? nxt.name : null, at: su.at, hold: su.hold };
+    const d = { on: su.on, id: su.id, name: cur ? cur.name : null, next: su.queued, nextName: nxt ? nxt.name : null, at: su.at, hold: su.hold,
+                // THE BANK'S COLOURS: under a setup these are the SETUP's own cycle (what kick 5 deals now), so the phone bar's
+                // colour strip follows a setup landing, not the palette's ladder (it kept wearing the ladder after kick 5 changed)
+                bank: programmer.bankHex(), bankSetup: programmer.setupOn && programmer.sx.def ? programmer.sx.def.id : null };
     window.__setup = d;
     window.dispatchEvent(new CustomEvent("arsenal:setup", { detail: { ...d } }));
   }
