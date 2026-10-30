@@ -818,7 +818,8 @@ export class Programmer {
   // bank and the kicks have set every member's roles and levels -- so a setup recolours, it never moves or dims anything.
   // beginSetup(S, pos) lands S (null: back to the palette's own looks) ON pos, crossfading every table from what shows
   // over `beats` along each colour's clean path (setups.js pathOf); a new setup starts at bank 0 and kick 5 turns its own
-  // colours (_setupBank). Pinned groups hold; heads take the slots nearest the setup's colours, moving far in black.
+  // colours (_setupBank). Pinned groups hold; heads take the slots nearest the colours their OWN group was placed with
+  // (setups.js groupColours: _setupAllowed), moving far in black.
   beginSetup(S, pos, { beats = 4 } = {}) {
     this.sx.pending = { def: S || null, at: pos, beats: Math.max(0, beats) };
     return { id: S ? S.id : null, at: pos, until: pos + Math.max(0, beats) };
@@ -929,17 +930,24 @@ export class Programmer {
     return true;
   }
   // the wheel slots a head may show under the setup (and, while one crossfades in, under what it replaces)
+  // THE BEAMS FOLLOW THE SETUP: a head's slots come from the colours the setup places on ITS OWN GROUP (setups.js
+  // groupColours, over the whole bank turn), never from the whole setup's palette -- so the truss beams can only show what
+  // the truss was given, and can never drift onto a colour the lasers, the cubes or the halo own (the report's "the beams
+  // stay on the palette's wheel plan"). Keyed per (group, part) AND fixture type: two groups of one fixture type are two
+  // placements, and two fixture types of one group are two wheels (their slot indices are not interchangeable).
   _setupAllowed(i) {
-    const X = this.sx, t = this.rig.fixtures[this.rig.heads[i]].type;
-    let a = X.allowed.get(t);
+    const X = this.sx, gname = this.bankG.names[this.bankG.headG[i]], t = this.rig.fixtures[this.rig.heads[i]].type;
+    const key = `${this.headSG[i]}|${t}`;
+    let a = X.allowed.get(key);
     if (a) return a;
-    const w = this.wheels[i], red = this.redSlotsOf(i), set = new Set(X.def ? setupSlots(X.def, w, red, this.roleRGB, nearestSlot) : [0]);
+    const w = this.wheels[i], red = this.redSlotsOf(i), set = new Set(X.def ? setupSlots(X.def, w, red, this.roleRGB, nearestSlot, gname) : [0]);
     if (X.fading || !X.def) {
-      const prev = X.prevAllowed === "setup" && X.prevDef ? setupSlots(X.prevDef, w, red, this.roleRGB, nearestSlot) : this.headAllowed || w.map((_, k) => k);
+      // a crossfade's range also holds what it replaces (the previous setup's own group, or the palette's plan)
+      const prev = X.prevAllowed === "setup" && X.prevDef ? setupSlots(X.prevDef, w, red, this.roleRGB, nearestSlot, gname) : this.headAllowed || w.map((_, k) => k);
       for (const s of prev) set.add(s);
     }
     a = [...set].filter((s) => !red.includes(s)).sort((x, y) => x - y);
-    X.allowed.set(t, a);
+    X.allowed.set(key, a);
     return a;
   }
   takeSetupEvents() { const e = this.sx.events; this.sx.events = []; return e; }
