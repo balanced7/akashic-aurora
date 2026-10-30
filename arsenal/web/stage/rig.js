@@ -32,7 +32,17 @@
 // order keys clock, level, level_mirror (top and bottom equal), column (1, 2, 3 outward by |x|) and depth (by z). Laser
 // projectors may MOUNT on an element (a ring), and aimAt() turns a world point into pan and tilt (world-locked presets).
 
+//
+// v2 (2026-10-27, kinetics wave A): an element's pose may carry yaw (about the world vertical through its origin), spin
+// (about its own face normal, applied first) and axial (a travel along that normal): R = Ry(yaw) Rz(roll) Rx(-tilt)
+// Rz(spin). With all three at zero the matrix is the v1 one, number for number. The rings' envelope against the room
+// (ringEnvelope: the deck, the floor's crowd, the back wall, the sides, the rigging grid) gives each ring its legal tilt
+// window at a height (ringTiltWindow), and annulusGap the clearance between two rings that no longer share one pose.
+// A ring-mounted projector keeps its mount in the ring's frame (mountPose re-resolves it on the live ring).
+
 export const SCENE_FORMAT = "arsenal.arena/v1";
+// the degrees of freedom an element may declare (v2: the rings' dream rotators and their axial travel)
+export const ELEMENT_DOFS = Object.freeze(["y", "roll", "tilt", "yaw", "spin", "axial"]);
 
 const DEG = Math.PI / 180;
 const isNum = (x) => typeof x === "number" && Number.isFinite(x);
@@ -110,7 +120,7 @@ export function validateScene(scene) {
     if (!o.repeat && !isVec3(o.at)) err(`${where}.at: [x, y, z] for an object without repeat`);
     if (o.kind === "element") {
       if (!Array.isArray(o.dof) || !o.dof.length) err(`${where}.dof: the degrees of freedom, e.g. ["y", "roll"]`);
-      for (const d of o.dof || []) if (!["y", "roll", "tilt"].includes(d)) err(`${where}.dof: unknown degree of freedom ${d}`);
+      for (const d of o.dof || []) if (!ELEMENT_DOFS.includes(d)) err(`${where}.dof: unknown degree of freedom ${d}`);
       if (o.limits) for (const [d, lim] of Object.entries(o.limits)) {
         if (!(Array.isArray(lim) && lim.length === 2 && isNum(lim[0]) && isNum(lim[1]) && lim[0] < lim[1])) err(`${where}.limits.${d}: [lo, hi]`);
       }
@@ -342,6 +352,10 @@ export function expandScene(scene) {
   rig.laserGroups = buildLaserGroups(rig.projectors, scene.laser_groups || {});
   rig.phrases = scene.phrases || {};
   rig.presets = scene.presets || {};
+  rig.ringFormations = scene.ring_formations || {};
+  rig.strandShapes = scene.strand_shapes || {};
+  rig.ringRig = scene.ring_rig || null;
+  rig.kick = scene.kick || null;            // KICK v2's block (kick.js; none: the v0 strand lift)
   rig.counts = countRig(rig);
   return rig;
 }
@@ -376,11 +390,11 @@ function expandProjectors(scene, elements = []) {
       const r = ringParam(el.params, m.radius ?? "outer");
       const a = m.angle_deg * DEG;
       const em = elementMatrix(el);
-      pos = transformPoint(em, [r * Math.cos(a), r * Math.sin(a), m.offset ?? 0]);
+      const local = [r * Math.cos(a), r * Math.sin(a), m.offset ?? 0];
+      const mp = mountPose(em, { local, angle: a });
+      pos = mp.pos; radial = mp.radial; normal = mp.normal;
       clock = clockOf(a); level = levelOf(clock);
-      // the mount's frame in world space: radially out in the ring's plane, and the ring's face normal
-      radial = [em[0] * Math.cos(a) + em[1] * Math.sin(a), em[3] * Math.cos(a) + em[4] * Math.sin(a), em[6] * Math.cos(a) + em[7] * Math.sin(a)];
-      normal = [em[2], em[5], em[8]];
+      return projectorOf(scene, l, p, i, pos, { clock, level, element, radial, normal, mount: { local, angle: a } });
     }
     return projectorOf(scene, l, p, i, pos, { clock, level, element, radial, normal });
   });
@@ -404,10 +418,125 @@ export function elementMatrix(el, pose = null, out = new Float64Array(12)) {
   const roll = pose && isNum(pose.roll) ? pose.roll : (el.home.roll || 0);
   const tilt = pose && isNum(pose.tilt) ? pose.tilt : (el.home.tilt || 0);
   // tilt leans the element back about x (a ring at tilt 0 faces the audience; at 90 it lies flat, face up)
-  const m = eulerToMat3([-tilt, 0, roll]);
+  const m = eulerToMat3([-tilt, 0, roll], _em);
+  const yaw = pose && isNum(pose.yaw) ? pose.yaw : 0, spin = pose && isNum(pose.spin) ? pose.spin : 0;
+  if (spin) mat3Mul(m, rotZ(spin, _er), m);           // spin first, about the element's own normal (its local z)
+  if (yaw) mat3Mul(rotY(yaw, _er), m, m);             // then the whole element turns about the world vertical
   out.set(m, 0);
   out[9] = el.origin[0]; out[10] = el.kind === "element" ? y : el.origin[1]; out[11] = el.origin[2];
+  const axial = pose && isNum(pose.axial) ? pose.axial : 0;
+  if (axial) { out[9] += m[2] * axial; out[10] += m[5] * axial; out[11] += m[8] * axial; }
   return out;
+}
+const _em = new Float64Array(9), _er = new Float64Array(9);
+function rotZ(deg, out) { const c = Math.cos(deg * DEG), s = Math.sin(deg * DEG); out.set([c, -s, 0, s, c, 0, 0, 0, 1]); return out; }
+function rotY(deg, out) { const c = Math.cos(deg * DEG), s = Math.sin(deg * DEG); out.set([c, 0, s, 0, 1, 0, -s, 0, c]); return out; }
+
+// A ring-mounted projector on its ring's live matrix: the aperture, radially out in the ring's plane, the face normal.
+export function mountPose(em, mount, out = { pos: [0, 0, 0], radial: [0, 0, 0], normal: [0, 0, 0] }) {
+  const c = Math.cos(mount.angle), s = Math.sin(mount.angle);
+  transformPoint(em, mount.local, out.pos);
+  out.radial[0] = em[0] * c + em[1] * s; out.radial[1] = em[3] * c + em[4] * s; out.radial[2] = em[6] * c + em[7] * s;
+  out.normal[0] = em[2]; out.normal[1] = em[5]; out.normal[2] = em[8];
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------- ring envelope --
+// What a ring must keep clear of (metres): the deck, the floor's crowd (their heads) and the floor behind the deck by
+// deck_m; the back wall and the hall's sides by wall_m; the rigging grid it hangs from by grid_m. heads_m: the beam heads
+// standing on the ring's face (they ride the outer rim, off its front face).
+export const RING_CLEARANCE = Object.freeze({ deck_m: 2.5, wall_m: 0.5, grid_m: 0.4, heads_m: 0.45 });
+// The worst margin of ring element el at a pose against the room (negative: it hits something), and what it is.
+export function ringEnvelope(el, pose, venue, clr = RING_CLEARANCE, samples = 180) {
+  const m = elementMatrix(el, pose, _env), R = (el.params.diameter || 0) / 2;
+  const fx = (venue.floor && venue.floor.x) || [-38, 38], fz = (venue.floor && venue.floor.z) || [-24, 96];
+  const deck = venue.deck || { x: [-24, 24], z: [-16, 0], y: venue.deck_y ?? 2 };
+  const crowdY = venue.crowd_y ?? 1.9, grid = venue.grid_y ?? 33;
+  const nx = m[2], ny = m[5], nz = m[8];
+  let worst = Infinity, why = "", at = null;
+  const p = [0, 0, 0];
+  for (let i = 0; i < samples; i++) {
+    const a = (2 * Math.PI * i) / samples;
+    transformPoint(m, [R * Math.cos(a), R * Math.sin(a), 0], p);
+    for (const h of [0, clr.heads_m]) {
+      const x = p[0] + nx * h, y = p[1] + ny * h, z = p[2] + nz * h;
+      const overDeck = z >= deck.z[0] && z <= deck.z[1] && x >= deck.x[0] && x <= deck.x[1];
+      const below = overDeck ? deck.y : z > deck.z[1] ? crowdY : 0;
+      const cands = [[y - below - clr.deck_m, overDeck ? "deck" : z > deck.z[1] ? "crowd" : "floor"],
+                     [z - fz[0] - clr.wall_m, "back wall"], [fx[1] - Math.abs(x) - clr.wall_m, "side"], [grid - clr.grid_m - y, "grid"]];
+      for (const [mg, w] of cands) if (mg < worst) { worst = mg; why = w; at = [x, y, z]; }
+    }
+  }
+  return { ok: worst >= 0, margin: worst, why, at };
+}
+const _env = new Float64Array(12);
+// The legal tilts of a ring at height y: the contiguous interval (0.25-degree steps through its tilt limits) that holds
+// the most of them, or null. R0 at its 14 m hang: about 47 to 63 degrees (the deck below it, the back wall behind it).
+const _windows = new Map();
+export function ringTiltWindow(el, y, venue, clr = RING_CLEARANCE) {
+  const key = `${el.key}|${Math.round(y * 20)}`;
+  if (_windows.has(key)) return _windows.get(key);
+  const lim = (el.limits && el.limits.tilt) || [0, 90];
+  let best = null, cur = null;
+  for (let t = lim[0]; t <= lim[1] + 1e-9; t += 0.25) {
+    if (ringEnvelope(el, { y, tilt: t }, venue, clr, 120).ok) { if (!cur) cur = [t, t]; else cur[1] = t; }
+    else if (cur) { if (!best || cur[1] - cur[0] > best[1] - best[0]) best = cur; cur = null; }
+  }
+  if (cur && (!best || cur[1] - cur[0] > best[1] - best[0])) best = cur;
+  if (_windows.size > 4096) _windows.clear();
+  _windows.set(key, best);
+  return best;
+}
+// A ring as an annulus (centre, unit normal, inner and outer radius, half thickness) at a pose: the slats from inner to
+// outer, the heads on the face as thickness.
+export function annulusOf(el, pose, clr = RING_CLEARANCE) {
+  const m = elementMatrix(el, pose, _env);
+  const R = (el.params.diameter || 0) / 2;
+  return { centre: [m[9], m[10], m[11]], normal: [m[2], m[5], m[8]], inner: R - (el.params.depth || 0), outer: R + 0.25,
+           half: clr.heads_m / 2 + 0.1, frame: Array.from(m) };
+}
+export function pointToAnnulus(p, g) {
+  const dx = p[0] - g.centre[0], dy = p[1] - g.centre[1], dz = p[2] - g.centre[2];
+  const n = g.normal, h = dx * n[0] + dy * n[1] + dz * n[2];
+  const rho = Math.hypot(dx - h * n[0], dy - h * n[1], dz - h * n[2]);
+  return Math.hypot(Math.max(0, g.inner - rho, rho - g.outer), Math.max(0, Math.abs(h) - g.half));
+}
+// The clearance between two rings (annuli): the nearest the edge circles of each come to the other (two flat annuli
+// that cross share a segment whose ends lie on an edge circle, so sampling the edges finds them).
+export function annulusGap(a, b, samples = 120) {
+  let best = Infinity;
+  const p = [0, 0, 0];
+  for (const [g, o] of [[a, b], [b, a]]) {
+    const f = g.frame;
+    for (const r of [g.inner, g.outer]) for (let i = 0; i < samples; i++) {
+      const t = (2 * Math.PI * i) / samples, x = r * Math.cos(t), y = r * Math.sin(t);
+      p[0] = f[0] * x + f[1] * y + f[9]; p[1] = f[3] * x + f[4] * y + f[10]; p[2] = f[6] * x + f[7] * y + f[11];
+      const d = pointToAnnulus(p, o);
+      if (d < best) best = d;
+    }
+  }
+  return best;
+}
+// The hall's fixed structure as axis-aligned boxes {c (centre), s (size), what}: solid (the deck, the DJ booth, the six PA
+// hangs) and truss (Bank A's and the beam truss, the tower and delay legs, the FOH riser). One list for the renderer,
+// which draws it, and for the camera's sightline check (camera.js shotSight), which must see what the audience sees:
+// a PA hang at x = +-5 stands between the front of house and the rings (fix round 1: the orrery's views hid its core).
+export function hallStructure(venue) {
+  const deck = venue.deck || { x: [-24, 24], z: [-16, 0], y: 2 };
+  const solid = [
+    { c: [0, deck.y / 2, (deck.z[0] + deck.z[1]) / 2], s: [deck.x[1] - deck.x[0], deck.y, deck.z[1] - deck.z[0]], what: "deck" },
+    { c: [0, deck.y + 0.6, -4], s: [3.0, 1.2, 1.4], what: "dj" },
+  ];
+  for (const x of [-22, -13, -5, 5, 13, 22]) solid.push({ c: [x, 12, Math.abs(x) > 6 ? -1 : -2], s: [1.3, 6, 1.4], what: "pa" });
+  const truss = [
+    { c: [0, 22.4, -2], s: [40, 0.45, 0.45], what: "bank-a" },
+    { c: [0, 26.5, -5], s: [40, 0.5, 0.5], what: "beam-truss" },
+    { c: [-22, 8, -2], s: [0.6, 16, 0.6], what: "tower" }, { c: [22, 8, -2], s: [0.6, 16, 0.6], what: "tower" },
+    { c: [0, 1.2, 50], s: [8, 2.4, 5], what: "foh" },
+    { c: [-12, 5, 30], s: [0.6, 10, 0.6], what: "delay" }, { c: [12, 5, 30], s: [0.6, 10, 0.6], what: "delay" },
+    { c: [-12, 5, 55], s: [0.6, 10, 0.6], what: "delay" }, { c: [12, 5, 55], s: [0.6, 10, 0.6], what: "delay" },
+  ];
+  return { solid, truss };
 }
 export function transformPoint(m12, p, out = [0, 0, 0]) {
   const x = p[0], y = p[1], z = p[2];

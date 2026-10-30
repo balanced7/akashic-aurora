@@ -11,19 +11,49 @@
 // soft plume around its nozzle while it runs. The albedo of haze is about 1, so extinction ~ scattering.
 //
 // Ranges (Koschmieder: visibility V = 3.912 / sigma): arena haze 0.003 to 0.02 1/m (about 1,300 m down to 200 m), a
-// local fog burst up to 0.26 1/m (15 m). NEVER denser than that anywhere (the whiteout guard, receipt F1): clampSigma.
+// local fog burst up to 0.26 1/m (15 m).
+// TWO CHANNELS, two caps (VJ V2, 2026-10-27; build spec research/in-flight/vj-v2-build-spec-2026-10-27.md C P0, from
+// vj-v2-research-2026-10-27/fog-fluid.research.md and its check): the HAZE channel (the room, the hazers, fog bursts) never
+// denser than HAZE_CAP 0.26 1/m (clampSigma, as in v0); the PLUME channel (CO2 and smoke bodies) up to PLUME_CAP 15 1/m
+// (clampPlume). One cap for both made an opaque plume impossible: a 0.6 m core at 0.26 transmits 86 %, so CO2 read as
+// beige fog by construction; at 15 it transmits e^-9. The whiteout guard is no longer a local clamp on the plume: it is
+// what exists, the final-frame limiter (flash.js) and the FlashGate (programmer.js), and tests/stage_atmos.test.mjs holds
+// the white-out receipts against both. The renderer samples only the haze channel tonight; plumes reach the beams with
+// the Stage 3D fluid (night 2), behind the check's cone-shimmer receipt (4-6 cone samples alias a 15 1/m plume).
+// Not changed, on purpose: the haze fader's top (SIGMA_MAX 0.02 already sits near the 1/(t + r) peak of the beams'
+// single scatter, the check's finding), and the phase: the approximate-Mie lobe dims side-on beams 1.7-2.6 x (the check)
+// and waits for a re-level with a before/after luminance receipt.
 // Phase: Henyey-Greenstein, g = 0.75 for haze (F6: Colombi and Louedec 2013), g = 0.85 for fog and CO2.
 
 export const ATMOS_API = "arsenal.stage-atmos/v1";
 export const SIGMA_MIN = 0.003;
 export const SIGMA_MAX = 0.02;
-export const SIGMA_CAP = 0.26;
+export const HAZE_CAP = 0.26;
+export const PLUME_CAP = 15;
+export const SIGMA_CAP = HAZE_CAP;   // v0's name for the haze channel's cap
 export const HAZE_G = 0.75;
 export const FOG_G = 0.85;
 export const MAX_HAZERS = 8;
 
 export const visibility = (sigma) => 3.912 / sigma;
-export const clampSigma = (s) => (s > SIGMA_CAP ? SIGMA_CAP : s < 0 ? 0 : s);
+export const clampSigma = (s) => (s > HAZE_CAP ? HAZE_CAP : s < 0 ? 0 : s);
+export const clampPlume = (s) => (s > PLUME_CAP ? PLUME_CAP : s < 0 ? 0 : s);
+// what a plume of extinction sigma leaves of the light behind it over pathM metres (Beer-Lambert, plume channel)
+export const plumeTransmittance = (sigma, pathM) => Math.exp(-clampPlume(sigma) * Math.max(0, pathM));
+
+// The air's colour (VJ V2 fix round 2). The veil is the room's light scattered back by the haze, so it takes the colour
+// of what lights the room: the rings' white LEDs and the beams, a neutral blue-grey. A theme whose air has a hue of its
+// own (theme.air_tint 0..1: the Dreaming City's deep violet haze, measured plum in every one of Daniel's stills) moves
+// the veil toward its ambient's hue AT THE VEIL'S OWN LUMINANCE: the haze glows exactly as bright with the room's light
+// (nothing the flash limiter counts moves), only its colour is the air's. t = 0 leaves the veil as the light made it.
+const LUMA = [0.2126, 0.7152, 0.0722];
+export function airTint(veil, ambient, t, out = [0, 0, 0]) {
+  const k = t > 1 ? 1 : t > 0 ? t : 0;
+  const ya = LUMA[0] * ambient[0] + LUMA[1] * ambient[1] + LUMA[2] * ambient[2];
+  const s = k > 0 && ya > 1e-9 ? (LUMA[0] * veil[0] + LUMA[1] * veil[1] + LUMA[2] * veil[2]) / ya : 0;
+  for (let i = 0; i < 3; i++) out[i] = s > 0 ? veil[i] + (ambient[i] * s - veil[i]) * k : veil[i];
+  return out;
+}
 
 // Henyey-Greenstein (the same lobe as the house module volume/phase.glsl): mu = dot(viewDir, dirToLight).
 export function phaseHG(mu, g) {
@@ -69,15 +99,16 @@ export class Atmosphere {
     }
     return u;
   }
-  // the density at a point, the CPU twin of the shader's hazeDensity (without the noise texture: n = 0), for receipts
-  densityAt(p, noise = 0) {
+  // the density at a point, the CPU twin of the shader's hazeDensity (without the noise texture: n = 0), for receipts;
+  // plume: the plume channel's own extinction there, each channel under its own cap
+  densityAt(p, noise = 0, plume = 0) {
     const u = this.uniform;
     let s = u.sigma0 * Math.max(0, 1 + u.noiseAmp * noise);
     for (let i = 0; i < u.n; i++) {
       const dx = p[0] - u.hazers[i * 4], dy = p[1] - u.hazers[i * 4 + 1], dz = p[2] - u.hazers[i * 4 + 2], r = u.hazers[i * 4 + 3];
       s += u.hazerSigma[i] * Math.exp(-(dx * dx + dy * dy + dz * dz) / (r * r));
     }
-    return clampSigma(s);
+    return clampSigma(s) + clampPlume(plume);
   }
 }
 

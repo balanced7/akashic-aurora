@@ -1,6 +1,7 @@
 // Virtual Stage v0, the shaders: arsenal/web/stage/shaders.js. GLSL ES 3.00 written fresh for this page (Apache-2.0,
 // Akashic Aurora), composed at load time with the house library (arsenal/web/glsl: volume-phase for the scattering lobe,
-// dither-masks for the static jitter, display-out for the finish, colour-transfer for the sRGB seam), so a change to a
+// atmos-haze's blue noise for the beams' static jitter (VJ V2, the haze base), display-out for the finish,
+// colour-transfer for the sRGB seam), so a change to a
 // house module reaches the stage too (Daniel, 2026-10-13: "tweak one module and have everything update").
 //
 // The techniques, credited:
@@ -17,9 +18,12 @@
 //   - nothing temporal on beams or lasers (Lasers v2 rule 4): the jitter is spatial only, and the exposure is fixed per shot.
 // Units: scene-linear light in nits (cd/m^2); the finish divides by the exposure reference before display-out.
 
+import { HAZE_CAP } from "./atmos.js";
+
 export const MAX_SPOTS = 32;
 
-// The shared medium: the CPU twin is atmos.js densityAt.
+// The shared medium, its haze channel (the plume channel waits for the 3D fluid: atmos.js): the CPU twin is atmos.js
+// densityAt.
 export const HAZE = `
 uniform highp sampler3D uNoise;
 uniform float uSigma0;
@@ -38,7 +42,7 @@ float hazeDensity(vec3 p) {
     float rr = max(uHazer[h].w, 0.001);
     sig += uHazerSigma[h] * exp(-dot(off, off) / (rr * rr));
   }
-  return min(sig, 0.26);
+  return min(sig, ${HAZE_CAP.toFixed(2)});
 }
 `;
 
@@ -162,6 +166,61 @@ void main() {
   float facing = abs(dot(normalize(vNormalW), v));
   float glow = 0.55 + 0.45 * (1.0 - facing) + 0.35 * (1.0 - max(a.x, max(a.y, a.z)) * 0.7);
   fragColor = vec4(fEmit * glow * (1.0 - 0.85 * frame), 1.0);
+}`;
+
+// ------------------------------------------------------------------------------------------------- the core --
+// v2 (2026-10-27): the orrery's core, an LED sphere lit from inside. A saturated body whose light swirls like a nebula
+// (two octaves of value noise in the sphere's turning frame), brighter toward its centre as seen (the volume the view
+// crosses), a hot white heart that the hero's discharge drives, a meridian line round it and a seam ring below: thin
+// bright lines on the glowing body. Units: the scene's (30 nits each), uScale = nits / 30 x level.
+export const ORB_VERTEX = `${HEAD}
+uniform mat4 projectionMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 modelMatrix;
+uniform mat3 uSpin;
+in vec3 position;
+in vec3 normal;
+out vec3 vObj;
+out vec3 vNormalW;
+out vec3 vWorld;
+void main() {
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vObj = uSpin * normal;
+  vWorld = wp.xyz;
+  vNormalW = normalize(mat3(modelMatrix) * normal);
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+export const ORB_FRAGMENT = `${HEAD}
+uniform vec3 cameraPosition;
+uniform vec3 uCol;
+uniform vec3 uHot;
+uniform float uScale;
+uniform float uHotK;
+uniform float uTime;
+in vec3 vObj;
+in vec3 vNormalW;
+in vec3 vWorld;
+out vec4 fragColor;
+float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vnoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h3(i), h3(i + vec3(1, 0, 0)), f.x), mix(h3(i + vec3(0, 1, 0)), h3(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(h3(i + vec3(0, 0, 1)), h3(i + vec3(1, 0, 1)), f.x), mix(h3(i + vec3(0, 1, 1)), h3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+void main() {
+  vec3 n = normalize(vObj);
+  vec3 v = normalize(cameraPosition - vWorld);
+  float facing = clamp(abs(dot(normalize(vNormalW), v)), 0.0, 1.0);
+  // the swirl: a slow warp, then two octaves (the nebula inside the glass)
+  vec3 q = n * 2.2 + vec3(0.0, uTime * 0.04, 0.0);
+  q += 0.6 * vec3(vnoise(q + 3.1), vnoise(q + 7.7), vnoise(q + 1.3));
+  float sw = 0.62 * vnoise(q * 1.7) + 0.38 * vnoise(q * 4.3 - uTime * 0.07);
+  vec3 body = uCol * (0.3 + 1.1 * sw * sw) * (0.45 + 0.75 * facing);
+  vec3 heart = uHot * pow(facing, 4.0) * uHotK;
+  float meridian = smoothstep(0.03, 0.0, abs(n.x)) * 0.9;
+  float seam = smoothstep(0.022, 0.0, abs(n.y + 0.62)) * 0.6;
+  fragColor = vec4((body + heart + uHot * (meridian + seam)) * uScale, 1.0);
 }`;
 
 // ------------------------------------------------------------------------------------------------- emitters --
@@ -359,7 +418,9 @@ void main() {
   float D = max(length(L - ro - rd * delta), 1e-3);
   float thA = atan((tA - delta) / D), thB = atan((tB - delta) / D);
   float inscatter = 0.0;
-  float jit = dthIgn(gl_FragCoord.xy);
+  // the haze base's blue noise (atmos-haze hazeBlueNoise, a void-and-cluster table): interleaved gradient noise left the
+  // crosshatch the light-in-haze judge saw at 1:1 (must-change 3); still spatial only, nothing temporal (rule 4)
+  float jit = hazeBlueNoise(gl_FragCoord.xy);
   for (int k = 0; k < ${samples}; k++) {
     float th = mix(thA, thB, (float(k) + jit) / ${samples}.0);
     float t = delta + D * tan(th);

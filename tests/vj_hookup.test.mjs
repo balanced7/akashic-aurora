@@ -210,3 +210,201 @@ test("the chord colour on a theme while the audio names the chords: a hue turn o
     assert.ok(!isSaturatedRed(r) || isSaturatedRed(s), `hue ${h}`);
   }
 });
+
+test("the air (VJ V2): lane C's haze fluid is reached feature by feature, and a throwing one is dropped, never a crash", () => {
+  assert.equal(H.airOf(null), null);
+  assert.equal(H.airOf({ step() {} }), null, "nothing a pad can call");
+  const calls = [];
+  const fluid = { co2: (x, y, s) => calls.push(["co2", x, y, s]), fogPush: (l) => calls.push(["fog", l]), fogRelease: () => calls.push(["rel"]) };
+  const air = H.airOf(fluid);
+  assert.deepEqual(air.has, { co2: true, fog: true });
+  assert.equal(air.co2(0.4, 0, 0.9), true);
+  assert.equal(air.fogPush(0.7), true);
+  assert.equal(air.fogRelease(), true);
+  assert.deepEqual(calls, [["co2", 0.4, 0, 0.9], ["fog", 0.7], ["rel"]]);
+  const onlyCo2 = H.airOf({ co2() {} });
+  assert.deepEqual(onlyCo2.has, { co2: true, fog: false });
+  assert.equal(onlyCo2.fogPush(1), false, "a missing method is a no-op");
+  const bad = H.airOf({ co2() { throw new Error("lost context"); }, fogPush() {} });
+  assert.equal(bad.co2(0.5, 0, 1), false);
+  assert.match(bad.broken, /co2: lost context/);
+  assert.equal(bad.fogPush(0.5), false, "once broken, the pads keep their own stand-ins");
+});
+
+// Daniel's option C (2026-10-28): "let the page's haze fluid light the scene's heads" -- the Cathedral's bus fans are
+// beam records the page draws (so the haze fluid scatters them), with the scene's own geometry.
+function cathedralStrip({ heads = {}, beams = 6, spread = 0.5, pattern = 3, phase = 0.2, count = 5, chordPulse = 0, pads = {} } = {}) {
+  const strip = C.createStrip();
+  C.stripSet(strip, 12, C.STRIP.ROW_PADS, phase, 0, 0, count);
+  C.stripSet(strip, 15, C.STRIP.ROW_PADS, chordPulse, 0, 0, 0.5);
+  for (const [i, env] of Object.entries(pads)) C.stripSet(strip, +i, C.STRIP.ROW_PADS, env, 0.8, 0, 0);
+  const bus = new Array(24).fill(0);
+  bus[1] = pattern; bus[3] = 0.3;
+  for (const [i, v] of Object.entries(heads)) bus[4 + +i] = v;
+  bus[16] = 0.1; bus[17] = 0.3; bus[18] = 0.9; bus[19] = beams;   // L1 and the beams per fan
+  bus[20] = 0.9; bus[21] = 0.2; bus[22] = 0.6; bus[23] = spread;  // L2 and the spread
+  H.writeHeadBus(strip, bus, 0);
+  C.stripSet(strip, 15, C.STRIP.ROW_PALETTE, C.STRIP.VERSION, 0, 0, 1);
+  return strip;
+}
+
+test("option C: the Cathedral's lit bus heads become beam records at the scene's own heads, one group per fan", () => {
+  const asp = 16 / 9;
+  const strip = cathedralStrip({ heads: { 0: 0.8, 5: 1.4, 11: 2.25 } });   // head 1 L1 0.8, head 6 L2 0.4, head 12 white 0.25
+  const dst = new Float32Array(L.MAX_SEGMENTS * L.SEG_FLOATS);
+  const rows = H.cathedralBeams(strip, { asp }, dst);
+  assert.equal(rows, 3 * (6 + 1), "three fans of six beams, each behind its group header");
+  const heads = [0, 5, 11];
+  for (let f = 0; f < 3; f++) {
+    const hdr = L.decodeSeg(dst, f * 7, {});
+    assert.ok(hdr.header && hdr.count === 6, "a group header for the fan");
+    const h = H.cathedralHead(heads[f], asp);
+    assert.ok(Math.abs(hdr.cx - h.x) < 1e-6 && Math.abs(hdr.cy - h.y) < 1e-6, "the group sits at the scene's head");
+    for (let j = 1; j <= 6; j++) {
+      const r = L.decodeSeg(dst, f * 7 + j, {});
+      assert.ok(!r.header && r.kind === L.KIND.BEAM, "a beam: it fades along itself");
+      assert.ok(Math.abs(r.x0 - h.x) < 1e-6 && Math.abs(r.y0 - h.y) < 1e-6, "every beam starts at the head");
+      const ex = Math.abs(r.x1) - asp / 2, ey = Math.abs(r.y1) - 0.5;
+      assert.ok(Math.max(ex, ey) > 0 && Math.max(ex, ey) < 0.03, "and runs just past the frame's edge");
+      assert.ok(r.width <= L.CORE_MAX_PX && r.width > 0.5);
+      assert.ok(Math.abs(r.glow - r.I * H.CATHEDRAL.GLOW) < 0.002, "the halo at its share of the core's level");
+    }
+  }
+  const lvl = (k) => L.decodeSeg(dst, k * 7 + 1, {}).I;
+  assert.ok(Math.abs(lvl(0) - 0.8 * 1.21) < 0.002 && Math.abs(lvl(1) - 0.4 * 1.21) < 0.002 && Math.abs(lvl(2) - 0.25 * 1.21) < 0.002,
+    "the scene's fan energy: the bus level x (0.7 + 0.6 x 0.85)");
+  const col = (k) => { const r = L.decodeSeg(dst, k * 7 + 1, {}); return [r.r, r.g, r.b].map((v) => +v.toFixed(2)); };
+  assert.deepEqual(col(0), [0.1, 0.3, 0.9], "slot 0: L1");
+  assert.deepEqual(col(1), [0.9, 0.2, 0.6], "slot 1: L2");
+  assert.deepEqual(col(2), [1, 1, 1], "slot 2: white");
+  // the spread: the fan's outer beams are the bus's spread apart
+  const a = (k) => { const r = L.decodeSeg(dst, k, {}); return Math.atan2(r.y1 - r.y0, r.x1 - r.x0); };
+  let d = a(6) - a(1); d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
+  assert.ok(Math.abs(Math.abs(d) - 0.5) < 1e-4, `spread ${d}`);
+});
+
+test("option C: a dark bus, an older strip, a pad's own fan, Dampen's gain, Converge, Rain and the row cap", () => {
+  const asp = 16 / 9, dst = new Float32Array(L.MAX_SEGMENTS * L.SEG_FLOATS);
+  assert.equal(H.cathedralBeams(cathedralStrip(), { asp }, dst), 0, "no head lit: nothing");
+  const old = cathedralStrip({ heads: { 0: 0.8 } });
+  C.stripSet(old, 15, C.STRIP.ROW_PALETTE, 2, 0, 0, 1);
+  assert.equal(H.cathedralBeams(old, { asp }, dst), 0, "a v2 strip has no head bus");
+  assert.equal(H.cathedralBeams(cathedralStrip({ heads: { 2: 0.5 }, pads: { 2: 0.7 } }), { asp }, dst), 0,
+    "a pad above its head's bus level keeps its own fan in the scene");
+  // Dampen: the page scaled the bus by its gain; the records take it back (the beam layer applies the gain itself)
+  H.cathedralBeams(cathedralStrip({ heads: { 0: 0.3 } }), { asp, gain: 0.5 }, dst);
+  assert.ok(Math.abs(L.decodeSeg(dst, 1, {}).I - 0.6 * 1.21) < 0.002);
+  // Converge (pattern 7): every beam's fan centred on the frame's centre; Rain (12): straight down from the top row
+  H.cathedralBeams(cathedralStrip({ heads: { 0: 0.8 }, beams: 1, pattern: 7 }), { asp }, dst);
+  const h0 = H.cathedralHead(0, asp), r = L.decodeSeg(dst, 0, {});
+  const cross = (r.x1 - r.x0) * (0 - h0.y) - (r.y1 - r.y0) * (0 - h0.x);
+  assert.ok(Math.abs(cross) < 1e-6 && !r.header, "one beam, no group: through the centre");
+  H.cathedralBeams(cathedralStrip({ heads: { 1: 0.8 }, beams: 1, pattern: 12 }), { asp }, dst);
+  const rain = L.decodeSeg(dst, 0, {});
+  assert.ok(Math.abs(rain.x1 - rain.x0) < 1e-6 && rain.y1 < rain.y0, "Rain: down");
+  // the cap: never past maxRows (the hero's rows come after)
+  const all = cathedralStrip({ heads: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i, 0.9])), beams: 12 });
+  assert.equal(H.cathedralBeams(all, { asp }, dst), 12 * 13);
+  assert.equal(H.cathedralBeams(all, { asp }, dst, 0, 30), 2 * 13, "whole fans only, under the cap");
+});
+
+test("option C: the scissor foci and heads are the scene's (the frag's formulas), and the scene no longer draws bus fans", () => {
+  const src = readFileSync(here("../arsenal/web/presets/vj-laser-cathedral.frag"), "utf8");
+  assert.match(src, /vec2 o = vec2\(\(float\(c\) - 1\.5\) \* 0\.30 \* asp \* 0\.9, 0\.36 - 0\.36 \* float\(r\)\);/, "the heads");
+  assert.match(src, /float stepB = gCount \+ smoothstep\(0\.0, 0\.45, gPhase\) \+ 1\.5 \* gChordPulse;/, "the beat step");
+  assert.match(src, /vec2 focusA = vec2\(amp \* asp \* 0\.5 \* sin\(stepB \* 1\.5708\), 0\.05 \+ 0\.32 \* cos\(stepB \* 1\.0472\)\);/);
+  assert.match(src, /vec2 focusB = vec2\(-focusA\.x, -0\.05 - 0\.3 \* cos\(stepB \* 0\.7854 \+ 1\.0\)\);/);
+  assert.match(src, /if \(!fromBus && lv\.x > 0\.002\) \{/, "a bus head's fan is the page's beam layer");
+  // the scissor: an even head (c + r even) aims at focus A, an odd one at B
+  const asp = 16 / 9, dst = new Float32Array(L.MAX_SEGMENTS * L.SEG_FLOATS);
+  const phase = 0.6, count = 9, sweep = 0.55;
+  H.cathedralBeams(cathedralStrip({ heads: { 0: 0.8, 1: 0.8 }, beams: 1, phase, count }), { asp, sweep }, dst);
+  const stepB = count + 1 + 0;   // smoothstep(0, 0.45, 0.6) = 1
+  const amp = 0.15 + 0.55 * sweep;
+  const fA = [amp * asp * 0.5 * Math.sin(stepB * 1.5708), 0.05 + 0.32 * Math.cos(stepB * 1.0472)];
+  const fB = [-fA[0], -0.05 - 0.3 * Math.cos(stepB * 0.7854 + 1.0)];
+  for (const [row, f] of [[0, fA], [1, fB]]) {
+    const r = L.decodeSeg(dst, row, {});
+    const cross = (r.x1 - r.x0) * (f[1] - r.y0) - (r.y1 - r.y0) * (f[0] - r.x0);
+    assert.ok(Math.abs(cross) < 1e-5, `head ${row + 1} aims through its focus`);
+  }
+});
+
+test("option C: while a gate runs the heads' halos are held through its gaps, only the cores pulse, and the cores are fitted", () => {
+  const asp = 16 / 9, dst = new Float32Array(L.MAX_SEGMENTS * L.SEG_FLOATS);
+  const heads = new H.CathedralHeads();
+  const lit = cathedralStrip({ heads: { 1: 0.9, 2: 1.9, 5: 0.9, 6: 0.9, 9: 0.9, 10: 0.9 }, beams: 12, spread: 0.6 });
+  const gap = cathedralStrip({ beams: 12, spread: 0.6 });                       // the same run (solo 0.3), every head dark
+  heads.update(lit, { asp }, 1 / 60);
+  assert.ok(heads.running && heads.fits === 1);
+  assert.ok(heads.coreK < 1 && heads.coreK > 0.05, `six fans of twelve: the cores are fitted (${heads.coreK})`);
+  // the fit holds: at the held levels, at every probed step of the foci, the cores stay under the caps
+  for (let k = 0; k < 48; k++) {
+    const n = H.cathedralBeams(lit, { asp, hold: heads, stepB: k / 2 }, dst);
+    const c = H.coreCells(dst, n, asp);
+    assert.ok(c.cell <= H.HEAD_HOLD.CELL_CAP + 1e-9 && c.window <= H.HEAD_HOLD.WIN_CAP + 1e-9, `step ${k / 2}: ${c.cell} ${c.window}`);
+  }
+  const k0 = heads.coreK;
+  // a gap: no core, every halo held at its level, in the colour it last drew
+  heads.update(gap, { asp }, 1 / 60);
+  const n = H.cathedralBeams(gap, { asp, hold: heads }, dst);
+  assert.equal(n, 6 * 13, "six held fans");
+  for (let i = 0; i < n; i++) {
+    const r = L.decodeSeg(dst, i, {});
+    if (r.header) continue;
+    assert.ok(r.I < 0.002 && Math.abs(r.glow - 0.9 * 1.21 * H.CATHEDRAL.GLOW) < 0.003 && r.held, "the core dark, the halo held");
+  }
+  assert.deepEqual([0, 1, 2].map((k) => +[L.decodeSeg(dst, 14, {}).r, L.decodeSeg(dst, 14, {}).g, L.decodeSeg(dst, 14, {}).b][k].toFixed(2)), [0.9, 0.2, 0.6],
+    "head 3 keeps L2 through the gap");
+  assert.equal(heads.coreK, k0, "the fit never gives light back mid-run");
+  // the run ends (solo back to 1): the halos let go over RELEASE_S, and the next run fits afresh
+  const idle = cathedralStrip();
+  C.stripSet(idle, 9, C.STRIP.ROW_PALETTE, 0, 0, 0, 1);
+  let frames = 0;
+  while (heads.glow.some((g) => g > 0) && frames < 600) { heads.update(idle, { asp }, 1 / 60); frames++; }
+  assert.ok(!heads.running && heads.coreK === 1);
+  assert.ok(frames > 20 && frames < 240, `released in ${frames} frames`);
+  // an older strip: nothing held
+  heads.update(lit, { asp }, 1 / 60);
+  const old = cathedralStrip({ heads: { 0: 0.8 } });
+  C.stripSet(old, 15, C.STRIP.ROW_PALETTE, 2, 0, 0, 1);
+  heads.update(old, { asp }, 1 / 60);
+  assert.ok(heads.glow.every((g) => g === 0) && heads.coreK === 1);
+});
+
+test("coreCells: one beam's core on gate v2's grid -- its light per cell, the brightest window of 16 cells or more", () => {
+  const asp = 16 / 9, seg = new Float32Array(2 * L.SEG_FLOATS);
+  // a white, cold (heat 0), 2 px core at level 1, straight across the frame's middle row of cells, no fade to speak of
+  seg[0] = -asp / 2; seg[1] = 0.0625; seg[2] = asp / 2; seg[3] = 0.0625;
+  seg[4] = 255 * 65536 + 255 * 256 + 255;
+  seg[5] = Math.round(1 / L.LEVEL_MAX * 4095) * 4096;
+  seg[6] = 32;    // width 2 px, heat 0
+  const c = H.coreCells(seg, 1, asp);
+  // per cell: 2/1080 of a frame height of light, spread over a cell 1/8 tall; the first cell, before the fade
+  const first = 2 / 1080 / (1 / 8);
+  assert.ok(c.cell > 0.9 * first * Math.exp(-0.5 * asp / 8) && c.cell <= first * 1.0001, `${c.cell} vs ${first}`);
+  assert.ok(c.window < c.cell && c.window > 0, "a window averages the row with the dark ones");
+});
+
+test("option C: a head the run has left lets its halo go after HOLD_S; the steady picture (the air's source) never pulses", () => {
+  const asp = 16 / 9, dst = new Float32Array(L.MAX_SEGMENTS * L.SEG_FLOATS);
+  const heads = new H.CathedralHeads();
+  const a = cathedralStrip({ heads: { 0: 0.8 } }), b = cathedralStrip({ heads: { 3: 0.8 } }), gap = cathedralStrip();
+  heads.update(a, { asp }, 1 / 60);
+  const steadyLevels = [];
+  // the run moves on to head 4 every beat (eighth-note pulses, two frames lit of fifteen); head 1 is never lit again
+  for (let f = 1; f < 120; f++) {
+    const s = f % 15 < 2 ? b : gap;
+    heads.update(s, { asp }, 1 / 60);
+    const n = H.cathedralBeams(s, { asp, hold: heads, steady: true }, dst);
+    let I4 = 0;
+    for (let i = 0; i < n; i++) { const r = L.decodeSeg(dst, i, {}); if (!r.header && Math.abs(r.x0 - H.cathedralHead(3, asp).x) < 1e-6) I4 = Math.max(I4, r.I); }
+    if (f > 20) steadyLevels.push(I4);
+  }
+  assert.ok(heads.running);
+  assert.ok(heads.glow[0] < 0.05, `head 1, left 2 s ago (held 0.75 s, then falling), has nearly let go: ${heads.glow[0]}`);
+  assert.ok(heads.glow[3] > 0.79, "head 4, pulsed every quarter second, is held");
+  assert.ok(heads.peak[0] > 0.79, "the fit still counts every head lit in this run");
+  const lo = Math.min(...steadyLevels), hi = Math.max(...steadyLevels);
+  assert.ok(lo > 0 && hi - lo < 1e-6, `the steady picture's core stays put through the pulses (${lo}..${hi})`);
+});

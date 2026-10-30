@@ -16,8 +16,13 @@ precision highp float;
 // bus (STRIP v3): each head fans as bright as max(its pad, its bus level), in the bus's colour slot (the lasers' first
 // colour, their second, or white) with the bus's beam count and spread; while a laser gate runs the idle beams dip to
 // the bus's solo level (a laser desk's Flash-Solo) and the trails shorten, so a gate's dark gaps stay dark here too.
-// Converge aims every head at the centre and Rain straight down; every other pattern keeps the scissor aim. The page
-// draws only the hero head itself. Play (no bus) and an older page (strip v2) see the Cathedral as before.
+// Converge aims every head at the centre and Rain straight down; every other pattern keeps the scissor aim.
+// Option C (Daniel, 2026-10-28: "let the page's haze fluid light the scene's heads"): the bus fans are no longer drawn
+// here. The page draws them, with this file's geometry (arsenal/web/vj-hookup.js cathedralBeams: the same heads, foci,
+// beam count, spread, Converge and Rain), in its beam layer, so the haze fluid scatters their light and the air carries
+// the glow; drawn here, their long in-smoke halos lifted the whole frame on every pulse of a held laser loop and gate v2
+// cut it (vj_storm airlasers). A bus head keeps its lens here, hot with the bus level and in the bus's colour. Play (no
+// bus) and an older page (strip v2) see the Cathedral as before: their fans are the pads'.
 
 uniform sampler2D u_video;   // the VJ page: its 16x6 VJ strip (u_has_video stays 0); Play: the video or a 1x1 black texture
 uniform sampler2D u_prev;
@@ -228,14 +233,12 @@ void main() {
       tint = bSlot < 0.5 ? gL1 : bSlot < 1.5 ? gL2 : vec3(1.0);
       lv = vec2(bLevel, 0.85);
     }
-    if (lv.x > 0.002) {
-      float n = fromBus && gBusBeams >= 1.0 ? clamp(gBusBeams, 1.0, 12.0) : floor(3.0 + 9.0 * lv.y);
-      float spread = fromBus && gBusSpread > 0.0 ? gBusSpread : (0.25 + 1.1 * u_k4 * (0.4 + 0.6 * lv.y)) * (0.35 + 0.65 * lv.x);
-      float spin = fromBus ? 0.0 : 0.35 * sin(u_time * 0.8 + float(i));
-      float fanAim = aim;
-      if (fromBus && abs(gBusPattern - 7.0) < 0.5) fanAim = atan(-o.y, -o.x);           // Converge: at the centre
-      if (fromBus && abs(gBusPattern - 12.0) < 0.5) fanAim = o.y > 0.0 ? -1.5708 : 1.5708;   // Rain: straight down (up from the floor)
-      vec2 fd = fanDistance(p, o, fanAim + spin * lv.x, n, spread, px);
+    // (a bus head's fan is the page's beam layer now: vj-hookup.js cathedralBeams; only a pad's fan is drawn here)
+    if (!fromBus && lv.x > 0.002) {
+      float n = floor(3.0 + 9.0 * lv.y);
+      float spread = (0.25 + 1.1 * u_k4 * (0.4 + 0.6 * lv.y)) * (0.35 + 0.65 * lv.x);
+      float spin = 0.35 * sin(u_time * 0.8 + float(i));
+      vec2 fd = fanDistance(p, o, aim + spin * lv.x, n, spread, px);
       float fanE = lv.x * (0.7 + 0.6 * lv.y) * exp(-max(fd.y, 0.0) * 0.35);
       beams += neonCore(fd.x, tint, fanE, widthPx * (1.0 + 0.6 * lv.y), 2.0);
       float fh = fanE * halo(fd.x, haloPx * (1.0 + lv.y));

@@ -6,9 +6,11 @@
 //!  grey) and catches up at the top; tmReinhard (grey) rises slowly and is only at 0.8 by 4; tmRootGain at gain 0.5
 //!  (blue) leads everything in the deep darks (a root lifts faint light most) and reaches 1 at 4. Right, the
 //!  hue-exposure test: orange, blue and green lights from 4 stops under to 6 over (expose), each through the ACES fit
-//!  (upper strip) and PBR Neutral (lower strip). Under ACES orange swings to yellow and blue to cyan on the way to white
-//!  (the notorious six); under PBR Neutral each pales toward white along its own line (orange to peach, blue to
-//!  lavender) without swinging to a neighbouring primary. Bottom, a dim violet glow brightened two ways: per-channel
+//!  (top strip), PBR Neutral (middle strip) and tmStage at heat 0.6 (bottom strip). Under ACES orange swings to yellow
+//!  and blue to cyan on the way to white (the notorious six); under PBR Neutral each pales toward white along its own
+//!  line (orange to peach, blue to lavender) without swinging to a neighbouring primary; under tmStage each stays its
+//!  own saturated colour up to the knee and then whitens at constant OKLab hue (blue stays blue, never lavender-violet),
+//!  its darks a touch deeper than Neutral's (a toe on the peak only). Bottom, a dim violet glow brightened two ways: per-channel
 //!  gamma (upper) bleaches it toward lavender, displayHueSafeGamma (lower) keeps it a saturated violet. A curve that
 //!  passes 1, an ACES curve above tanh at middle grey, or a lower violet strip as pale as the upper is a broken
 //!  module."}
@@ -63,12 +65,14 @@ void mainImage(out vec4 color, in vec2 pixel) {
         vec3 lights[3] = vec3[3](vec3(1.0, 0.3, 0.04), vec3(0.04, 0.2, 1.0), vec3(0.08, 1.0, 0.15));
         float ev = mix(-4.0, 6.0, along);
         for (int lamp = 0; lamp < 3; lamp++) {
-            float top = 258.0 - 64.0 * float(lamp);                          // each light: two strips of 28 px
+            float top = 258.0 - 64.0 * float(lamp);                          // each light: three strips of 18 px
             if (y <= top && y >= top - 58.0) {
                 vec3 lin = expose(lights[lamp] * (0.18 / luminance(lights[lamp])), ev);
-                bool aces = y >= top - 28.0;
-                bool inStrip = aces || y <= top - 30.0;
-                paint = inStrip ? srgbEncode(aces ? tmAcesFit(lin) : tmPbrNeutral(lin)) : paint;
+                bool aces = y >= top - 18.0;
+                bool neutral = y <= top - 20.0 && y >= top - 38.0;
+                bool stage = y <= top - 40.0;
+                vec3 shown = aces ? tmAcesFit(lin) : (neutral ? tmPbrNeutral(lin) : tmStage(lin, 0.6, 1.0));
+                paint = (aces || neutral || stage) ? srgbEncode(shown) : paint;
             }
         }
         if (y >= 14.0 && y <= 62.0) {

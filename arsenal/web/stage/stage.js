@@ -13,10 +13,25 @@
 //     -> atmosphere -> renderer (three.js, house GLSL) -> the final-frame flash limiter -> the canvas.
 // URL: ?demo=1 (the demo show, no engine) ?engine=http://127.0.0.1:8794 (default; "off" for none) ?set=source-v1
 //      (source-v0 still loads) ?quality=high|receipt|low ?hud=0 ?w=&h= (a fixed backing size, for receipts)
+//      ?theme=dreaming-city (one of the set's themes) ?phrase=pillars (the phrase pad 3 starts) ?ring=orrery (a ring formation)
+//      ?strand=arch (a strand shape, landed after the first section starts: arch, valley, ramp, stairs, helix-sine)
 //
 // v1 (2026-10-25): the phrases (phrases.js) sit between the show and the programmer: a section may name one, pads 3, 4
 // and 7 (keys 3, 4, 7) are PHRASE GO, NEXT and STOP, and the HUD shows the phrase's step. Every phrase event lands on the
 // beat position it belongs to.
+//
+// v2 (2026-10-27, kinetics wave A + the orrery): the ring formations (formations.js) between the programmer and the
+// renderer. Pad 8 / key 8 MORPH steps the rings to the next formation of the deck (home, orrery, spiral, vortex, crown,
+// portal) on the next bar line; pad 9 / key 9 HERO fires the energy beam's discharge up the axis through the core, once
+// per eight bars, on the next ONE (through the FlashGate). ?ring=orrery (or spiral, vortex, crown, portal) starts in one.
+// The camera sees a landing formation (the glide, then the cut on the landing bar line to its hero view) and the live
+// rings (its guard); the phrase layer's presets re-aim on the live rings; the ring lasers ride ring 0.
+//
+// KICK v2 (2026-10-27, kick.js): two kick pads, pad 1 / key 1 KICK WHITE and pad 5 / key 5 KICK COLOUR (Shift: velocity
+// 1). Each press deals its own AREA of the set's deck (round 2: the one the camera shows most of; its light and colour
+// override the look's from the press on); a held pad keeps it lit (the kick is a gate) at a live level that padLevel()
+// moves while it is held. What a kick pad does is its kind in the set's kick.kinds. The page-level pad door for touch and velocity sources: the window events
+// "arsenal:pad" {pad, vel, on} and "arsenal:padlevel" {pad, vel}; window.__padDoor = 1 says the page listens.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
@@ -27,11 +42,13 @@ import { Strand } from "./kinetics.js";
 import { LaserEngine } from "./lasers.js";
 import { Lasers3D } from "./lasers3d.js";
 import { Atmosphere } from "./atmos.js";
-import { Director } from "./camera.js";
+import { Director, cameraModel, formationPoseSets } from "./camera.js";
+import { RingFormations, validateRingFormations } from "./formations.js";
 import { Show, speedFromFader } from "./show.js";
-import { FrameLimiter } from "./flash.js";
+import { FrameLimiter, LIMIT } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
+import { validateKick } from "./kick.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -42,6 +59,11 @@ const ENGINE_URL = (() => {
   return DEMO ? null : "http://127.0.0.1:8794";
 })();
 const SET = /^[a-z0-9][a-z0-9-]{0,40}$/.test(QS.get("set") || "") ? QS.get("set") : "source-v1";
+// ?theme= one of the set's themes (else the show's own) and ?phrase= the phrase pad 3 starts (else the set's first): the
+// looks wave-1 themes and phrases (Dreaming City, Single Thread, Pillars...) are reached by name
+const asName = (v) => (/^[a-z0-9][a-z0-9-]{0,40}$/.test(v || "") ? v : null);
+const THEME_ASKED = asName(QS.get("theme")), PHRASE_ASKED = asName(QS.get("phrase")), RING_ASKED = asName(QS.get("ring"));
+const STRAND_ASKED = asName(QS.get("strand"));
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
 const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
 // The bloom mix the finish pass uses. render.js reads it off the frame state as `fs.bloomMix ?? 0.05` and then divides
@@ -75,6 +97,10 @@ async function boot() {
   const rig = expandScene(scene);
   const phraseProblems = validatePhrases(rig);
   if (phraseProblems.length) throw new Error(`the scene ${SET}'s phrases are not valid:\n${phraseProblems.join("\n")}`);
+  const ringProblems = validateRingFormations(rig);
+  if (ringProblems.length) throw new Error(`the scene ${SET}'s ring formations are not valid:\n${ringProblems.join("\n")}`);
+  const kickProblems = validateKick(rig);
+  if (kickProblems.length) throw new Error(`the scene ${SET}'s kick block is not valid:\n${kickProblems.join("\n")}`);
   // the house GLSL library and the renderer (three.js from the pinned CDN build, as the piano loads it)
   const lib = await loadLibrary(new URL("../glsl/index.json", import.meta.url).href);
   let renderMod;
@@ -87,7 +113,7 @@ async function boot() {
 
 function start({ rig, R, renderMod }) {
   const show0 = rig.show;
-  const themeName = show0.theme || Object.keys(rig.themes)[0];
+  const themeName = THEME_ASKED && rig.themes[THEME_ASKED] ? THEME_ASKED : show0.theme || Object.keys(rig.themes)[0];
   const theme = { name: themeName, ...rig.themes[themeName] };
   const demoBpm = (show0.demo && show0.demo.bpm) || 150;
   const now0 = performance.now();
@@ -100,16 +126,37 @@ function start({ rig, R, renderMod }) {
   const lasers = new LaserEngine({ seed: rig.seed, clock: grid.clock(), colours: theme.laser, heads: extraHeadsFrom(rig.projectors) });
   const lasers3d = new Lasers3D(rig.projectors, rig.venue, { heads: lasers.heads });
   const runner = Object.keys(rig.phrases || {}).length ? new PhraseRunner(rig) : null;
-  const firstPhrase = runner ? Object.keys(rig.phrases)[0] : null;
+  const firstPhrase = runner ? (PHRASE_ASKED && rig.phrases[PHRASE_ASKED] ? PHRASE_ASKED : Object.keys(rig.phrases)[0]) : null;
   const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 30, preHaze: rig.atmos.pre_haze ?? 0.12,
                                  wind: rig.atmos.wind || [0.25, 0, -0.1], noiseAmp: rig.atmos.noise_amp ?? 0.6 });
-  const director = new Director(rig.cameras.shots, rig.cameras.sequences);
+  // v2: the ring formations (their light is a programmer layer over the look and the phrases)
+  const rings = new RingFormations(rig);
+  rings.roles = programmer.roleRGB;
+  programmer.setLayer(rings);
+  if (RING_ASKED && rings.def(RING_ASKED)) rings.set(RING_ASKED, 0, demoBpm);
+  // v2: the director knows the strand (it never deals a shot within 1.5 m of a rung) and each formation's hero views; a
+  // ring formation's shots are judged against the rings it sweeps and against every strand formation of the set, and
+  // a formation with a core (the orrery) against the PA hangs and trusses that would hide it (formations.js sight)
+  const camModel = cameraModel(rig);
+  const ringKeys = rings.formations.filter((k) => k !== "home");
+  const strandSets = [].concat(...Object.values(rig.formations).map((f) => formationPoseSets(f, camModel.z.length) || []));
+  const director = new Director(rig.cameras.shots, rig.cameras.sequences,
+                                { model: camModel, formations: { ...rig.formations, ...Object.fromEntries(ringKeys.map((k) => [k, rings.def(k)])) },
+                                  views: rig.cameras.formation_views, safe: rig.cameras.safe,
+                                  posesOf: (key, def) => (ringKeys.includes(key) ? strandSets : formationPoseSets(def, camModel.z.length)),
+                                  ringsOf: (key) => (ringKeys.includes(key) ? rings.annuliSets(key) : null),
+                                  sightOf: (key) => (ringKeys.includes(key) ? rings.sight(key) : null) });
   director.start(Object.keys(rig.cameras.sequences)[0], 0);      // until the first section starts its own sequence
+  // what the camera reads of the rig each frame: the formation key (a change with a landing gets the glide and the hero
+  // view), its landing bar line, the live rung poses. A ring formation that lands elsewhere sets formation and posLand too,
+  // and rings (live annuli, camera.js ringAnnulus) while the rings are off their home pose, so the guard sees them.
+  const camScene = { formation: "", def: null, posLand: null, poses: strand.poses, rings: null, dt: 0 };
   const show = new Show(rig, { demo: DEMO || !ENGINE_URL });
   const limiter = new FrameLimiter();
   const link = new EngineLink();
   const demoBeats = show.demo ? new DemoBeats({ bpm: demoBpm, startMs: now0 + 300 }) : null;
   const ambient = hexToLinear(theme.ambient || "#3a1a8a");
+  const airTint = Number.isFinite(theme.air_tint) ? theme.air_tint : 0;   // the haze veil in the air's own hue (atmos.js airTint)
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
   const faders = { ...{ strand: 1, lasers: 1, haze: 0.55, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
   const faderMap = show0.faders || {};
@@ -132,7 +179,14 @@ function start({ rig, R, renderMod }) {
     state.section = ev.name;
     programmer.setLook(sec.look, ev.pos);
     state.look = sec.look;
-    const f = rig.formations[sec.formation];
+    // ?strand= a shape: it replaces the sections' strand formations (the rings and the looks play on as written)
+    const f = STRAND_ASKED && rig.strandShapes[STRAND_ASKED] ? null : rig.formations[sec.formation];
+    if (!f && STRAND_ASKED && rig.strandShapes[STRAND_ASKED] && state.formation !== STRAND_ASKED) {
+      // landed from the strand's home on the S-curve (the machine glide is the point of asking for one)
+      const sh = rig.strandShapes[STRAND_ASKED];
+      strand.land(sh.name, sh.params, grid, performance.now(), { land: "bar" });
+      state.formation = STRAND_ASKED;
+    }
     if (f) {
       const tNow = performance.now();
       if (!state.formation) strand.set(f.name, f.params, grid.bpm);
@@ -160,17 +214,69 @@ function start({ rig, R, renderMod }) {
     const sec = (show0.sections || {})[state.section];
     if (sec && sec.camera && !manualShot) director.start(sec.camera, e.pos);
   }
+  // KICK v2: the kicks are gates (held until the pad lets go) and take a live level while held (padLevel). A pad whose
+  // action is one of the set's kick KINDS (kick.kinds: kick-white, kick-colour, ...) is a kick; "kick" is the first kind.
+  const isKick = (action) => !!(action && programmer.kick.kindOf(action));
+  // KICK round 2: the dealer only deals an area the camera sees, and prefers the one it shows most of: {share: of the area's
+  // sample points (its fixtures, its LEDs, a point 10 m along each head's beam) inside the current shot's view (the roll left
+  // out), cover: the share of a 16 x 8 grid over the frame those points fall in (a head's points also light the cells round
+  // them: a beam in haze is wider than its lens)}
+  const GX = 16, GY = 8, viewGrid = new Uint8Array(GX * GY);
+  programmer.kick.view = (card) => {
+    const S = card.samples;
+    if (!S || !S.length) return { share: 1, cover: 1 };
+    const P = director.pose, aspect = R.w > 0 && R.h > 0 ? R.w / R.h : 16 / 9;
+    const f = [P.look[0] - P.pos[0], P.look[1] - P.pos[1], P.look[2] - P.pos[2]], fl = Math.hypot(f[0], f[1], f[2]) || 1;
+    f[0] /= fl; f[1] /= fl; f[2] /= fl;
+    let r = [-f[2], 0, f[0]], rl = Math.hypot(r[0], r[2]);                 // f x up(0, 1, 0)
+    if (rl < 1e-6) { r = [1, 0, 0]; rl = 1; }
+    r = [r[0] / rl, 0, r[2] / rl];
+    const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+    const tanH = Math.tan(((P.hfov || 50) * Math.PI) / 360), tanV = tanH / aspect;
+    let inView = 0;
+    const n = S.length / 3, spread = card.heads.length ? 1 : 0;
+    viewGrid.fill(0);
+    for (let k = 0; k < n; k++) {
+      const dx = S[k * 3] - P.pos[0], dy = S[k * 3 + 1] - P.pos[1], dz = S[k * 3 + 2] - P.pos[2];
+      const z = dx * f[0] + dy * f[1] + dz * f[2];
+      if (z < 0.5) continue;
+      const x = (dx * r[0] + dy * r[1] + dz * r[2]) / z, y = (dx * u[0] + dy * u[1] + dz * u[2]) / z;
+      if (Math.abs(x) > tanH || Math.abs(y) > tanV) continue;
+      inView++;
+      const gx = Math.min(GX - 1, Math.floor(((x / tanH + 1) / 2) * GX)), gy = Math.min(GY - 1, Math.floor(((y / tanV + 1) / 2) * GY));
+      for (let ox = -spread; ox <= spread; ox++) for (let oy = -spread; oy <= spread; oy++) {
+        const cx = gx + ox, cy = gy + oy;
+        if (cx >= 0 && cx < GX && cy >= 0 && cy < GY) viewGrid[cy * GX + cx] = 1;
+      }
+    }
+    let cells = 0;
+    for (let i = 0; i < viewGrid.length; i++) cells += viewGrid[i];
+    return { share: inView / n, cover: cells / viewGrid.length };
+  };
   function pad(n, vel, on, tEval) {
     const action = padMap[String(n)];
     const pos = grid.posAt(tEval);
     if (!action) return;
-    if (action === "kick" && on) { programmer.pad("kick", vel, pos); kicks.push({ pressPos: pos, onset: Math.round(pos) }); }
+    if (isKick(action)) {
+      if (on) {
+        const k = programmer.pad(action, vel, pos, { hold: true });
+        if (kicks.length >= 256) kicks.shift();
+        kicks.push({ pressPos: pos, onset: Math.round(pos), kind: k ? k.kind : action, row: k ? k.card.name : null, band: k ? k.band : null });
+      } else programmer.padRelease(action, pos);
+    }
     else if (action === "flyout" && on) programmer.pad("flyout", vel, pos);
     else if (action === "lasers") { if (on) lasers.hit(tEval, vel); else lasers.release(tEval); }
     else if (action === "drop" && on) { show.dropNow(grid, pos); const d = (show0.sections || {}).drop; if (d && d.phrase) prepare(d.phrase.name); }
     else if (runner && action === "phrase-go" && on) { prepare(firstPhrase); runner.go(firstPhrase, grid, pos, { section: state.section || "any" }); }
     else if (runner && action === "phrase-next" && on) runner.next(grid, pos);
     else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
+    else if (action === "morph" && on) rings.morph(grid, tEval);
+    else if (action === "hero" && on) rings.hero(grid, tEval);
+  }
+  // a held pad's live level (0..1: the phone pad's finger height; later the KeyLab's aftertouch): the held kick's brightness
+  function padLevel(n, vel) {
+    const action = padMap[String(n)];
+    if (isKick(action) && Number.isFinite(vel)) programmer.padLevel(action, Math.max(0, Math.min(1, vel)));
   }
   function handle(obj, nowMs) {
     const ev = parseEvent(obj);
@@ -231,12 +337,31 @@ function start({ rig, R, renderMod }) {
         const k = Math.min(1, dp / 0.5);                        // half a beat to the new level
         ambientNow.scale += (ambientNow.target - ambientNow.scale) * k;
       }
+      // KICK round 2's flash governor: how many more counted transitions the final limiter's most loaded window can take
+      // now (read from its counters, never changing them: flash.js decides on its own, as before)
+      {
+        let room = LIMIT.N_MAX;
+        for (const pair of limiter.trackers) for (const tr of pair) room = Math.min(room, LIMIT.N_MAX - tr.count(now / 1000));
+        programmer.kick.headroom = room;
+      }
+      // the rings first (the programmer's formation layer, the camera and the lasers read their live pose)
+      rings.update(grid, tEval, dt, programmer.flashGate);
+      programmer.setLiveElements(rings.live ? rings.emOf : null);
       programmer.tick(grid, tEval, dt);
       strand.update(grid, tEval, dt);
-      const pose = director.update(pos);
+      // the camera follows the ring formation while one stands (its landing, its hero view, the live rings for the guard)
+      const ringKey = rings.key !== "home" ? rings.key : null;
+      camScene.formation = ringKey || state.formation; camScene.def = strand.formation;
+      camScene.posLand = ringKey && rings.move ? rings.move.posLand : strand.move ? strand.move.posLand : null;
+      camScene.rings = rings.liveAnnuli(); camScene.dt = dt;
+      const pose = director.update(pos, camScene);
       const pl = Math.hypot(pose.look[0] - pose.pos[0], pose.look[1] - pose.pos[1], pose.look[2] - pose.pos[2]) || 1;
       fwd[0] = (pose.look[0] - pose.pos[0]) / pl; fwd[1] = (pose.look[1] - pose.pos[1]) / pl; fwd[2] = (pose.look[2] - pose.pos[2]) / pl;
+      if (rings.live) rings.updateMounts(lasers3d, lasers.heads);
       const l2 = lasers.frame(tEval);
+      rings.drawLasers(lasers, pos);
+      const rf = rings.frame(pose.pos);
+      lasers3d.hitOpts = rf.hitOpts;
       const l3 = lasers3d.map(l2, { reachScale: 1, master: faders.lasers, camera: { pos: pose.pos, fwd, near: 0.1 } });
       const medium = atmos.update(dt);
       const W = FIXED_W || Math.round(Math.min(window.devicePixelRatio || 1, DPR_CAP) * canvasCss().w);
@@ -245,8 +370,8 @@ function start({ rig, R, renderMod }) {
       const shot = director.shots[pose.shot];
       const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
-                   pixels: programmer.pixels, lasers: l3, medium, ambient: amb, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
-                   bloomMix: BLOOM_MIX };
+                   pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
+                   bloomMix: BLOOM_MIX, rings: rf };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       const info = api.skipRender ? state.info : R.render(fs, (cells, t) => limiter.step(cells, t, dt), now / 1000);
       state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2;
@@ -273,7 +398,8 @@ function start({ rig, R, renderMod }) {
     $("hud-beatdot").classList.toggle("on", grid.phaseAt(tEval) < 0.2);
     const eng = !ENGINE_URL ? "demo clock" : link.open ? (link.hello ? `engine ${link.hello.src || "on"}` : "engine connected") : "engine offline (free-running)";
     $("hud-clock").textContent = `${grid.bpm.toFixed(1)} BPM · bar ${b.bar} beat ${b.beat} · ${eng}`;
-    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})`;
+    const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind.replace(/^kick-/, "")} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
+    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}`;
     const ph = $("hud-phrase");
     if (ph) {
       const st = runner ? runner.status() : null;
@@ -281,9 +407,12 @@ function start({ rig, R, renderMod }) {
         ? `${st.name} · ${st.step} ${st.stepName} (${st.index + 1}/${st.steps}) · ${st.variant} · repeat ${st.repeat + 1} · ${Math.max(0, st.end - grid.posAt(tEval)).toFixed(1)} beats left`
         : st.state === "armed" ? `armed: starts on the next bar line` : "idle (pad 3 / key 3: go)";
     }
-    $("hud-shot").textContent = `${state.shot || "-"} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""}`;
+    const forShot = director.pose.forShot ? ` (for ${director.pose.forShot})` : "";
+    $("hud-shot").textContent = `${state.shot || "-"}${forShot} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""}`;
     const p0 = strand.poses[0], p11 = strand.poses[strand.poses.length - 1];
-    $("hud-strand").textContent = `${strand.formation.name} · rung 1 ${p0.y.toFixed(2)} m ${p0.roll.toFixed(0)}° · rung ${strand.n} ${p11.y.toFixed(2)} m${strand.move ? " · landing" : ""}`;
+    const rk = rings.def(rings.key), rpos = grid.posAt(tEval), charge = rings.heroCharge(rpos);
+    const ringTxt = `rings: ${rk ? rk.name : rings.key}${rk && rk.dream ? " (dream)" : ""}${rings.move ? ` · landing bar ${Math.round((rings.move.posLand - grid.barAnchor) / 4)}` : ""} · hero ${charge >= 1 ? "charged" : `${Math.round(charge * 100)} %`} (pads 8 / 9)`;
+    $("hud-strand").textContent = `${strand.formation.name} · rung 1 ${p0.y.toFixed(2)} m ${p0.roll.toFixed(0)}° · rung ${strand.n} ${p11.y.toFixed(2)} m${strand.move ? " · landing" : ""} · ${ringTxt}`;
     $("hud-lasers").textContent = `${state.l2 ? state.l2.look : "-"} · ${state.l3 ? state.l3.n : 0} beams · ${state.l2 && state.l2.hits ? `${state.l2.hits} hits` : "no hits"}`;
     $("hud-haze").textContent = `${Math.round(atmos.H * 100)} % → ${Math.round(atmos.target * 100)} % · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers`;
     const st = limiter.stats();
@@ -303,8 +432,9 @@ function start({ rig, R, renderMod }) {
     fwrap.append(d);
   }
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
-  // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot, H HUD, F fullscreen
-  const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit6: 6, Digit7: 7, Digit0: 10 };
+  // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot (played in motion, looping over its own bars), H HUD,
+  // F fullscreen, Esc back to the director
+  const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9, Digit0: 10 };
   const held = new Set();
   window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
@@ -317,20 +447,36 @@ function start({ rig, R, renderMod }) {
       const ids = Object.keys(director.shots);
       const cur = ids.indexOf(manualShot ? manualShot : state.shot);
       manualShot = ids[(cur + 1) % ids.length];
-      director.manual = { shot: manualShot, u: 0.5 };
+      director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
     } else if (e.code === "Escape") { manualShot = null; director.manual = null; }
   });
   window.addEventListener("keyup", (e) => {
     const n = KEYPAD[e.code];
     if (n && held.has(e.code)) { held.delete(e.code); pad(n, 0, false, performance.now() + grid.presentLagMs); }
   });
+  // the page-level pad door, for touch and velocity sources (the phone's tall pads: a key carries no velocity):
+  //   window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad, vel, on } }))       a press (on) or a let-go
+  //   window.dispatchEvent(new CustomEvent("arsenal:padlevel", { detail: { pad, vel } }))      a held pad's live level
+  // window.__padDoor = 1 once both listen, so a client can tell the page has them. Keys and MIDI are unchanged.
+  const padNo = (d) => { const n = Number(d && d.pad); return Number.isInteger(n) && n >= 1 && n <= 16 ? n : null; };
+  const vel01 = (v, dflt) => { const x = Number(v); return Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : dflt; };
+  window.addEventListener("arsenal:pad", (e) => {
+    const d = e.detail || {}, n = padNo(d);
+    if (n === null) return;
+    pad(n, vel01(d.vel, 0.8), d.on !== false, performance.now() + grid.presentLagMs);
+  });
+  window.addEventListener("arsenal:padlevel", (e) => {
+    const d = e.detail || {}, n = padNo(d), v = vel01(d.vel, null);
+    if (n !== null && v !== null) padLevel(n, v);
+  });
+  window.__padDoor = 1;
   function canvasCss() { const r = canvas.getBoundingClientRect(); return { w: Math.max(1, r.width), h: Math.max(1, r.height) }; }
   const canvas = $("gl");
   canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); banner("The WebGL context was lost (the GPU reset). Reload the page."); });
 
   // ------------------------------------------------------------------------------------------- the receipts' door --
   Object.assign(api, {
-    ready: true, rig, grid, programmer, strand, lasers, lasers3d, atmos, director, show, limiter, renderer: R, faders, runner,
+    ready: true, rig, grid, programmer, strand, lasers, lasers3d, atmos, director, show, limiter, renderer: R, faders, runner, rings,
     state: () => ({ pos: state.pos, bpm: grid.bpm, bar: grid.barAt(performance.now() + grid.presentLagMs), section: state.section, look: state.look,
                     shot: state.shot, u: state.u, formation: strand.formation.name, info: state.info, counts: rig.counts,
                     limiter: limiter.stats(), grid: { ...grid.stats, ver: grid.ver, locked: grid.locked, barAnchor: grid.barAnchor },
@@ -338,11 +484,28 @@ function start({ rig, R, renderMod }) {
                     lands: strand.lands.slice(-8), cuts: director.cuts.slice(-16), kicks: kicks.slice(-64), errors: errors.slice(),
                     quality: R.qualityName, renderer: { three: renderMod.QUALITY ? "r186" : "", w: R.w, h: R.h },
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
-                    flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) } }),
+                    flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) },
+                    kick: programmer.kick.status(),
+                    rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
+                             poses: rings.rr.poses.map((p) => ({ ...p })), lands: rings.rr.lands.slice(-8), clamped: rings.rr.clamped.slice(-8),
+                             hero: { fired: rings.heroState.fired.slice(-8), refused: rings.heroState.refused.slice(-8), armed: rings.heroState.at } } }),
+    // a ring formation now (no move), or by its landing move (what MORPH does, to a named formation)
+    ringSet: (key) => { rings.set(key, grid.posAt(performance.now() + grid.presentLagMs), grid.bpm); return rings.key; },
+    ring: (key) => rings.go(key, grid, performance.now() + grid.presentLagMs),
     setShot: (id, u = 0.5) => { manualShot = id; director.manual = { shot: id, u }; },
+    playShot: (id) => { manualShot = id; director.manual = { shot: id, p0: grid.posAt(performance.now() + grid.presentLagMs), beats: (director.shots[id].bars ?? 4) * 4 }; },
+    // land one of the set's formations (or a strand shape) on the next bar line it can make; the camera sees the change
+    land: (key) => {
+      const f = rig.formations[key] || rig.strandShapes[key];
+      if (!f) return null;
+      const r = strand.land(f.name, f.params, grid, performance.now(), { land: "bar" });
+      state.formation = key;
+      return r;
+    },
     clearShot: () => { manualShot = null; director.manual = null; },
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
     release: (n) => pad(n, 0, false, performance.now() + grid.presentLagMs),
+    level: (n, v) => padLevel(n, v),
     fader: (id, v) => { faders[id] = v; applyFaders(performance.now() + grid.presentLagMs); syncFaderUI(); },
     inject: (obj) => handle(obj, performance.now()),
     features: (f) => Object.assign(R.features, f),

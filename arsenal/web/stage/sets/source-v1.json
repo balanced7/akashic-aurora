@@ -122,7 +122,7 @@
       "id": "ring",
       "kind": "element",
       "at": [0, 14, -11],
-      "dof": ["tilt"],
+      "dof": ["tilt", "y", "yaw", "spin", "axial"],
       "axis_type": "tilt",
       "mesh": "procedural:ring-v1",
       "repeat": {
@@ -136,7 +136,7 @@
           "head_step": [15, 22.5, 45, 0]
         }
       },
-      "limits": {"tilt": [0, 90]},
+      "limits": {"tilt": [0, 90], "y": [14, 18.5]},
       "children": [
         {"type": "slat-8", "repeat": {"count": 48, "polar": {"radius": "inner", "step_deg": 7.5}}, "span": "depth"},
         {"type": "rim-strip", "ring": {"radius": "outer"}},
@@ -525,6 +525,82 @@
     "high-wave": {"name": "wave", "params": {"centre": 17.0, "size": 0.9, "roll": 16, "measure": 32}},
     "low-wave": {"name": "wave", "params": {"centre": 14.5, "size": 0.9, "roll": 16, "measure": 32}}
   },
+  "strand_shapes": {
+    "_about": "kinetics wave A (2026-10-27): the strand's new shapes, outside the show's formations (the demo plays as it did). Real-mode honest, landed on the S-curve with cruise (a 12 m height change: 16 bars, the quintic's 28). ?strand=arch (or valley, ramp, stairs, helix-sine) lands one; the camera's views are keyed by their kinetics names.",
+    "arch": {"name": "arch", "params": {"base": 9, "rise": 12, "curve": "scurve"}},
+    "valley": {"name": "valley", "params": {"low": 10, "depth": 10, "curve": "scurve"}},
+    "ramp": {"name": "ramp", "params": {"top": 21, "step": 1.1, "curve": "scurve"}},
+    "stairs": {"name": "stairs", "params": {"y": 18, "step": 2, "curve": "scurve"}},
+    "helix-sine": {"name": "wave", "params": {"centre": 17, "size": 0, "roll": 50, "measure": 104, "spread": 2.67},
+                   "about": "the honest real helix: a roll sine travelling down the strand; fitted to the hoists it turns +-50 degrees only over a measure of about 104 beats (at 32 beats it fits to +-13.7)"}
+  },
+  "ring_rig": {
+    "about": "kinetics wave A (2026-10-27): the one source of the rings' motion numbers (kinetics.js ringAxisLimits). Each ring is 3-point hung on hoists at its outer rim, so a tilt moves the pickups r x dtilt: R0 (r 14) tilts at 0.5 / 14 rad/s = 2.0 deg/s, R3 (r 3) at 9.5. It lifts (y, up to 4.5 m) before it tilts and lowers after; every tilt is clamped into its legal window at its height (rig.js ringTiltWindow: R0 at 14 m only between about 47 and 63 degrees, the deck below, the back wall behind). Dream x3, and the dream-only rotators (yaw, spin) and axial travel.",
+    "real": {"hoist": {"vmax": 0.5, "amax": 0.4, "jmax": 2.0}, "pickup": "outer"},
+    "dream": {"scale": 3, "rotator": {"vmax_deg": 60, "amax_deg": 30, "jmax_deg": 120}, "axial": {"vmax": 3, "amax": 2, "jmax": 8}}
+  },
+  "ring_formations": {
+    "_about": "formations.js. The Qlimax rings re-arranged: MORPH (pad 8, key 8) steps the deck on the next bar line, HERO (pad 9, key 9) fires the energy beam's discharge once per charge_bars, on the next ONE. home keeps the 2014 rule (the ring is still, the looks own its light); dream formations turn their rings on continuous rotators (prime beats per turn: each beat-locked, the set never repeats). Ring and palette numbers from the orrery report's measurements (radii stepping about x1.35 from the core, 5-7 thin bands, an orbit turning once in 4-5 s, a funnel whose rings step about 0.7). Roles are the theme's: ?theme=dreaming-city is the palette these were drawn for.",
+    "centre": [0, 14, -11],
+    "deck": ["home", "orrery", "spiral", "vortex", "crown", "portal"],
+    "hero": {"charge_bars": 8, "beats": 4, "out_beats": 2, "hand_beats": 2, "tube_at_m": 26, "tube_deg": 0.5, "laser_colour": 0},
+    "column": {"role": "W", "beam_deg": 0.6, "flux_lm": 12000, "hero_beam_deg": 3.5, "hero_flux_lm": 180000, "sheath_deg": 10, "sheath_flux_lm": 140000,
+               "about": "the energy beam: a narrow column from the floor upstage of the deck (where the rings' axis meets it, about (0, 0, -20.8)) up through the core to the roof. The HERO's discharge swells the needle to hero_beam_deg at hero_flux_lm (15 x its full idle) inside a 10-degree sheath that dies first, and it narrows back as the discharge decays: the charged payoff, once per eight bars, through the FlashGate"},
+    "home": {"name": "Qlimax home", "dream": false, "rings": [{"tilt": 55}, {"tilt": 40}, {"tilt": 25}, {"tilt": 10}]},
+    "orrery": {
+      "name": "The Orrery", "dream": true, "look": "orrery",
+      "rings": [{"tilt": 55, "spin_beats": 113}, {"tilt": 80, "yaw_beats": 89}, {"tilt": 60, "yaw_beats": -67}, {"tilt": 30, "yaw_beats": 37}],
+      "reveal": {"order": [3, 2, 1, 0], "stagger_beats": 4,
+                 "light": {"core": [0, 4], "bands": [2, 10], "rings": [[12, 20], [8, 16], [4, 12], [0, 8]], "planets": [16, 24], "heads": [16, 24], "lasers": [24, 25], "motes": [24, 32]}},
+      "core": {"radius": 1.2, "role": "A", "hot_role": "W", "level": 1, "nits": 180, "hot": 0.25, "hero_hot": 1.2, "swirl_beats": 23, "equator_dots": 48, "dot_nits": 9000, "port_nits": 30000, "glow_nits": 90, "glow_m": 3.4,
+               "about": "the orrery report's core: 1.2 m (it clears ring 3's 1.5 m inner radius), its bands at 1.15-1.67 x the core (the measured inner halo, 1.05-1.8 x)",
+               "sight": {"hero_m": 3, "dealt_hidden": 0.15,
+                         "about": "camera.js shotSight: the hero views keep the heart (the core, its bands and ring 3, 3 m) clear of the PA hangs and trusses on every frame; any shot dealt while the orrery stands hides at most 15 % of the core on average (fix round 2: at a quarter, TRIBUNE_HIGH_R was dealt with the x = +5 PA hang over the core's lower half on every frame, 22 %; the glides STRAND_ORBIT_FULL, 20 %, and SPIRAL_ASCENT, 18 %, go with it)"},
+               "bands": [
+                 {"r": 1.38, "tilt_deg": -12, "axis_deg": 0, "beats": 7, "dots": 200, "texture": "line", "role": "W", "nits": 7000},
+                 {"r": 1.53, "tilt_deg": 6, "axis_deg": 70, "beats": -11, "dots": 160, "texture": "lancet", "role": "bumpA", "nits": 9000},
+                 {"r": 1.67, "tilt_deg": -4, "axis_deg": 140, "beats": 13, "dots": 96, "texture": "ticks", "role": "W", "nits": 10000},
+                 {"r": 1.84, "tilt_deg": 10, "axis_deg": 210, "beats": -17, "dots": 128, "texture": "dots", "role": "bumpA", "nits": 10000},
+                 {"r": 2.0, "tilt_deg": -8, "axis_deg": 290, "beats": 19, "dots": 180, "texture": "line", "role": "W", "nits": 6000}
+               ]},
+      "planets": [{"ring": 0, "count": 3, "beats": 61, "size": 0.32}, {"ring": 1, "count": 2, "beats": -43}, {"ring": 2, "count": 2, "beats": 31}, {"ring": 3, "count": 1, "beats": -13, "size": 0.22}],
+      "motes": {"count": 1100, "radius": 30, "scale": 6, "nits": 2600},
+      "shimmer": {"near_m": 4, "far_m": 15, "depth": 0.45, "hz": 18},
+      "heads": {"level": [0.15, 0.06, 0.05], "role": "beamB", "zoom": [4, 1, 1],
+                "about": "violet spokes into the core: ring 0's 24 at the widest zoom and 15 % (the report's violet haze wash: the air takes the core's colour), rings 1 and 2 thin and low (fix round 1: 48 cyan-white spokes had buried the core in a white sunburst)"},
+      "lasers": {"level": 0.18, "colour": 0},
+      "light": {"sweep_beats": [31, 29, 23, 19]}
+    },
+    "spiral": {
+      "name": "The Spiral Tunnel (Well of Rings)", "dream": true, "look": "spiral",
+      "rings": [{"tilt": 55, "axial": 0}, {"tilt": 55, "axial": 3}, {"tilt": 55, "axial": 6}, {"tilt": 55, "axial": 9}],
+      "reveal": {"order": [2, 1, 3, 0], "stagger_beats": 2, "light": {"cells": [8, 16], "heads": [12, 16], "lasers": [16, 18]}},
+      "column": {"level": 0.35},
+      "light": {"gap_beats": 16, "gap_step_deg": 40, "gap_deg": 60, "arc_beats": [-53, 41, -29, 19], "bead_beats": 11},
+      "heads": {"spine_m": [[16, 26], [20, 28], [24, 30]], "level": [0.2, 0.14, 0.14], "role": "beamB", "zoom": 1.0},
+      "lasers": {"cage_at_m": 22, "cage_radius_m": 1.0, "level": 0.3, "colour": 1, "tube_at_m": 26, "tube_level": 0.35, "tube_colour": 0}
+    },
+    "vortex": {
+      "name": "08 Vortex Cone", "dream": false, "look": "vortex",
+      "rings": [{"tilt": 55}, {"tilt": 40}, {"tilt": 25}, {"tilt": 10}],
+      "column": {"level": 0.5},
+      "heads": {"centre_m": 20, "radius_scale": 0.2, "offset_deg": 60, "swing_beats": 8, "level": 0.7, "role": "beamB", "zoom": 1.5},
+      "lasers": {"tube_at_m": 26, "tube_level": 0.4, "tube_colour": 0},
+      "light": {"chase_deg_per_beat": 3.7}
+    },
+    "crown": {
+      "name": "09 Beam Hyperboloid Crown", "dream": false, "look": "crown",
+      "rings": [{"tilt": 55}, {"tilt": 90}, {"tilt": 90}, {"tilt": 10}],
+      "heads": {"period_beats": 64, "level": 0.8, "role": "beamA", "role2": "beamB", "zoom": 1.2},
+      "light": {"chase_beats": 24}
+    },
+    "portal": {
+      "name": "10 Portal Membrane", "dream": false, "look": "portal",
+      "lift": 4.5,
+      "rings": [{"tilt": 0}, {"tilt": 40}, {"tilt": 25}, {"tilt": 10}],
+      "heads": {"depth_m": -10, "iris_m": 1.5, "swing_deg": 12, "swing_beats": 16, "level": 0.75, "role": "beamA", "zoom": 1.0}
+    }
+  },
   "looks": {
     "intro": {
       "fade": 4,
@@ -675,6 +751,63 @@
       "ambient": "#8a2a0a",
       "bumpA": "#ff8a3a",
       "bumpB": "#e0b030"
+    },
+    "dreaming-city": {
+      "name": "Dreaming City",
+      "about": "Looks wave 1: the VJ library's Dreaming City (arsenal/web/vj-themes.json), measured from Daniel's stills: A the violet core, B the pink-violet haze, W and the first laser the cyan-white glyph lines, warm the window amber (the accent), the air the haze's deep violet (air_tint: the haze veil takes the ambient's plum at its own luminance, atmos.js airTint; fix round 2, the air had measured a neutral blue-grey against plum in every still). ?theme=dreaming-city",
+      "A": "#8f2fc4",
+      "B": "#a864a2",
+      "W": "#d1f6fe",
+      "beamA": "#d1f6fe",
+      "beamB": "#a760f8",
+      "warm": "#f1af64",
+      "laser": ["#aceaf6", "#a760f8", "#e9fbff"],
+      "ambient": "#4d224c",
+      "air_tint": 0.8,
+      "bumpA": "#b88fe6",
+      "bumpB": "#e39ecc"
+    },
+    "genesis-indigo": {
+      "name": "Genesis Indigo",
+      "about": "Looks wave 1 (L01 Genesis, L02 Single Thread): one indigo hue in three values, white cores. ?theme=genesis-indigo",
+      "A": "#6a6cff",
+      "B": "#2a2c8f",
+      "W": "#f2f2ff",
+      "beamA": "#f2f2ff",
+      "beamB": "#8a93fa",
+      "warm": "#b3b9f1",
+      "laser": ["#6f7bff", "#eaf2ff", "#8a93fa"],
+      "ambient": "#0a0b24",
+      "bumpA": "#8a93fa",
+      "bumpB": "#6a6cff"
+    },
+    "vex-conflux": {
+      "name": "Vex Conflux",
+      "about": "Looks wave 1 (L38; inspiration only): glyph cyan and milk white, brass for the warm role. The optic's red pin stays on the VJ page, where it is held; the Stage refuses red roles. ?theme=vex-conflux",
+      "A": "#5fe3e6",
+      "B": "#f3efe6",
+      "W": "#ffffff",
+      "beamA": "#f3efe6",
+      "beamB": "#5fe3e6",
+      "warm": "#c9a46a",
+      "laser": ["#5fe3e6", "#f3efe6", "#9deff0"],
+      "ambient": "#081418",
+      "bumpA": "#9deff0",
+      "bumpB": "#c9a46a"
+    },
+    "anti-sun": {
+      "name": "Anti-Sun",
+      "about": "Looks wave 1 (L34): zero chroma, white on black; with Single Thread or Pillars it is the anti-climax register. ?theme=anti-sun",
+      "A": "#e6e6e6",
+      "B": "#9a9a9a",
+      "W": "#ffffff",
+      "beamA": "#ffffff",
+      "beamB": "#d0d0d0",
+      "warm": "#e0e0e0",
+      "laser": ["#ffffff", "#d8d8d8", "#ffffff"],
+      "ambient": "#141414",
+      "bumpA": "#ffffff",
+      "bumpB": "#9a9a9a"
     }
   },
   "cameras": {
@@ -783,7 +916,215 @@
         "hfov": 62,
         "ev": 0.2,
         "source": "ours: a 30-degree arc round the halo pattern"
-      }
+      },
+      "PROFILE_GRAPH": {
+        "kind": "path",
+        "pos_path": [[-52, 15, 18], [-52, 15.5, 30]],
+        "look_path": [[0, 15, 18], [0, 15, 30]],
+        "hfov": 46,
+        "ev": 0.6,
+        "bars": 8,
+        "source": "ours (v2, the camera lane): the oscilloscope -- a side-stand platform 7 m over the stand, the strand read as a graph of height and roll"
+      },
+      "PROFILE_LOW_SKYLINE": {"kind": "static", "pos": [-34, 2.6, 26], "look": [0, 15, 22], "hfov": 70, "ev": 0.4, "handheld": true, "bars": 4, "source": "ours (v2): crowd height from the side, the strand a skyline (an arch reads as an arch)"},
+      "REAR_TELE_ZIGGURAT": {"kind": "static", "pos": [0, 7.5, 84], "look": [0, 14, 0], "hfov": 24, "ev": 0.3, "bars": 8, "source": "ours (v2): the long lens on the axis from the back -- a linear ramp stacks the twelve rungs into a ziggurat over the halo (rectangles in a triangle)"},
+      "VARINI_RESOLVE": {
+        "kind": "path",
+        "pos_path": [[-22, 11, 78], [-10, 9, 82], [0, 7.5, 84]],
+        "look_path": [[0, 15, 10], [0, 14.5, 4], [0, 14, 0]],
+        "hfov": [32, 24],
+        "ev": 0.3,
+        "bars": 4,
+        "source": "ours (v2), after Felice Varini's single-viewpoint anamorphosis: off the axis the ramp is a skewed stagger; it snaps into the ziggurat as the camera arrives on the axis on the ONE"
+      },
+      "ROOF_ESTABLISH": {"kind": "static", "pos": [0, 30, 88], "look": [0, 10, 0], "hfov": 60, "ev": 0.3, "bars": 4, "source": "ours (v2; the design's 5.2): the whole hall, the strand's height against the crowd"},
+      "HIGH_REAR_CRANE": {
+        "kind": "path",
+        "pos_path": [[0, 5, 94], [0, 14, 90], [0, 26, 84], [0, 31, 80]],
+        "look_path": [[0, 10, 43], [0, 12, 20], [0, 13, 0]],
+        "hfov": [40, 56],
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (v2): the cathedral reveal, a cable-cam rise from the back of the floor to under the grid"
+      },
+      "TRIBUNE_HIGH_R": {
+        "kind": "path",
+        "pos_path": [[34, 27, 64], [32, 27.5, 60]],
+        "look_path": [[0, 13, 20], [0, 13, 12]],
+        "hfov": 48,
+        "ev": 0.4,
+        "bars": 4,
+        "source": "ours (v2): the rear three-quarter view from high house right (reads height and roll together); TRIBUNE_34's opposite side, so cut between them only through an axis shot"
+      },
+      "STAGE_CORNER_REVERSE": {"kind": "static", "pos": [-20, 23.5, -2], "look": [2, 9, 40], "hfov": 72, "ev": 0.2, "bars": 2, "source": "ours (v2): the artist's god view from the stage-left truss end, out over the strand into the crowd"},
+      "TRUSS_REVERSE": {"kind": "static", "pos": [0, 23.6, -1.0], "look": [0, 8, 40], "hfov": 74, "ev": 0.3, "bars": 2, "source": "ours (v2): a remote head between Bank A's truss and the beam truss, the strand a runway to the horizon (1.2 m over Bank A's truss, not the lane's 0.6)"},
+      "HALO_REVERSE": {"kind": "path", "pos_path": [[0, 14, -21.5], [0, 14, -18.5]], "look": [0, 11, 40], "hfov": 64, "ev": 1.2, "bars": 4, "source": "ours (v2): from behind the four rings looking out, concentric frames round the strand and the crowd (back-scatter: brighter EV)"},
+      "DIVE_FROM_ROOF": {
+        "kind": "path",
+        "pos_path": [[0, 31, 80], [0, 24, 64], [0, 12, 52], [0, 5.6, 44], [0, 4.8, 30]],
+        "look_path": [[0, 6, 40], [0, 6, 30], [0, 8, 10], [0, 10, 0], [0, 12, -11]],
+        "hfov": [96, 84],
+        "ease": "arrive_fast",
+        "ev": 0.4,
+        "bars": 4,
+        "source": "ours (v2), FPV: from under the grid down to crowd height, still accelerating as it levels out under the strand on the ONE (starts below the grid, not the lane's 34 m through it)"
+      },
+      "DIVE_FROM_ROOF_2": {
+        "kind": "path",
+        "pos_path": [[0, 22, 62], [0, 12, 52], [0, 5.6, 44], [0, 4.8, 30]],
+        "look_path": [[0, 8, 10], [0, 10, 0], [0, 12, -11]],
+        "hfov": [92, 84],
+        "ease": "arrive_fast",
+        "ev": 0.4,
+        "bars": 2,
+        "source": "ours (v2): the dive's 2-bar budget (a shorter path, under the drone's 15 m/s)"
+      },
+      "DIVE_FROM_ROOF_1": {
+        "kind": "path",
+        "pos_path": [[0, 11, 50], [0, 5.6, 43], [0, 4.8, 30]],
+        "look_path": [[0, 10, 0], [0, 12, -11]],
+        "hfov": [90, 84],
+        "ease": "arrive_fast",
+        "ev": 0.4,
+        "bars": 1,
+        "source": "ours (v2): the dive's 1-bar budget"
+      },
+      "CROWD_SKIM": {
+        "kind": "path",
+        "pos_path": [[-6, 3.3, 70], [-6.5, 3.1, 50], [-1, 3, 30], [2, 3.2, 12], [0, 4.5, 4]],
+        "look_path": [[-4, 4, 50], [0, 5, 30], [2, 7, 10], [0, 10, -4], [0, 13, -11]],
+        "hfov": 92,
+        "ev": 0.4,
+        "bars": 4,
+        "crowd_cull": 0.8,
+        "source": "ours (v2), FPV: a skim over the hands (the crowd under the lens stays drawn: a 0.8 m cull, not 4 m), past the FOH riser, up into the pit"
+      },
+      "CROWD_POPUP": {
+        "kind": "path",
+        "pos_path": [[8, 1.7, 24], [8, 3, 24], [7.5, 9, 25]],
+        "look_path": [[0, 12, 10], [0, 13, 5], [0, 14, 0]],
+        "hfov": 66,
+        "handheld": true,
+        "ev": 0.4,
+        "bars": 2,
+        "source": "ours (v2): from the drop's ONE, up through the hands to the strand overhead"
+      },
+      "STRAND_ORBIT_FULL": {
+        "kind": "orbit",
+        "orbit": {"centre": [0, 15, 23.8], "radius": 26, "height": 15, "from_deg": -100, "to_deg": 100},
+        "look": [0, 15, 23.8],
+        "hfov": 58,
+        "ev": 0.4,
+        "bars": 16,
+        "source": "ours (v2): 200 degrees round the strand, house left to house right -- one long move that covers a whole real-mode landing"
+      },
+      "SPIRAL_ASCENT": {
+        "kind": "orbit",
+        "orbit": {"centre": [0, 15, 25.5], "radius": 23, "height": 4, "rise": 22, "from_deg": -180, "to_deg": 180},
+        "look": [0, 15, 23.8],
+        "hfov": 66,
+        "ev": 0.4,
+        "bars": 16,
+        "source": "ours (v2): one full climbing turn round the strand while a spiral forms"
+      },
+      "RING_THREAD": {
+        "kind": "path",
+        "pos_path": [[7, 14, 44], [7, 14, 16], [7.4, 14.5, 4], [7, 15, -2.5], [2.6, 14.4, -7.5], [0, 14, -11], [0, 14, -16]],
+        "look_path": [[4, 14, 10], [1, 14, -6], [0, 14, -11], [0, 14, -30]],
+        "hfov": 70,
+        "arrive_u": 0.92,
+        "ev": 0.3,
+        "bars": 4,
+        "held": "Daniel's call 5: threading the inner ring's 3 m hole passes 1.4 m from its slats, under the 1.5 m rule; the director never deals it (C still shows it)",
+        "source": "ours (v2): the offset lane beside the rungs (outside the PA hangs), swinging onto the axis and through the inner ring on the ONE"
+      },
+      "CURTAIN_FOLLOW": {
+        "kind": "path",
+        "pos_path": [[-24, 15, 2], [-24, 14, 44]],
+        "look_path": [[0, 14, 4], [0, 12, 44]],
+        "hfov": 50,
+        "ease": "linear",
+        "ev": 0.5,
+        "bars": 12,
+        "source": "ours (v2): tracks a curtain drop's moving front from the side (12 bars for a 1-bar cascade stagger)"
+      },
+      "THREAD_THE_ZIPPER": {
+        "kind": "path",
+        "pos_path": [[0, 15.5, 58], [0, 15.5, 30], [0, 15.5, 6], [0, 14.5, -4]],
+        "look_path": [[0, 15.5, 30], [0, 15.5, 0], [0, 14.5, -11]],
+        "hfov": 100,
+        "roll": [0, 0, 0, 0, 8, -8, 8, -8, 8, -8, 8, -8, 8, -8, 8, -8, 0, 0],
+        "ev": 0.4,
+        "bars": 4,
+        "valid_for": ["zipper", "ceiling", "curtain-low"],
+        "source": "ours (v2), FPV: down the 8 m gap between the zipper's two layers, banking past each rung, arriving at the halo on the ONE"
+      },
+      "HELIX_CORKSCREW": {
+        "kind": "strand",
+        "strand": {"s": [1.2, -0.05], "r": 8, "theta": [0, 720], "look_ahead_s": 0.2, "y_min": 4, "pendulum": {"below": 12, "deg": 110}},
+        "hfov": 70,
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (v2), the strand frame: two turns round the live centre line from over the crowd to the pit (a pendulum over the top when the strand hangs low)"
+      },
+      "TUBE_RIDE": {
+        "kind": "strand",
+        "strand": {"s": [1.36, 0.0], "under": 3.6, "ahead": 14, "look_ahead_m": 14, "y_min": 4, "end": {"pos": [0, 10.6, -2.5], "look": [0, 13, -11], "from": 0.86, "lift": 3}},
+        "hfov": 88,
+        "ev": 0.4,
+        "bars": 8,
+        "source": "ours (v2), the strand frame: an under-ride 3.6 m below the lowest rung ahead, the rolled bars arching over the lens like ribs, rising to the ring's mouth on the ONE"
+      },
+      "VERTIGO_TUNNEL": {
+        "kind": "path",
+        "pos_path": [[0, 6, 76], [0, 6, 30]],
+        "look": [0, 13, -11],
+        "dolly_zoom": {"target": [0, 14, -11], "width_m": 28, "fill": 0.62},
+        "ev": 0.4,
+        "bars": 8,
+        "source": "ours (v2): the dolly zoom -- the halo holds its size (28 m filling 62 % of the frame) while the strand stretches past the lens"
+      },
+      "UNDER_RUNG_ICON": {"kind": "static", "pos": [0, 2.3, 23.8], "look": [0, 30, 22.8], "hfov": 96, "roll": [0, 20], "ev": 0.3, "bars": 2, "source": "ours (v2): straight up from under the middle rungs, turning (a vault, a hammock, two interleaved layers)"},
+      "TOPDOWN_DESCEND": {
+        "kind": "path",
+        "pos_path": [[0, 31.5, 24], [0, 26, 24.1]],
+        "look_path": [[0, 0, 23.9], [0, 0, 23.95]],
+        "hfov": [64, 82],
+        "roll": [0, 45],
+        "ev": 0.5,
+        "bars": 8,
+        "source": "ours (v2): straight down, descending and turning (a curtain coming up at the lens, the dream spiral, the laser floors)"
+      },
+      "ORRERY_REVEAL": {
+        "kind": "path",
+        "pos_path": [[30, 4.5, -17], [24.5, 11, -14], [19.5, 18, -11]],
+        "look_path": [[0, 13, -11], [0, 14, -11], [0, 14, -11]],
+        "hfov": [56, 46],
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (v2; fix round 1): rising from the house-right wing while the rings tilt apart, beside the orrery rather than through the PA: the core whole on every frame, the hall's structure under 5 % of the frame (camera.js shotSight, shotStructure; pinned); 19.9 m or more from the hub"
+      },
+      "ORRERY_HERO": {"kind": "static", "pos": [-27, 15, -14], "look": [0, 14, -11], "hfov": 52, "ev": 0.3, "bars": 8, "source": "ours (v2; fix round 1): the gimbals in profile from the house-left wing, level with the core and 27 m off it, the PA hangs behind the cluster instead of in front of it (the first ORRERY_HERO, at (-15, 21, 21), had the x = -5 hang over the core's lower half and 13 % of its frame black slab)"},
+      "ORRERY_UNDER": {"kind": "static", "pos": [3, 3.5, 2], "look": [0, 14, -11], "hfov": 74, "ev": 0.3, "bars": 8, "source": "ours (v2), Daniel's 'looking up at the core': from the pit at the lip, under the dial, up into the turning gimbals (17 m from the hub)"},
+      "ORRERY_HIGH": {
+        "kind": "orbit",
+        "orbit": {"centre": [0, 14, -11], "radius": 22, "height": 26, "from_deg": -110, "to_deg": -70},
+        "look": [0, 14, -11],
+        "hfov": 50,
+        "ev": 0.3,
+        "bars": 8,
+        "source": "ours (v2; fix round 1): a slow high arc over the house-left wing, 12 m above the core -- the orrery beautiful from wherever you look; the old arc in front crossed Bank A's truss over the core"
+      },
+      "ORRERY_NEAR": {
+        "kind": "path",
+        "pos_path": [[-28.2, 22.3, 1.6], [-16.3, 18.8, -3.7]],
+        "look": [0, 14, -11],
+        "hfov": [44, 58],
+        "ev": 0.3,
+        "bars": 4,
+        "source": "ours (v2; fix round 1): the push in toward the gimbals from high house left, straight down a sightline clear of the PA hangs; it ends 18.5 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
+      },
+      "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"}
     },
     "sequences": {
       "intro": [{"shot": "FOH_HOLD_ZOOM", "bars": 4}, {"shot": "CRANE_RISE_REVEAL", "bars": 4}],
@@ -799,7 +1140,43 @@
         {"shot": "FOH_WIDE", "bars": 2}
       ],
       "break": [{"shot": "HEAD_ORBIT_SLOW", "bars": 6}, {"shot": "DJ_OTS", "bars": 2}],
-      "groove": [{"shot": "FOH_HOLD_ZOOM", "bars": 4}, {"shot": "TRIBUNE_34", "bars": 4}, {"shot": "HEAD_ORBIT", "bars": 4}, {"shot": "TUNNEL_UP", "bars": 4}]
+      "groove": [
+        {"shot": "FOH_HOLD_ZOOM", "bars": 4},
+        {"shot": "TRIBUNE_34", "bars": 4},
+        {"shot": "PROFILE_GRAPH", "bars": 4},
+        {"shot": "HEAD_ORBIT", "bars": 4},
+        {"shot": "TRIBUNE_HIGH_R", "bars": 4},
+        {"shot": "TUNNEL_UP", "bars": 4},
+        {"shot": "REAR_TELE_ZIGGURAT", "bars": 4},
+        {"shot": "STRAND_ORBIT_FULL", "bars": 8},
+        {"shot": "ROOF_ESTABLISH", "bars": 4}
+      ],
+      "showcase": [{"shot": "PROFILE_GRAPH", "bars": 8}, {"shot": "STRAND_ORBIT_FULL", "bars": 16}, {"shot": "TRIBUNE_HIGH_R", "bars": 4}, {"shot": "REAR_TELE_ZIGGURAT", "bars": 4}],
+      "build-dive": [{"shot": "VERTIGO_TUNNEL", "bars": 4}, {"shot": "DIVE_FROM_ROOF", "bars": 4}],
+      "drop-v2": [
+        {"shot": "FOH_WIDE", "bars": 2},
+        {"shot": "UNDER_RUNG_ICON", "bars": 1},
+        {"shot": "TRIBUNE_HIGH_R", "bars": 2},
+        {"shot": "CROWD_POPUP", "bars": 2},
+        {"shot": "TRUSS_REVERSE", "bars": 1},
+        {"shot": "STAGE_CORNER_REVERSE", "bars": 2},
+        {"shot": "HALO_REVERSE", "bars": 2},
+        {"shot": "TOPDOWN_GODVIEW", "bars": 2}
+      ]
+    },
+    "safe": "FOH_WIDE",
+    "formation_views": {
+      "_about": "v2: the move shows the motion, the cut reveals the arrival. When a formation lands (the set's formation key, a ring formation's key, else its kinetics name), the director plays one glide from the next bar line (between half and twice the glide's own bars) and cuts ON the landing bar line to a hero view; each landing deals the next shot of each list, and a shot that would come within 1.5 m of the strand (or of the rings a ring formation sweeps) is skipped. The ring formations (formations.js): orrery, spiral, vortex, crown, portal.",
+      "orrery": {"glide": ["ORRERY_REVEAL"], "hero": ["ORRERY_UNDER", "ORRERY_HERO", "ORRERY_HIGH", "ORRERY_NEAR"], "hero_bars": 8},
+      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "HALO_LOCK"], "hero_bars": 8},
+      "vortex": {"glide": ["VERTIGO_TUNNEL"], "hero": ["HALO_LOCK", "TRIBUNE_HIGH_R", "FOH_WIDE"], "hero_bars": 8},
+      "crown": {"glide": ["CRANE_RISE_REVEAL"], "hero": ["TRIBUNE_34", "ROOF_ESTABLISH", "FOH_WIDE"], "hero_bars": 8},
+      "portal": {"glide": ["FOH_HOLD_ZOOM"], "hero": ["HALO_LOCK", "STAGE_CORNER_REVERSE", "FOH_WIDE"], "hero_bars": 8},
+      "ramp": {"glide": ["VARINI_RESOLVE", "PROFILE_GRAPH"], "hero": ["REAR_TELE_ZIGGURAT"]},
+      "stairs": {"glide": ["PROFILE_GRAPH", "STRAND_ORBIT_FULL"], "hero": ["REAR_TELE_ZIGGURAT", "TRUSS_REVERSE"]},
+      "valley": {"glide": ["STRAND_ORBIT_FULL", "PROFILE_GRAPH"], "hero": ["TRIBUNE_HIGH_R", "CROWD_POPUP"]},
+      "arch": {"glide": ["PROFILE_GRAPH", "STRAND_ORBIT_FULL"], "hero": ["PROFILE_LOW_SKYLINE", "UNDER_RUNG_ICON"]},
+      "helix": {"glide": ["SPIRAL_ASCENT"], "hero": ["HALO_LOCK", "HELIX_CORKSCREW"]}
     }
   },
   "show": {
@@ -838,10 +1215,39 @@
         {"section": "intro", "every_bars": 4, "offset_bars": 3, "beat": 1, "pad": 2, "vel": 0.6}
       ]
     },
-    "pads": {"1": "kick", "2": "lasers", "6": "flyout", "10": "drop", "3": "phrase-go", "4": "phrase-next", "7": "phrase-stop"},
+    "pads": {"1": "kick-white", "5": "kick-colour", "2": "lasers", "6": "flyout", "10": "drop", "3": "phrase-go", "4": "phrase-next", "7": "phrase-stop", "8": "morph", "9": "hero"},
     "faders": {"cc105": "strand", "cc108": "lasers", "cc109": "haze", "cc110": "speed", "cc113": "grand"},
     "fader_defaults": {"strand": 1, "lasers": 1, "haze": 0.55, "speed": 0.5, "grand": 1},
     "flyout_groups": ["truss.heads", "lip.heads"]
+  },
+  "kick": {
+    "about": "KICK v2 (2026-10-27, kick.js; round 2 after Daniel's 'The kick buttons dont really change anything. Can we make the kick buttons override existing scene lights and cause them to change color with a high intensity'). Two buttons: pad 1 kick-white (the area goes full-intensity white) and pad 5 kick-colour (the area goes a vivid colour of the palette at least 90 degrees of hue from what it shows; each press the next one). Each press deals the next AREA of this deck that the hit will show on (in the camera's view, visibly changed); while a kick is live its area's intensity and colour override the look's, and crossfade back on release. Intensity = level.floor + (1 - floor) x level^gamma: the whole strip reads high. The light starts at the press, with a punch (kinds.*.punch over governor.punch_s). A press while the button's area is still lit (it lingers governor.linger_s after the last press) re-strikes it: the colour kick moves to the next palette colour of about the same luminance (governor.equal_luma), the white kick deals a fresh motion, so every tap of a roll is a new hit without flashing areas on and off. What each button does is its entry in kinds. Velocity picks the animation by these bands; the strobe runs only at a live level of strobe.from_level or more, at or under 1.9 flashes a second (the code's cap). The areas share no fixture, so two kicks never light one twice.",
+    "seed": 1027,
+    "kinds": {
+      "kick-white": {"colour": "white", "override": true, "motion": "bands", "strobe": true, "repeat": "motion", "punch": 0.15},
+      "kick-colour": {"colour": "palette", "override": true, "motion": "bands", "strobe": true, "repeat": "colour", "punch": 0.15}
+    },
+    "deck": [
+      {"name": "rings", "rows": ["rings.slats", "rings.rims"], "zone": "rings", "order": "clock"},
+      {"name": "beams", "rows": ["truss.heads", "lip.heads", "vert", "vert.strips", "delay.30", "delay.55"], "zone": "beams", "pan": 90},
+      {"name": "halo", "rows": ["halo"], "zone": "halo", "order": "clock"},
+      {"name": "strand", "rows": ["strand.heads", "strand.cubes", "strand.dots", "strand.bars"], "zone": "strand", "order": "element"}
+    ],
+    "bands": [
+      {"name": "peak", "from": 0},
+      {"name": "sweep", "from": 0.45, "sweep": {"class": "M1", "deg": 25}},
+      {"name": "drive", "from": 0.85, "sweep": {"class": "M1", "deg": 50}}
+    ],
+    "level": {"from_velocity": [0, 1], "slew_s": 0.06, "floor": 0.5, "gamma": 0.5},
+    "release_beats": 0.3,
+    "tap_hold_beats": 0.125,
+    "max_hold_beats": 64,
+    "chase": {"floor": 0.8, "lag": 0.6},
+    "strobe": {"from_level": 0.95, "max_hz": 1.9, "beats": [0.5, 1, 2, 4], "on": 0.35, "floor": 0, "hold_s": 0.25},
+    "white": {"colour": "#ffffff"},
+    "colour": {"palette": ["#00e5ff", "#ff2bd6", "#ffd21a", "#2a5bff", "#19ff4a", "#ff9a1a", "#b84bff", "#a8ff2a"], "contrast_deg": 90},
+    "governor": {"linger_s": 1.0, "punch_s": 0.15, "equal_luma": 0.35, "comb_floor": 0.35, "need": 2, "defer_s": 2},
+    "view": {"min_share": 0.25, "min_cover": 0.12}
   },
   "laser_groups": {
     "lasers.A": {"banks": ["A"]},
@@ -1035,6 +1441,325 @@
           "vert_colour": {"cycle": ["W", "beamB", "A"]},
           "laser_colour": {"cycle": [0, 2, 1]},
           "laser_colour2": {"cycle": [1, 0, 2]}
+        }
+      }
+    },
+    "single-thread": {
+      "name": "Single Thread",
+      "about": "Looks wave 1, L02 (research/reviewed/keylab-liberation-2026-10-22/vj-v2-research-2026-10-27/looks.research.md): one beam from the hero at monumental length in a dark room. Scale comes from length and darkness, not fixture count (Henke's three white lasers, Tribute in Light), and the reset lets the next look land brighter without spending a flash. A reset after an anti-climax or the last breath before a final build; no beat lock. ?phrase=single-thread, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["break", "build", "anti-climax", "intro"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}, "fade": 1},
+        {"group": "leds.all", "values": {"Dimmer": 0}, "fade": 2}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "the thread",
+          "beats": 32,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "lasers.hero", "laser": {"shape": "sweep", "dir": "$thread_dir", "beams": 1, "spread": 0, "swing": "$drift_deg", "measure": 32, "colour": "$thread_colour", "level": 0.9}}
+          ],
+          "camera": {"shot": "FOH_WIDE", "then": {"beats": 16, "shot": "WORM_RING"}}
+        }
+      ],
+      "vary": {
+        "deck": ["front", "under"],
+        "first": "front",
+        "no_repeat": true,
+        "variants": {
+          "front": {},
+          "under": {"steps": {"A": {"camera": {"shot": "TRIBUNE_34", "then": {"beats": 16, "shot": "FOH_HOLD_ZOOM"}}}}}
+        },
+        "per_repeat": {
+          "thread_dir": {"alternate": ["down", "up"]},
+          "drift_deg": {"alternate": [0, 2]},
+          "thread_colour": {"cycle": [2, 1, 0]}
+        }
+      }
+    },
+    "pillars": {
+      "name": "Pillars",
+      "about": "Looks wave 1, L04 (Twin Pillars; the looks lane asks the UI to say Pillars): the delay towers' square clusters straight up, two columns 24 m apart over the crowd, still, everything else dark. Verticality, stillness and parallel symmetry make a monument inside a show that is otherwise always moving; the side towers join for the second half. Once per set, at a break's peak, released with a 2-beat fade. Pre-roll the haze (F5) two phrases ahead so the columns read to the roof. ?phrase=pillars, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["break"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "leds.all", "values": {"Dimmer": 0.02}, "fade": 2},
+        {"group": "delay.30", "preset": "vertical", "values": {"Dimmer": 0, "Zoom": 0.7, "Color": "W"}},
+        {"group": "vert.towers", "preset": "vertical", "values": {"Dimmer": 0, "Zoom": 0.7, "Color": "W"}}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "the columns rise",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "delay.30", "preset": "vertical", "values": {"Dimmer": 1, "Zoom": "$zoom", "Color": "$pillar_colour"}, "fade": 4}
+          ],
+          "camera": {"shot": "FOH_WIDE"}
+        },
+        {
+          "id": "B",
+          "name": "the monument",
+          "beats": 20,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "delay.30", "preset": "vertical", "values": {"Dimmer": 1, "Zoom": "$zoom", "Color": "$pillar_colour"}},
+            {"group": "vert.towers", "preset": "vertical", "values": {"Dimmer": 0.6, "Zoom": "$zoom", "Color": "$pillar_colour"}, "fade": 4}
+          ],
+          "camera": {"shot": "WORM_RING", "then": {"beats": 10, "shot": "TRIBUNE_34"}}
+        },
+        {
+          "id": "C",
+          "name": "release",
+          "beats": 4,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "delay.30", "values": {"Dimmer": 0}, "fade": 2},
+            {"group": "vert.towers", "values": {"Dimmer": 0}, "fade": 2}
+          ]
+        }
+      ],
+      "vary": {
+        "deck": ["front", "crowd"],
+        "first": "front",
+        "no_repeat": true,
+        "variants": {
+          "front": {},
+          "crowd": {"steps": {"A": {"camera": {"shot": "SIDE_TRACK_PARALLEL"}}, "B": {"camera": {"shot": "CROWD_POV", "then": {"beats": 10, "shot": "TOPDOWN_GODVIEW"}}}}}
+        },
+        "per_repeat": {
+          "zoom": {"alternate": [0.7, 1.1]},
+          "pillar_colour": {"cycle": ["W", "beamB"]}
+        }
+      }
+    },
+    "scissor-gates": {
+      "name": "Scissor Gates",
+      "about": "Looks wave 1, L24: the measured Qlimax push-pull as a mechanical gesture. The tower lasers and Bank A cross into an X that flips every half beat, two colours swapping sides, so the room breathes with the reverse bass; then the gates open into fans for a bar. Lasers only, heads dark, the room at 0.1. ?phrase=scissor-gates, then pad 3.",
+      "bars": 4,
+      "go": "bar",
+      "sections": ["drop", "groove"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "leds.all", "values": {"Dimmer": 0.03}, "fade": 1}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "the X",
+          "beats": 12,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "lasers.towers", "laser": {"shape": "scissors", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+            {"group": "lasers.A", "laser": {"shape": "scissors", "colour": "$colour2", "colour2": "$colour", "level": 0.6}}
+          ],
+          "camera": {"shot": "FOH_WIDE", "alt": "CROWD_POV"}
+        },
+        {
+          "id": "B",
+          "name": "the gates open",
+          "beats": 4,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "lasers.AS", "laser": {"shape": "fans", "colour": "$colour", "level": 0.7}},
+            {"group": "rings.rims", "values": {"Dimmer": 0.5, "Color": "W"}, "fade": 0.5}
+          ],
+          "camera": {"shot": "WORM_RING"}
+        }
+      ],
+      "vary": {
+        "deck": ["towers", "floor"],
+        "first": "towers",
+        "no_repeat": true,
+        "variants": {
+          "towers": {},
+          "floor": {
+            "steps": {
+              "A": {
+                "lines": [
+                  {"group": "lasers.towers", "laser": {"shape": "scissors", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+                  {"group": "lasers.B", "laser": {"shape": "scissors", "colour": "$colour2", "colour2": "$colour", "level": 0.6}}
+                ],
+                "camera": {"shot": "SIDE_TRACK_PARALLEL"}
+              }
+            }
+          }
+        },
+        "per_repeat": {
+          "colour": {"cycle": [0, 1, 2]},
+          "colour2": {"cycle": [1, 2, 0]},
+          "camera_alt": {"alternate": [false, true]}
+        }
+      }
+    },
+    "tunnel-spokes": {
+      "name": "Tunnel Spokes",
+      "about": "Looks wave 1, L26: a tunnel of beams turning round the hero while the rings' spiral turns the same way, one direction per repeat; the direction changes only through the black beat that ends each repeat. Radial symmetry, rotation and depth are hypnotic. ?phrase=tunnel-spokes, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["drop", "groove", "build"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "strand.heads", "values": {"Dimmer": 0.15}}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "tunnel",
+          "beats": 16,
+          "trigger": "follow",
+          "ambient": 0.2,
+          "lines": [
+            {"group": "lasers.hero", "laser": {"shape": "tunnel", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+            {"group": "rings.slats", "values": {"Dimmer": 0.8, "Color": "A", "Color2": "W"}, "effects": [{"name": "ring-spiral", "with": {"phase": {"to": "$spin"}}}]},
+            {"group": "rings.rims", "values": {"Dimmer": 0.4, "Color": "W"}}
+          ],
+          "camera": {"shot": "TUNNEL_UP", "alt": "WORM_RING"}
+        },
+        {
+          "id": "B",
+          "name": "spokes",
+          "beats": 15,
+          "trigger": "follow",
+          "ambient": 0.2,
+          "lines": [
+            {"group": "lasers.hero", "laser": {"shape": "tunnel", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+            {"group": "halo.lasers", "laser": {"shape": "fans", "colour": "$colour2", "level": 0.6}},
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"phase": {"to": "$spin"}}}]},
+            {"group": "rings.rims", "values": {"Dimmer": 0.5, "Color": "W"}}
+          ],
+          "camera": {"shot": "HALO_ORBIT"}
+        },
+        {
+          "id": "C",
+          "name": "black beat",
+          "beats": 1,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0}},
+            {"group": "rings.rims", "values": {"Dimmer": 0}},
+            {"group": "strand.heads", "values": {"Dimmer": 0}}
+          ]
+        }
+      ],
+      "vary": {
+        "deck": ["hero", "halo"],
+        "first": "hero",
+        "no_repeat": true,
+        "variants": {
+          "hero": {},
+          "halo": {
+            "steps": {
+              "A": {
+                "lines": [
+                  {"group": "lasers.hero", "laser": {"shape": "tunnel", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+                  {"group": "halo.lasers", "laser": {"shape": "fans", "colour": "$colour2", "level": 0.45}},
+                  {"group": "rings.slats", "values": {"Dimmer": 0.8, "Color": "A", "Color2": "W"}, "effects": [{"name": "ring-spiral", "with": {"phase": {"to": "$spin"}}}]},
+                  {"group": "rings.rims", "values": {"Dimmer": 0.4, "Color": "W"}}
+                ]
+              }
+            }
+          }
+        },
+        "per_repeat": {
+          "spin": {"alternate": [-720, 720]},
+          "colour": {"cycle": [0, 2, 1]},
+          "colour2": {"cycle": [1, 0, 2]},
+          "camera_alt": {"alternate": [false, true]}
+        }
+      }
+    },
+    "drumroll-iris": {
+      "name": "Drumroll Iris",
+      "about": "Looks wave 1, L13: the last 8 bars of a build. The rings' chop halves its period every 2 bars (a bar, half a bar, a beat, half a beat: Solberg's drum roll, acceleration without a tempo change) while its lit arc narrows -- less light, more tension -- and the last beat is black, so the drop reopens all 360 degrees at once. One direction per repeat. ?phrase=drumroll-iris, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["build"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "rings.rims", "values": {"Dimmer": 0.3, "Color": "W"}}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "a turn a bar",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.4,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 4, "width": 0.39, "phase": {"to": "$turn"}}}]}
+          ],
+          "camera": {"shot": "HALO_LOCK"}
+        },
+        {
+          "id": "B",
+          "name": "half a bar",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.35,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 2, "width": 0.3, "phase": {"to": "$turn"}}}]}
+          ]
+        },
+        {
+          "id": "C",
+          "name": "a beat",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.3,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 1, "width": 0.22, "phase": {"to": "$turn"}}}]}
+          ],
+          "camera": {"shot": "TUNNEL_UP"}
+        },
+        {
+          "id": "D",
+          "name": "half a beat, then black",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 0.5, "width": 0.15, "phase": {"to": "$turn"}}}]}
+          ],
+          "cues": [
+            {"at": 7, "lines": [{"group": "rings.slats", "values": {"Dimmer": 0}}, {"group": "rings.rims", "values": {"Dimmer": 0}}]}
+          ]
+        }
+      ],
+      "vary": {
+        "deck": ["rings", "rings-and-strand"],
+        "first": "rings",
+        "no_repeat": true,
+        "variants": {
+          "rings": {},
+          "rings-and-strand": {
+            "steps": {
+              "C": {
+                "lines": [
+                  {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 1, "width": 0.22, "phase": {"to": "$turn"}}}]},
+                  {"group": "strand.dots", "values": {"Dimmer": 0.6, "Color": "W"}, "effects": ["dot-chase"]}
+                ],
+                "camera": {"shot": "WORM_RING"}
+              }
+            }
+          }
+        },
+        "per_repeat": {
+          "turn": {"alternate": [-720, 720]}
         }
       }
     }
