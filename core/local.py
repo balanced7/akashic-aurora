@@ -143,7 +143,8 @@ def strings(values: Any, *, what: str = "entry") -> list:
 
     The object form exists so the PROVENANCE of an entry travels with it: check_wiring's
     hand-written list carried paragraphs explaining why each entry point was added (the
-    2026-08-01 runner-enumeration incident, the supervisor, the DSH bridge), and moving those
+    2026-08-01 runner-enumeration incident, the supervisor, the out-of-tree bridge adapter), and
+    moving those
     values into data must not silently delete the reasons -- a register without its history is
     how 'the register was accurate and had stopped being about anything'.
     """

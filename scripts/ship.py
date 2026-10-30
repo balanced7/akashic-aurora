@@ -34,6 +34,14 @@ def build_plan(args):
         steps.append(("guard: comprehensibility (map matches code)", [PY, "scripts/checkers/check_comprehensibility.py"]))
         steps.append(("guard: door parity (no new verb-surface drift)", [PY, "scripts/checkers/check_door_parity.py"]))
         steps.append(("guard: wiring (no new built-but-unwired module)", [PY, "scripts/checkers/check_wiring.py"]))
+        # The layering counterpart to the wiring guard, and the detangle's first gate (2026-10-30):
+        # wiring asks "is it reached", purity asks "does Core know who we are". A RATCHET against
+        # scripts/checkers/core_purity_baseline.json -- Local-in-Core may fall, never rise -- and
+        # it REFUSES (rc 2) rather than passing when the baseline is missing, because a tree whose
+        # debt is unknown is not a tree with no debt. Adding it here is what makes it a gate rather
+        # than a script nobody runs; the cost today is one regex pass over 189 files.
+        steps.append(("guard: core purity (Local-in-Core may fall, never rise)",
+                      [PY, "scripts/checkers/check_core_purity.py"]))
         # A dead organ passes every guard above: it imports, it is wired, its door matches its
         # parity table, and it returns nothing. This is the only guard that asks an organ a
         # question whose answer we already know. Ratcheted against

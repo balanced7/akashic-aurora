@@ -1,0 +1,1163 @@
+{
+  "_what": "The frozen Local-in-Core debt for the Core surface, per file. scripts/checkers/check_core_purity.py enforces the direction: counts may FALL, never rise. Re-freeze with --write-baseline when they fall.",
+  "_why": "agent_cli.py carried 229 of these on 2026-10-30 and the brief that asked for this gate also said not to clean them now: freeze them so they can only go down. A missing baseline is UNKNOWN, not zero, so the checker refuses rather than passes when this file is gone.",
+  "_classes": {
+    "seat": "\\b(?:deepseek|claude|kimi|grok|sol|vandor|dsh_agent|rill|serge|novac|r2|sunshine|zadkiel|navi|heimdall|codex|arturia|chronos|duck|rook|onyx)\\b",
+    "path": "\\b[CDE]:\\\\|/(?:home|Users|usr)/|C:\\\\Users|E:\\\\AI-Setup",
+    "port": "\\b(?<![\\w.])(?:87\\d\\d|89\\d\\d|1[0-9]{4}|3000|4000|5000|6379|8000|8080)\\b",
+    "fork": "\\bserge\\b|\\bfleet\\b|\\bDSH\\b|\\b$DSH_HOME\\b"
+  },
+  "_scope": {
+    "files": [
+      "agent_cli.py"
+    ],
+    "dirs": [
+      "core",
+      "verbs"
+    ],
+    "suffix": ".py"
+  },
+  "total": 1733,
+  "by_class": {
+    "seat": 1315,
+    "path": 32,
+    "port": 78,
+    "fork": 308
+  },
+  "files": {
+    "agent_cli.py": {
+      "seat": 168,
+      "path": 8,
+      "port": 7,
+      "fork": 46
+    },
+    "core/__init__.py": {
+      "seat": 1,
+      "path": 1,
+      "port": 0,
+      "fork": 0
+    },
+    "core/codex/__init__.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/codex/schema.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/__init__.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/ask.py": {
+      "seat": 30,
+      "path": 0,
+      "port": 1,
+      "fork": 7
+    },
+    "core/comm/ask_bg.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/ask_state.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/assertions.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/awareness.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/bifrost_api.py": {
+      "seat": 18,
+      "path": 0,
+      "port": 1,
+      "fork": 4
+    },
+    "core/comm/blobs.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/bridge_seal.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 1,
+      "fork": 8
+    },
+    "core/comm/bridge_status.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 4
+    },
+    "core/comm/bus.py": {
+      "seat": 19,
+      "path": 0,
+      "port": 2,
+      "fork": 5
+    },
+    "core/comm/conductor_gate.py": {
+      "seat": 24,
+      "path": 0,
+      "port": 0,
+      "fork": 9
+    },
+    "core/comm/context_hints.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/control.py": {
+      "seat": 10,
+      "path": 0,
+      "port": 0,
+      "fork": 7
+    },
+    "core/comm/control_channel.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/cursor_admin.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/comm/daemon_state.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 6
+    },
+    "core/comm/discord_bridge.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 4
+    },
+    "core/comm/discord_feed.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/comm/discord_inbound.py": {
+      "seat": 63,
+      "path": 0,
+      "port": 0,
+      "fork": 6
+    },
+    "core/comm/discord_ladder.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/discord_rooms.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 1,
+      "fork": 1
+    },
+    "core/comm/doctor.py": {
+      "seat": 39,
+      "path": 0,
+      "port": 2,
+      "fork": 30
+    },
+    "core/comm/door_probe.py": {
+      "seat": 6,
+      "path": 1,
+      "port": 0,
+      "fork": 3
+    },
+    "core/comm/engine_vitals.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/expectations.py": {
+      "seat": 9,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/failsafe.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/failure_class.py": {
+      "seat": 11,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/fence_phase.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/friction.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/incarnation.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/lane_depths.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/launcher.py": {
+      "seat": 20,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/liveness.py": {
+      "seat": 14,
+      "path": 0,
+      "port": 0,
+      "fork": 4
+    },
+    "core/comm/mailbox.py": {
+      "seat": 24,
+      "path": 0,
+      "port": 2,
+      "fork": 4
+    },
+    "core/comm/nudge.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/operator_reply.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/comm/packet_spec.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 7,
+      "fork": 1
+    },
+    "core/comm/pager.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/peer_ready.py": {
+      "seat": 12,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/promoter.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/comm/reaper.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/remote_relay.py": {
+      "seat": 12,
+      "path": 0,
+      "port": 0,
+      "fork": 16
+    },
+    "core/comm/resume_on_deaf.py": {
+      "seat": 10,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/comm/role_queue.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/room_feed.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/roster.py": {
+      "seat": 17,
+      "path": 0,
+      "port": 0,
+      "fork": 7
+    },
+    "core/comm/runner_lib.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/runner_lock.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/runtime_age.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/comm/seat_identity.py": {
+      "seat": 8,
+      "path": 0,
+      "port": 0,
+      "fork": 7
+    },
+    "core/comm/secret_intake.py": {
+      "seat": 19,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/self_restart.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 8
+    },
+    "core/comm/sender_guard.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/shift_turn.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/storm_detect.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/thread_capture.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/comm/toolbox.py": {
+      "seat": 95,
+      "path": 1,
+      "port": 8,
+      "fork": 7
+    },
+    "core/comm/triage_park.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/turn_metrics.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/comm/wake_seat.py": {
+      "seat": 17,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/wake_tiers.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/comm/wedge_discriminator.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/context/briefing_loader.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/context/gap_ledger.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/context/learning_loader.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/context/relevance_budget.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/context/world_snapshot.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/coord/conductor.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/continuity.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/coord/defer_queue.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/experiment.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/fence_workspace.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/forecast_registry.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/coord/intent.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/intent_shadow.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/coord/lens_ledger.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/coord/method_drift.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/orient.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/coord/preregistration.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/scene.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/coord/session_focus.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/session_id.py": {
+      "seat": 8,
+      "path": 0,
+      "port": 0,
+      "fork": 3
+    },
+    "core/coord/sift.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/suite_baseline.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/target.py": {
+      "seat": 5,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/coord/task_costs.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/coord/task_ledger.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/coord/timeline.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 2,
+      "fork": 1
+    },
+    "core/coord/world_savepoint.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/events/event_index.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/events/event_log.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/events/touch.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/events/touch_stats.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/eye/__init__.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/eye/index.py": {
+      "seat": 13,
+      "path": 0,
+      "port": 0,
+      "fork": 15
+    },
+    "core/eye/position.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/eye/routes.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/fleet/__init__.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 3
+    },
+    "core/fleet/app_package.py": {
+      "seat": 9,
+      "path": 0,
+      "port": 2,
+      "fork": 1
+    },
+    "core/fleet/caller.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/fleet/model_roster.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 2,
+      "fork": 3
+    },
+    "core/fleet/residents.py": {
+      "seat": 19,
+      "path": 0,
+      "port": 0,
+      "fork": 3
+    },
+    "core/fleet/scout.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 4
+    },
+    "core/fleet/seat_launchers.py": {
+      "seat": 105,
+      "path": 0,
+      "port": 2,
+      "fork": 11
+    },
+    "core/fleet/seat_model.py": {
+      "seat": 8,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/fleet/verdicts.py": {
+      "seat": 12,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/foundation/durable_reconcile.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/foundation/migrate_to_sqlite.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/foundation/redis_connection.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 3,
+      "fork": 0
+    },
+    "core/foundation/sqlite_store.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/foundation/store.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/git/rewrite_map.py": {
+      "seat": 3,
+      "path": 1,
+      "port": 0,
+      "fork": 0
+    },
+    "core/infrastructure/health_check.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 2,
+      "fork": 0
+    },
+    "core/learning/consolidation.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/learning/domains.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/learning/learning_store.py": {
+      "seat": 14,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/library/atoms.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/library/college.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 5,
+      "fork": 0
+    },
+    "core/library/legacy_map.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/library/projection.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/library/reports.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 8
+    },
+    "core/library/taxonomy.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/manuals/chunk.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/manuals/shelf.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/narrative/chronicler.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/narrative/episode.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/narrative/schema.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/narrative/session.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/oneworld/floor.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/oneworld/journal.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/oneworld/mode.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/oneworld/sensors.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/oneworld/surface.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/outcome.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/paths.py": {
+      "seat": 0,
+      "path": 2,
+      "port": 0,
+      "fork": 0
+    },
+    "core/primitives/clusterer.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/primitives/consolidator.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/primitives/faithfulness.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/provenance/delta.py": {
+      "seat": 2,
+      "path": 1,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/actions.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 3
+    },
+    "core/recall/anchors.py": {
+      "seat": 6,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/at_action.py": {
+      "seat": 27,
+      "path": 0,
+      "port": 0,
+      "fork": 3
+    },
+    "core/recall/bench.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/forge.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/forge_optimizer.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/funnel.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/recall/gate_rules.py": {
+      "seat": 12,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/knowledge_map.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/lookback.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 2,
+      "fork": 0
+    },
+    "core/recall/pack_replay.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/precision_audit.py": {
+      "seat": 10,
+      "path": 0,
+      "port": 2,
+      "fork": 0
+    },
+    "core/recall/prevention.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/recall/replay.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/shadow_shelf.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/recall/staleness.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/recall/surface.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/reentry.py": {
+      "seat": 9,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/renew/session_signals.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/screenspace/__init__.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/screenspace/act.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/screenspace/canary.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/screenspace/combo.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/screenspace/engine.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/screenspace/foreground.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/screenspace/shadow.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/state/session_recovery.py": {
+      "seat": 0,
+      "path": 2,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/audit.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/audit_spend.py": {
+      "seat": 8,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/toolbelt/clobber_scan.py": {
+      "seat": 8,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/toolbelt/contest.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/followup.py": {
+      "seat": 4,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/kit.py": {
+      "seat": 10,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/lexicon_bindings.py": {
+      "seat": 3,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/play_sandbox.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/registry.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/tally.py": {
+      "seat": 16,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/toolbelt/toast.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/tools/everything.py": {
+      "seat": 1,
+      "path": 14,
+      "port": 0,
+      "fork": 0
+    },
+    "core/trust/capabilities.py": {
+      "seat": 0,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "core/trust/grant_writer.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 3
+    },
+    "core/trust/private_plane.py": {
+      "seat": 7,
+      "path": 0,
+      "port": 0,
+      "fork": 0
+    },
+    "core/trust/registry.py": {
+      "seat": 9,
+      "path": 0,
+      "port": 0,
+      "fork": 2
+    },
+    "core/web/door.py": {
+      "seat": 1,
+      "path": 0,
+      "port": 1,
+      "fork": 0
+    },
+    "core/world.py": {
+      "seat": 1,
+      "path": 1,
+      "port": 10,
+      "fork": 1
+    }
+  }
+}
