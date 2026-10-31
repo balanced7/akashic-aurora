@@ -1,11 +1,18 @@
-"""Pins for the LOCAL surface of the purity ratchet (Rill's A1, 2026-10-31).
+﻿"""Pins for the LOCAL surface of the purity ratchet (amendment A1, 2026-10-31).
 
 WHAT THIS DEFENDS. `local/`, `arsenal/panel/` and `scripts/phone/` are committed to a PUBLIC repo,
 so they may carry this deployment's SHAPE and never this machine's ADDRESS or a home path. The
-pre-push scan that found `tailnet_host: 100.116.105.68` and a `C:/Users/...` path headed for the
-public remote found them by luck (someone ran the scan). This is the gate that finds them every
-time -- and, per the ratchet's three rules, a gate whose baseline can go missing must REFUSE rather
-than pass, because a fresh clone with no baseline is exactly the deployment it is meant to guard.
+pre-push scan that found a real tailnet address (RFC 6598 band; the value itself is withheld here,
+which is the point of the file) and an absolute home path headed for the public remote found them
+by luck -- someone happened to run the scan. This is the gate that finds them every time, and, per
+the ratchet's three rules, a gate whose baseline can go missing must REFUSE rather than pass,
+because a fresh clone with no baseline is exactly the deployment it is meant to guard.
+
+NOTE ON THE VECTORS BELOW: every address in this file is a TEXTBOOK example (the RFC 6598 CGNAT
+band, 192.168.0.x, 10.1.2.3) and every home path names `someone`. That is not decoration -- the
+first draft of this file quoted the REAL tailnet address in its own docstring, and a pre-push scan
+of the branch caught it: the test written to forbid a machine value had put one in the public repo.
+Placeholders are how a gate documents what it refuses without being an instance of it.
 
 The pins come in three kinds, deliberately:
   * the SHIPPED TREE is at zero (the honest freeze);
@@ -58,7 +65,7 @@ def test_the_baseline_is_committed_and_frozen_at_zero():
 
 # ---------------------------------------------------------------------- 2. each class actually bites
 @pytest.mark.parametrize("text,cls", [
-    ("host: 100.116.105.68", "tailnet"),
+    ("host: 100.64.9.9", "tailnet"),
     ("host = '100.64.0.1'", "tailnet"),                 # the generic CGNAT example, still caught
     ("host: 192.168.0.10", "lan"),
     ("host: 10.1.2.3", "lan"),
@@ -100,7 +107,7 @@ def test_the_gate_FAILS_on_a_planted_value_in_a_throwaway_tree(tmp_path):
     """Pure drill: a fake instance root, never the real tree."""
     (tmp_path / "local").mkdir()
     (tmp_path / "local" / "reachability.json").write_text(
-        json.dumps({"version": 1, "phone": {"tailnet_host": "100.116.105.68"}}), encoding="utf-8")
+        json.dumps({"version": 1, "phone": {"tailnet_host": "100.64.9.9"}}), encoding="utf-8")
     (tmp_path / "arsenal" / "panel").mkdir(parents=True)
     (tmp_path / "arsenal" / "panel" / "app.js").write_text(
         "const HOME = 'C:/Users/someone/x';\n", encoding="utf-8")
