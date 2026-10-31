@@ -102,3 +102,28 @@ NOTICE         text eol=lf
 #     the next commit regenerates the one true sheet over it. Verified by hand on a scratch repo
 #     before writing this line (merge produced both sides' lines, no markers, no manual resolve).
 docs/PHYSICS.md merge=union
+
+# =============================================================================================
+# 2026-10-31 (Rill, dsh_agent) -- THE CONTRACT FILES, NORMALISED AND PINNED (wish 3).
+#
+# MEASURED before this block, with `git ls-files --eol`: 26 tracked files carried CRLF in a
+# working tree while the INDEX was LF for every one of them. Most were deliberate (*.bat 8,
+# *.cmd 4 -- see the batch exception above) or archive/artifacts (2 *.tmp, 5 commit-maps, 7
+# legacy docs). The ones that were neither are the FOUR GIT HOOKS: shell scripts whose first line
+# git's exec path reads, and whose CRLF is the classic `bad interpreter: /bin/sh^M` failure that
+# fires in someone else's clone at the worst possible moment. Also
+# `arsenal/panel/web/manifest.webmanifest`, served to the phone and read as text by a pin.
+#
+# They are extensionless or novel, so no rule above binds them; these lines do -- by NAME, not by
+# pattern, because a hook that stops being a hook should FAIL this naming rather than silently
+# inherit a rule written for something else.
+scripts/githooks/pre-commit    text eol=lf
+scripts/githooks/commit-msg    text eol=lf
+scripts/githooks/post-commit   text eol=lf
+scripts/githooks/pre-push      text eol=lf
+*.webmanifest  text eol=lf
+
+# The pin that keeps this honest is tests/test_the_contract_files_stay_lf.py: it reads BYTES (a
+# grep under Git Bash on this machine lies about CRLF -- see docs/TROUBLESHOOTING.md 7) and it asks
+# `git check-attr eol` what policy ACTUALLY applies to each file, so a file dropped from this list
+# fails there rather than in a stranger's checkout.
