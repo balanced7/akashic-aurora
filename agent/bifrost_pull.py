@@ -727,6 +727,21 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
         print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
 
 
+def _reach_this_session(agent_id: str, session_id: str) -> str:
+    """The exact command that reaches THIS session while a twin holds the consumer seat.
+
+    Printed rather than described: an operator woken at the wrong hour should be able to paste
+    it. The sid8 is the same discriminator boot prints and `bifrost-send --to-incarnation`
+    accepts, so the three surfaces speak one dialect."""
+    try:
+        from core.comm.seat_identity import sid8 as _sid8
+        tag = _sid8(session_id) or "<sid8>"
+    except Exception:
+        tag = (str(session_id or "")[:8] or "<sid8>")
+    return (f"py agent_cli.py bifrost-send <you> --to {agent_id} --to-incarnation {tag} "
+            f"--kind chat --text \"...\"")
+
+
 def standby(agent_id: str, session_id: str = "", *, listen=None,
             limit: int = 20) -> Dict[str, Any]:
     """T084-CL-2: the turn-end ritual as ONE decision function -- drain (if the seat is ours to
@@ -735,23 +750,57 @@ def standby(agent_id: str, session_id: str = "", *, listen=None,
 
       - consume-THEN-arm (arming on an undrained inbox insta-wakes: failure ledger C1-2);
       - a seat held by a provably-dead session gets rescued inside consume_inbox (C1-1);
-      - a seat held by a LIVE twin means the TWIN is the wakeable seat-holder -- listening here
-        would be a redundant watcher burning cycles (the plan-wall law): report, do NOT listen.
+      - a seat held by a LIVE twin means the TWIN is the wakeable seat-holder -- this session
+        must not become a second consumer (the plan-wall law), but it must also not go SILENT.
+
+    THE TWIN FALLBACK (2026-10-31, phase 3 of the modular-core detangle). Until this, the twin
+    case returned early with `twin-holds-seat` and the CLI exited 1 "NOT listening": the session
+    was then unreachable until someone happened to notice, and the wish that produced this phase
+    records the cost of exactly that class ("a boot-only handoff to a seat's never-rebooting
+    runner sat unseen for hours"). So when a twin holds the seat we now ARM A SECOND KIND OF
+    LISTENER -- one that admits only mail explicitly addressed to this incarnation
+    (`bifrost-send ... --to-incarnation <sid8>`). The one-consumer rule is untouched: agent-wide
+    mail still wakes the seat-holder alone, because this arm cannot see it. `listen` is called
+    with incarnation_only=True to say so at the launcher.
 
     Returns {"drained": int, "listened": bool, "decision": str, "report": [lines]}. The CLI verb
-    wraps this and, when the decision is 'listen', BLOCKS as the wake listener's parent -- so one
-    harness-tracked `bifrost-standby` background task = drain + report + armed seat, and the
-    listener's exit re-invokes the harness. Never spawns detached (the T073 untracked-process
-    root cause)."""
+    wraps this and, when the decision is 'listen' (or the twin-fallback arm), BLOCKS as the wake
+    listener's parent -- so one harness-tracked `bifrost-standby` background task = drain + report
+    + armed seat, and the listener's exit re-invokes the harness. Never spawns detached (the T073
+    untracked-process root cause)."""
     out: Dict[str, Any] = {"drained": 0, "listened": False, "decision": "", "report": []}
     rep = out["report"]
     res = consume_inbox(agent_id, limit=limit)
     if res.get("seat_held"):
         teach = str(res.get("teach") or "consumer seat held")
         rep.append(f"seat: HELD by {res.get('holder')} -- {teach}")
-        rep.append(f"standby: NOT listening (live twin is the wakeable seat-holder; "
-                   f"{len(res.get('peeked') or [])} msg(s) visible as peek)")
-        out["decision"] = "twin-holds-seat"
+        rep.append(f"standby: {len(res.get('peeked') or [])} msg(s) visible as peek; nothing "
+                   f"consumed here, the seat-holder owns the drain")
+        reach = _reach_this_session(agent_id, session_id)
+        out["reach"] = reach
+        if listen is None:
+            rep.append("standby: NOT listening (report-only) -- to stay reachable, re-run "
+                       "without --no-listen and this seat arms an INCARNATION-ONLY listener")
+            rep.append(f"standby: reach this session with: {reach}")
+            out["decision"] = "twin-holds-seat"
+            return out
+        rep.append("standby: arming an INCARNATION-ONLY listener -- wakes only for mail "
+                   "addressed to THIS session, so the seat-holder stays the only agent-wide "
+                   "consumer")
+        rep.append(f"standby: reach this session with: {reach}")
+        out["decision"] = "twin-holds-seat-incarnation-listen"
+        out["listened"] = True
+        try:
+            out["listen_rc"] = listen(agent_id, session_id, incarnation_only=True)
+        except TypeError:
+            # An embedder's older two-argument callable: pass our intent by environment rather
+            # than silently dropping it (a dropped flag would arm an AGENT-WIDE listener beside
+            # the seat-holder -- the double-wake the one-consumer rule exists to prevent).
+            os.environ["BIFROST_WAKE_INCARNATION_ONLY"] = "1"
+            try:
+                out["listen_rc"] = listen(agent_id, session_id)
+            finally:
+                os.environ.pop("BIFROST_WAKE_INCARNATION_ONLY", None)
         return out
     msgs = res.get("consumed") or []
     out["drained"] = len(msgs)

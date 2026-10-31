@@ -182,6 +182,43 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     return True
 
 
+def incarnation_addressed(m, *, incarnation: str) -> bool:
+    """True only when this message EXPLICITLY names this session (`meta.to_incarnation`).
+
+    THE TWIN-FALLBACK ADMISSION (2026-10-31, phase 3 of the modular-core detangle). When another
+    session of the same agent id holds the RB-21 consumer seat, the old arm refused to listen at
+    all ("NOT listening") and this session quietly became unreachable: mail arrived, the seat sat
+    there, and nobody was told it could not be woken. The fix is not a second consumer -- it is a
+    SECOND KIND OF LISTENER, one that admits only mail addressed to this incarnation.
+
+    So the one-consumer rule stands untouched: agent-wide mail still wakes exactly the seat that
+    holds the seat, and this listener wakes only for `bifrost-send ... --to-incarnation <sid8>`,
+    which is the sender saying "this one, not whoever holds the seat". Same predicate the
+    wake decision already applies for explicit addressing (wake_worthy's branch 1); factored out
+    so the two cannot drift into two meanings.
+
+    The target is a session-id PREFIX of at least 8 characters (the twin-sync convention)."""
+    meta = getattr(m, "meta", None) or {}
+    target = str(meta.get("to_incarnation") or "")
+    me = str(incarnation or "")
+    return bool(target) and len(target) >= 8 and bool(me) and (me == target or me.startswith(target))
+
+
+def admits(m, *, agent: str, incarnation: str = "", incarnation_only: bool = False) -> bool:
+    """THE ONE admission rule an arm applies to a message, before the tier floor.
+
+    Extracted so the twin-fallback arm and the ordinary arm cannot drift into two meanings --
+    the same reason wake_worthy() exists. `incarnation_only` is the twin-fallback mode: it
+    NARROWS the gate to explicit incarnation addressing and never widens it.
+
+    Order is deliberate: the narrowing filter runs FIRST, so an agent-wide message is refused
+    before any round trip is spent asking whether it would have woken anyone.
+    """
+    if incarnation_only and not incarnation_addressed(m, incarnation=str(incarnation or "")):
+        return False
+    return wake_worthy(m, agent=agent, incarnation=str(incarnation or ""))
+
+
 def _hb_path(agent, session_id=None):
     from core.comm import wake_seat
     return wake_seat.seat_path(agent, session_id)
@@ -481,7 +518,8 @@ def say_seen_at_fire(agent: str, delivered: list, session_id: str = "") -> int:
 def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
           api=None, hb_path: str = None, my_pid: int = None,
           session_id: str = "", seen_file: str = None,
-          min_tier: int = 3) -> int:   # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
+          min_tier: int = 3,               # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
+          incarnation_only: bool = False) -> int:
     from core.comm.bifrost_api import BifrostAPI
     api = api if api is not None else BifrostAPI(agent)
     if not api.online_now:
@@ -557,9 +595,14 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             seen.append(f"{frm}:{kind}")
             if kind == "steer":
                 steers += 1
+            # TWIN-FALLBACK ARM (phase 3, 2026-10-31): when another session holds the consumer
+            # seat, this arm admits ONLY mail that names this incarnation -- so an agent-wide
+            # message still wakes exactly one seat (the seat-holder's) and cannot double-wake.
             # T073: the whole wake decision lives in wake_worthy() -- allowlist ratchet,
             # explicit incarnation addressing, echo + room-chatter skips (pins P1-P11).
-            if not wake_worthy(m, agent=agent, incarnation=str(session_id or "")):
+            # admits() puts the fallback's narrowing IN FRONT of that one gate, not beside it.
+            if not admits(m, agent=agent, incarnation=str(session_id or ""),
+                          incarnation_only=incarnation_only):
                 continue
             # THE TIER FLOOR (2026-09-23). A SECOND, independent question asked only of mail
             # that already passed the gate above: not "does this wake a seat" but "how much
@@ -852,6 +895,13 @@ def main() -> int:
                          "1 +directed asks, 2 +settlements of my own asks, 3 everything "
                          "(default, unchanged behaviour). A FLOOR lets a seat stay armed "
                          "over an informational backlog WITHOUT consuming it.")
+    ap.add_argument("--incarnation-only", action="store_true", dest="incarnation_only",
+                    help="TWIN FALLBACK: wake ONLY for mail that explicitly names this "
+                         "incarnation (meta.to_incarnation, i.e. `bifrost-send "
+                         "--to-incarnation <sid8>`). Armed by bifrost-standby when another "
+                         "session of this agent id holds the RB-21 consumer seat, so this "
+                         "session stays reachable without becoming a second consumer and "
+                         "without double-waking on agent-wide mail.")
     a = ap.parse_args()
     if a.deadline is None:
         a.deadline = default_deadline_s()
@@ -882,7 +932,8 @@ def main() -> int:
     clear_rearm_trigger(a.agent, a.session)   # R19: this arm IS the requested re-arm
     try:
         return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me,
-                     session_id=a.session, min_tier=a.min_tier)
+                     session_id=a.session, min_tier=a.min_tier,
+                     incarnation_only=bool(getattr(a, "incarnation_only", False)))
     finally:
         # Remove the seat only if it is still OURS -- a newer watcher may have taken it
         # (newest-wins singleton); deleting its seat would un-arm a live listener.

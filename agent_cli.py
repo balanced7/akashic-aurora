@@ -6632,14 +6632,20 @@ def standby_min_tier(flag=None) -> int:
     return WAKE_FLOOR_DEFAULT
 
 
-def standby_listener_argv(agent_id: str, session_id: str, min_tier: int) -> list:
+def standby_listener_argv(agent_id: str, session_id: str, min_tier: int,
+                          incarnation_only: bool = False) -> list:
     """The exact listener command the standby parents -- one builder so the pin and the
-    launcher cannot drift (the floor MUST reach the child or the default is a fiction)."""
+    launcher cannot drift (the floor MUST reach the child or the default is a fiction; and the
+    same is now true of the twin-fallback mode: an arm that intends incarnation-only and spawns
+    an agent-wide listener would DOUBLE-WAKE beside the seat-holder, which is the exact
+    redundancy the one-consumer rule exists to prevent)."""
     cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         "scripts", "bifrost_wake.py"), "--agent", agent_id,
            "--min-tier", str(int(min_tier))]
     if session_id:
         cmd += ["--session", session_id]
+    if incarnation_only:
+        cmd += ["--incarnation-only"]
     return cmd
 
 
@@ -6656,7 +6662,7 @@ def cmd_bifrost_standby(args):
     ensure_lane_defaults()
     floor = standby_min_tier(getattr(args, "min_tier", None))
 
-    def _listen(agent_id, session_id):
+    def _listen(agent_id, session_id, incarnation_only=False):
         # Blocking child, NOT detached: this CLI process is the harness-tracked parent (the T073
         # law -- a detached listener notifies nobody). Env pins the work lane (T045 cutover).
         import subprocess
@@ -6664,7 +6670,9 @@ def cmd_bifrost_standby(args):
                # ORIGIN stamp (2026-10-01): THIS process is the harness-tracked parent, so the
                # listener's exit starts a turn -- the stop hook passes only on this origin.
                "BIFROST_WAKE_ORIGIN": "harness"}
-        return subprocess.run(standby_listener_argv(agent_id, session_id, floor), env=env).returncode
+        return subprocess.run(standby_listener_argv(agent_id, session_id, floor,
+                                                    incarnation_only=incarnation_only),
+                              env=env).returncode
 
     from core.coord.session_id import ambient_session_id as _amb_sid
     session = args.session or _amb_sid()[0]
@@ -6699,11 +6707,19 @@ def cmd_bifrost_standby(args):
               f"{s['held_below_floor']} held below floor)")
     except Exception:
         pass
-    if res["decision"] == "listen":
+    if res["decision"] in ("listen", "twin-holds-seat-incarnation-listen"):
         rc = res.get("listen_rc")
+        twin = res["decision"].startswith("twin-")
         how = ("wake-worthy mail or deadline" if rc == 0
                else f"killed or crashed (rc={rc}) -- NOT a wake")   # C1-6: never report a signal death as mail
-        print(f"[standby] listener exited rc={rc} -- {how}; re-run bifrost-standby after handling")
+        if twin and rc == 0:
+            print(f"[standby] incarnation-only listener exited rc=0 -- mail addressed to THIS "
+                  f"session (or its deadline); re-arm after handling")
+        else:
+            print(f"[standby] listener exited rc={rc} -- {how}; re-run bifrost-standby after handling")
+    # EXIT CODE: `twin-holds-seat` with NO listener is the one case that is not reachable by
+    # design (--no-listen asked for report-only). The twin WITH an incarnation listener exits 0:
+    # the session is reachable, which is the whole point of the fallback.
     return 0 if res["decision"] != "twin-holds-seat" else 1
 
 
