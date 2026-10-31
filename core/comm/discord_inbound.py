@@ -434,7 +434,7 @@ def _seat_channels() -> Dict[str, Any]:
         return {"mode": "forum", "channels": {}}
 
 
-#: The one seat a plain chat message auto-wakes (2026-08-31, Daniil verbatim: "fix
+#: The seats a plain chat message auto-wakes (2026-08-31, Daniil verbatim: "fix
 #: whatever is making Vandor not reachable from discord so I dont need to do !spawn
 #: vandor every time"). deepseek/kimi already run persistent daemon-managed runners
 #: (bifrost_daemon.py:22 -- claude launches in M1-alpha, no --spawn-runner) and are
@@ -442,7 +442,19 @@ def _seat_channels() -> Dict[str, Any]:
 #: (Token Frugality Directive) -- its whole existence between `!spawn`s was "nothing is
 #: listening". Restricted to claude alone: widening this to every seat would be a much
 #: bigger, unreviewed cost decision this ask never made.
-_AUTO_WAKE_SEATS = {"claude"}
+#:
+#: 2026-10-26 (Heimdall, Daniil's ask "make Rill reachable over Discord"): Rill
+#: (dsh_agent) is a PERSISTENT resident seat on the DSH/cordis harness, NOT a
+#: claude seat that costs a fresh paid Claude Code session per `!spawn`. He is the
+#: same category as deepseek/kimi -- a long-lived seat whose listener may simply be
+#: unarmed -- so the §2026-09-04 cost model (a cold claude auto-spawning a headless
+#: worker) does NOT apply to him. Adding dsh_agent here only ENABLES the 📭
+#: cold-seat notice for Rill; it still NEVER spawns anything (spawning was removed
+#: by the 2026-09-04 ruling, kept in force). This closes the "five days of silent
+#: lost mail" defect (test_seat_reachable_red.py) for Rill without widening to every
+#: seat. _is_seat_reachable already probes wake listener arming (NOT mere presence),
+#: so the notice only fires when Rill is genuinely unarmed-and-unread.
+_AUTO_WAKE_SEATS = {"claude", "dsh_agent"}
 
 
 #: What a cold seat's channel says instead of silently spawning one. Daniil 2026-09-04,
