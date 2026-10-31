@@ -1,6 +1,8 @@
 {
+  "version": 1,
   "_what": "The instance half of the `reachability` verb: WHICH scripts mark a production Discord gateway, where its log lands relative to the worktree it runs from, who counts as the operator, and how this deployment reaches the operator's phone.",
   "_readme": "Core code (core/comm/reachability.py) asks here instead of naming these values -- the Local-in-Core ratchet refuses a seat name, an absolute home path or a port inside Core, and these are exactly that class. Every value has an AKASHIC_* env override named beside it. Committed on purpose: these are house defaults, not secrets.",
+  "_two_planes": "REPO-VALUE lives in this committed file; MACHINE-VALUE lives in the private profile (akashic-local/profile/reachability.json), which core/local.py lays over this one at read time. A key that is `null` here is NOT an empty value -- it is a machine value this repo must never carry, and a null means the overlay did not supply it, which every rung reports as UNKNOWN rather than defaulting. Rill's A1, 2026-10-31.",
   "operator_ids": {
     "_what": "Senders whose mail IS the operator. Read by core/comm/reachability.py; scripts/bifrost_wake.py's operator override reads AKASHIC_OPERATOR_IDS (comma-separated, empty disables the override), which wins over this list.",
     "values": ["user", "daniel", "daniil"]
@@ -9,15 +11,16 @@
     "_what": "How a production Discord gateway is RECOGNISED, and where its real log lands. A gateway is a python process one of whose ARGUMENTS is one of these scripts -- matched on the script argument, never on prose inside a command line (the first draft of the verb matched the joined cmdline and reported a gateway that did not exist).",
     "script_markers": ["bifrost_runner_discord", "run_aurora_service"],
     "log_relpath": "state/logs/discord-gateway.log",
-    "_why_relpath": "Resolved against the PROCESS's working directory, not this checkout: the deployed gateway runs from its own worktree (2026-10-31: C:/Users/L5/AppData/Local/AkashicAurora/worktrees/sunshine-discord-split), so this checkout's state/logs is the wrong answer by construction."
+    "_why_relpath": "Resolved against the PROCESS's working directory, not this checkout: the deployed gateway runs from its own worktree (measured 2026-10-31; the path is in the private profile, because it names this machine's disk layout), so this checkout's state/logs is the wrong answer by construction."
   },
   "phone": {
     "_what": "The PhoneLink watcher's `ssh -R` forward: the phone's tailnet address, its sshd port, and the phone-side loopback ports the watcher forwards to this PC whenever PC-Link is on.",
-    "_source": "E:/dev/phonelink/phonelink.ps1 ($Tailnet, $Port, $Bifrost, $GamePort); scheduled task PhoneLink-Watcher runs `phonelink.ps1 watch`.",
-    "watcher": "E:\\dev\\phonelink\\phonelink.ps1",
-    "tailnet_host": "100.116.105.68",
+    "_source": "The watcher script and the phone's tailnet address are THIS machine's facts: they live in akashic-local/profile/reachability.json (keys `phone.watcher`, `phone.tailnet_host`). What stays here is the port shape, which any deployment shares.",
+    "watcher": null,
+    "tailnet_host": null,
     "ssh_port": 8022,
     "forwarded_ports": [8787, 8798],
-    "_env": "AKASHIC_PHONE_TAILNET / AKASHIC_PHONE_PORT override the two numbers at read time."
+    "_env": "AKASHIC_PHONE_TAILNET / AKASHIC_PHONE_PORT override the two numbers at read time; the env wins over both planes.",
+    "_null_means": "`tailnet_host: null` is deliberate. A tailnet address is a routable address for one machine: committing it publishes where to find this PC, which is the class the pre-push scan exists to catch. With no overlay value the phone rung reports UNKNOWN and names the missing Local data -- it never invents a default address."
   }
 }

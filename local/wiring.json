@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "_readme": "local/README.md",
   "_what": "The Local layer for THIS deployment: which files are production entry points, and which core/ modules are known-standalone. Consumed by scripts/checkers/check_wiring.py through core/local.py. Values only -- rules that DERIVE (enumerate every seat runner, every hook dir) stay in code.",
   "entry_points": [

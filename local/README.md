@@ -26,7 +26,8 @@ require a code edit to change:
 | file | holds | status |
 |---|---|---|
 | `wiring.json` | production **entry points** (each with the `why` it was added) and the **known-standalone** `core/` exceptions the wiring gate freezes | **live** — read by `scripts/checkers/check_wiring.py` |
-| `reachability.json` | the instance half of the `reachability` verb: which scripts mark the production gateway, where its log lands (relative to the worktree the *process* runs from), who counts as the operator, the phone's tailnet address/ports | **live** — read by `core/comm/reachability.py` |
+| `reachability.json` | the instance half of the `reachability` verb: which scripts mark the production gateway, where its log lands (relative to the worktree the *process* runs from), who counts as the operator, the port shape of the phone tunnel | **live** — read by `core/comm/reachability.py` |
+| `phone-panel.json` | the phone panel's allowlist: which services may be started/stopped, how each is probed, the panel's own machine config | **live** — read by `arsenal/panel/` |
 | `seats.json` | seat roster: agent ids and what each one is | planned |
 | `ports.json` | the ports this deployment binds and talks to | planned |
 | `paths.json` | instance paths that are genuinely instance-specific (a relocated data dir, an external tool root) | planned |
@@ -34,8 +35,41 @@ require a code edit to change:
 | `baselines/` | ratchet baselines that are **values, not rules** (a frozen count, a frozen set) | planned |
 
 Naming: one file per question, `*.json`, top level always a JSON **object** keyed by meaning.
-Every file starts with `_what` (what it answers) and `_readme` (this file), because a data file
-whose purpose is only in the reader's head is a data file that gets copied wrong.
+Every file starts with `version` (the schema this loader understands), `_what` (what it answers)
+and `_readme` (this file), because a data file whose purpose is only in the reader's head is a
+data file that gets copied wrong.
+
+## The second plane: the PRIVATE PROFILE (machine values)
+
+`local/` is **committed to a public repo**, so it may carry the house defaults and DERIVATIONS and
+never this machine's address or a home path. Rill's own rule for it (amendment A1, 2026-10-31) is
+one sentence: **REPO-VALUE goes public, MACHINE-VALUE goes private.**
+
+| plane | lives in | may hold | examples |
+|---|---|---|---|
+| **public** | `local/<name>.json` here | shape, house defaults, derivations (`${INSTANCE_ROOT}/...`, a leading `~`), and a `null` where a machine value belongs | the allowlist, the loopback ports, `tailnet_host: null` |
+| **private** | `akashic-local/profile/<name>.json` (a separate private repo, found by `$AKASHIC_LOCAL` or a marker walk) | this machine's values, with a schema `version` | the phone's tailnet address, where an external tool is installed, which seat the panel reports on |
+
+`core.local.load()` reads the public file and then **overlays** the private one, so one read gives
+the complete answer and `public_only()` / `overlay()` give the two halves when the split itself is
+the question. The merge rule is stated once in `core.local.merge()`: objects merge key-wise, a list
+whose members all carry an `id` merges BY id (so a profile carries only the rows it changes), and
+anything else is replaced.
+
+Two behaviours are deliberate:
+
+1. **An absent overlay FAILS OPEN and says so**, once per process, on stderr. Every caller of this
+   module is a diagnostic that should still run on a fork with no profile; silence is not an
+   option, because a machine value that quietly went missing reads as "UNKNOWN" on a screenshot
+   and as a bug in the wrong file. A fork that ships only `local/` sees that line exactly once.
+2. **A broken overlay REFUSES.** No `version`, a version newer than the loader understands, or
+   invalid JSON is not "absent" — it is a profile whose shape we have not agreed to read, and
+   merging it anyway would put values of unknown structure into a live read.
+
+The gate that keeps the public half honest is the second surface of the purity ratchet
+(`scripts/checkers/check_core_purity.py`, `local_purity_baseline.json`): **no tailnet or LAN
+address and no home path in `local/`, `arsenal/panel/` or `scripts/phone/`**, frozen at zero.
+`tests/test_the_local_surface_carries_no_machine_values.py` breaks it on purpose.
 
 ## What does NOT belong here
 

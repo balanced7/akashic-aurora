@@ -493,8 +493,20 @@ def phone_tunnel(tailnet: Optional[str] = None, port: Optional[int] = None) -> D
         prt = 0
     forwarded = [str(p) for p in (phone.get("forwarded_ports") or [])]
     if not host or not prt:
+        # THREE ways to get here, and the message distinguishes them, because they have three
+        # different fixes: no `phone` section at all, a section whose address is `null` by design
+        # (the public file refuses to commit a routable address), or no sshd port anywhere.
+        if not phone:
+            why = _local_missing("phone", LOCAL_FILE)
+        elif not host:
+            why = (f"local/{LOCAL_FILE}.json carries phone.tailnet_host: null and the private "
+                   f"profile (akashic-local/profile/{LOCAL_FILE}.json) supplied no value -- set "
+                   f"AKASHIC_PHONE_TAILNET or add the overlay key. UNKNOWN, not 'down'")
+        else:
+            why = (f"no sshd port to connect to: local/{LOCAL_FILE}.json has phone.ssh_port "
+                   f"{phone.get('ssh_port')!r} and AKASHIC_PHONE_PORT is unset")
         return {"state": UNKNOWN, "forwards": [],
-                "why": _local_missing("phone", LOCAL_FILE),
+                "why": why,
                 "tailnet_host": host or "?", "tailnet_port": prt or "?",
                 "phone_answers": None, "phone_state": UNKNOWN}
     ps = _psutil()
