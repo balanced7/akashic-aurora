@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Phone Panel">
+  <!-- A dark rounded tile with three state dots and a control bar: the page's whole idea in one glyph.
+       `sizes: any` in the manifest, and a safe inset for the maskable crop. -->
+  <rect width="512" height="512" rx="96" fill="#0b0d12"/>
+  <circle cx="150" cy="176" r="30" fill="#35d07f"/>
+  <circle cx="256" cy="176" r="30" fill="#f0b93b"/>
+  <circle cx="362" cy="176" r="30" fill="#f2555a"/>
+  <rect x="112" y="256" width="288" height="44" rx="22" fill="#242b3a"/>
+  <rect x="112" y="256" width="150" height="44" rx="22" fill="#6aa8ff"/>
+  <rect x="112" y="336" width="288" height="44" rx="22" fill="#242b3a"/>
+  <rect x="112" y="336" width="86" height="44" rx="22" fill="#35d07f"/>
+</svg>

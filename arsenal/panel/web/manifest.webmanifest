@@ -1,0 +1,19 @@
+{
+  "name": "Phone Panel — Akashic Aurora",
+  "short_name": "Phone Panel",
+  "description": "Connections and services on the PC, controllable from the phone. Installs to the home screen; when the PC is unreachable it says so instead of showing a stale green.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

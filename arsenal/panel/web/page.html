@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<meta name="color-scheme" content="dark">
+<title>Phone Panel</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<!-- The PC-unreachable banner. It is the FIRST thing in the document because it is the state Daniel is
+     most likely to meet: the phone's own tunnel is down, so nothing here can be measured. The button
+     is a reminder of where the fix lives -- Termux:Widget on this phone, not this page. -->
+<div id="offline" class="banner" hidden>
+  <strong>PC unreachable</strong>
+  <span>This page cannot reach the panel, so nothing below is a measurement — every dot is amber, not green.</span>
+  <span class="banner-hint">To bring the link back: open <b>Termux:Widget</b> on this phone and tap <b>link-up</b>.</span>
+</div>
+
+<header class="top">
+  <div class="title">
+    <h1>Phone Panel</h1>
+    <p id="asof" class="muted">connecting…</p>
+  </div>
+  <button id="refresh" class="icon" type="button" aria-label="Refresh now">⟳</button>
+</header>
+
+<main id="main">
+  <section id="link-card" class="card">
+    <h2>Link</h2>
+    <p id="verdict" class="verdict muted">…</p>
+    <ul id="link-rows" class="rows"></ul>
+  </section>
+
+  <section id="video-card" class="card">
+    <h2>Video</h2>
+    <ul id="video-rows" class="rows"></ul>
+    <a id="artemis" class="btn wide" href="#" hidden>Open Artemis</a>
+    <p id="artemis-why" class="muted small"></p>
+  </section>
+
+  <div id="services"></div>
+
+  <section id="status-only" class="card" hidden>
+    <h2>Watched, never touched</h2>
+    <p class="muted small">These have no buttons on purpose: Rill's own process (the house rule), the
+      Claude wake listener (a phone-triggered listener the harness cannot track), and the PhoneLink
+      watcher (restarting it from here would cut this phone off).</p>
+    <ul id="watch-rows" class="rows"></ul>
+  </section>
+
+  <section id="audit-card" class="card">
+    <h2>Last actions</h2>
+    <ul id="audit-rows" class="rows small"></ul>
+  </section>
+</main>
+
+<dialog id="confirm">
+  <form method="dialog">
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p id="confirm-body" class="muted"></p>
+    <div class="dialog-actions">
+      <button value="cancel" class="btn" type="submit">Cancel</button>
+      <button value="go" id="confirm-go" class="btn danger" type="submit">Do it</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
