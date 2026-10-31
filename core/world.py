@@ -184,15 +184,16 @@ def _from_name(leaf: str) -> Optional[str]:
 def _parent_checkout(root: Path) -> Optional[Path]:
     """The checkout this one is a GIT WORKTREE of, or None.
 
-    A linked worktree (`.claude/worktrees/<name>`, or any `git worktree add`) has a `.git` FILE
-    containing `gitdir: <parent>/.git/worktrees/<name>` rather than a directory. That line is the
-    only proof git gives us that this tree belongs to another one, and it is the proof used here:
-    the parent path is reconstructed and required to exist before anything is read from it.
+    A linked worktree (any `git worktree add`, including the harness's own worktrees directory)
+    has a `.git` FILE containing `gitdir: <parent>/.git/worktrees/<name>` rather than a directory.
+    That line is the only proof git gives us that this tree belongs to another one, and it is the
+    proof used here: the parent path is reconstructed and required to exist before anything is
+    read from it.
 
     WHY THIS EXISTS (2026-10-30 wish, phase 3 of the modular-core detangle): "(c) worktrees
     inherit `.aurora-world` from their parent checkout instead of printing UNKNOWN checkout ...
-    falling back on every commit". Measured on this checkout before the fix: every command in
-    `.claude/worktrees/modular-core-p3` printed
+    falling back on every commit". Measured on this checkout before the fix: every command in a
+    linked worktree of this repo printed
 
         [world] UNKNOWN checkout -- the checkout is named 'modular-core-p3', which matches no
         world, and no .aurora-world was found in it

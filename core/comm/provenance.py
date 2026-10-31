@@ -45,8 +45,8 @@ KEY = "origin"
 UNKNOWN = "unknown"
 
 #: Environment variables a door may use to declare itself, in precedence order. AKASHIC_DOOR is
-#: the one this house sets; the others are accepted because an out-of-tree launcher (the DSH
-#: plugin, a codex wake seat) may already be exporting one of them.
+#: the one this house sets; the others are accepted because an out-of-tree launcher (a web-harness
+#: plugin, a third-party wake seat) may already be exporting one of them.
 _ENV_VARS = ("AKASHIC_DOOR", "AKASHIC_ORIGIN", "BIFROST_DOOR")
 
 #: Script-name fragments -> the door they belong to. Matched on the BASENAME of argv[0], because a
