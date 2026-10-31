@@ -26,6 +26,7 @@ require a code edit to change:
 | file | holds | status |
 |---|---|---|
 | `wiring.json` | production **entry points** (each with the `why` it was added) and the **known-standalone** `core/` exceptions the wiring gate freezes | **live** — read by `scripts/checkers/check_wiring.py` |
+| `reachability.json` | the instance half of the `reachability` verb: which scripts mark the production gateway, where its log lands (relative to the worktree the *process* runs from), who counts as the operator, the phone's tailnet address/ports | **live** — read by `core/comm/reachability.py` |
 | `seats.json` | seat roster: agent ids and what each one is | planned |
 | `ports.json` | the ports this deployment binds and talks to | planned |
 | `paths.json` | instance paths that are genuinely instance-specific (a relocated data dir, an external tool root) | planned |

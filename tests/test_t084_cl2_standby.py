@@ -1,8 +1,19 @@
 """T084-CL-2 pins: bifrost-standby -- the turn-end ritual as ONE decision function.
 
-Ordering laws under pin (each a tonight's-failure receipt): consume-THEN-arm (C1-2), live-twin
-means DON'T listen (plan-wall redundant-watcher law), listener runs only after a clean drain,
-and the listener is INJECTED (the CLI blocks as its parent -- never detached, the T073 law).
+Ordering laws under pin (each a tonight's-failure receipt): consume-THEN-arm (C1-2), a live twin
+means DON'T take a second consumer seat (plan-wall redundant-watcher law), listener runs only
+after a clean drain, and the listener is INJECTED (the CLI blocks as its parent -- never
+detached, the T073 law).
+
+AMENDED 2026-10-31 (phase 3 of the modular-core detangle, Daniel's approval: "I love your
+proposed changes, fantastic work!!!"). The twin law USED to read "never listen behind a live
+twin", and the cost it did not price is now on the record: the session went SILENT -- standby
+exited 1 saying NOT listening, nothing consumed, nobody able to reach it. The law was right about
+the DRAIN and wrong about the ARM. It now reads: a live twin keeps the consumer seat AND this
+session arms an INCARNATION-ONLY listener, which admits only mail explicitly addressed to it. The
+one-consumer rule is untouched; the silence is what changed. The old assertion is kept below as a
+still-true half (the two-argument injection path is never the agent-wide arm) and the new half is
+pinned in tests/test_standby_twin_fallback.py.
 """
 import os
 import sys
@@ -18,15 +29,37 @@ def _stub_consume(result):
     return f
 
 
-def test_live_twin_holds_seat_no_listen(monkeypatch):
+def test_live_twin_holds_seat_no_agent_wide_listen(monkeypatch):
+    """A live twin keeps the seat; this session arms NOTHING AGENT-WIDE (the amended law)."""
     monkeypatch.setattr(bp, "consume_inbox", _stub_consume(
         {"seat_held": True, "holder": "session:twin", "teach": "seat held [holder liveness: marker-fresh (12s)]",
          "peeked": [{"kind": "reply", "frm": "deepseek", "content": "x"}]}))
     called = []
-    res = bp.standby("claude", "s1", listen=lambda a, s: called.append(1))
+
+    def _listen(agent_id, session_id, incarnation_only=False):
+        called.append({"incarnation_only": incarnation_only})
+        return 0
+
+    res = bp.standby("claude", "s1", listen=_listen)
+    assert res["decision"] == "twin-holds-seat-incarnation-listen"
+    assert res["listened"], "the session must not go silent behind a live twin"
+    assert called and called[0]["incarnation_only"] is True, \
+        "the arm behind a live twin must be INCARNATION-ONLY -- an agent-wide listener there " \
+        "double-wakes beside the seat-holder"
+    # the report names who holds the seat and how to reach this one
+    assert any("HELD by session:twin" in l for l in res["report"])
+    assert any("--to-incarnation" in l for l in res["report"])
+
+
+def test_live_twin_without_a_listener_stays_honest(monkeypatch):
+    """--no-listen behind a live twin: still exit 1 / no arm, and now it names the way back."""
+    monkeypatch.setattr(bp, "consume_inbox", _stub_consume(
+        {"seat_held": True, "holder": "session:twin", "teach": "seat held"}))
+    res = bp.standby("claude", "s1", listen=None)
     assert res["decision"] == "twin-holds-seat"
-    assert not res["listened"] and not called          # never listen behind a live twin
+    assert not res["listened"]
     assert any("NOT listening" in l for l in res["report"])
+    assert any("--to-incarnation" in l for l in res["report"])
 
 
 def test_clean_drain_then_listen(monkeypatch):

@@ -143,6 +143,19 @@ MANIFEST = {
     "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
     "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
     "sweep": "shared",  # T084: pure subject-bound awareness; native on all three agent doors
+    # 2026-10-31 (phase 3 of the modular-core detangle): `reachability` is CLI_ONLY BY DESIGN,
+    # not debt. It is the operator's stranded-seat screen: it enumerates processes, resolves
+    # another worktree's log path and reads the operator's own mail streams. Widening the caller
+    # set from "someone with a shell on this host" to "any attached seat" would turn a diagnostic
+    # into a way for a model to watch the room, and the store's whole lesson about process
+    # identity (WMI/cmdlines/projection) says the report is only as good as the host it ran on.
+    "reachability": "cli_only",
+    # 2026-10-31 (same phase): `bus read <id>` is CLI_ONLY for now, and the reason is the field
+    # it exists to show. Provenance ("did this come from Discord or from a runner?") is only as
+    # trustworthy as the doors that stamp it, and that stamping is younger than this flag; a twin
+    # that printed `unknown` for everything would teach its readers to ignore the field. Revisit
+    # once every producing door stamps an origin.
+    "bus": "cli_only",
     "glance": "shared",  # T079/T060: bounded WorldSnapshot; CLI, MCP, ToolBox
     "orient": "shared",  # T084 VR/GPS: one native scene over sweep + typed focus
     "shadow": "shared",  # T084 intent ghost: proposed effects shown, preview effects stay empty

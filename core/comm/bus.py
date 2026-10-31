@@ -526,6 +526,18 @@ class Bus:
         meta = dict(meta or {})
         meta.setdefault("frm_incarnation", os.environ.get("BIFROST_INCARNATION")
                         or f"{self.agent_id}:pid:{os.getpid()}")
+        # PROVENANCE (phase 3, 2026-10-30 wish: "bus messages carry provenance (discord /
+        # runner / cli / mcp), set at the door that creates them"). ONE stamp, at the one funnel
+        # every send path already passes through (send / send_reply / broadcast all end up here),
+        # so a door cannot forget: an explicit meta["origin"] wins, a declared AKASHIC_DOOR is
+        # second, and the process identifies itself third. A packet that carries none of those
+        # reads `unknown` on the way out -- never a default, because the wrong default here is a
+        # confident answer to "did this come from Discord?".
+        try:
+            from core.comm import provenance as _prov
+            meta = _prov.stamps(meta)
+        except Exception:
+            pass                       # a stamp is never worth losing a send over
         part_dicts = [(p.to_dict() if isinstance(p, Part) else p) for p in (parts or [])]
         env = {"frm": self.agent_id, "to": to, "kind": str(kind),
                "content": json.dumps(content, default=str), "ts": _now(),

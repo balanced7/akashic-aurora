@@ -182,6 +182,43 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     return True
 
 
+def incarnation_addressed(m, *, incarnation: str) -> bool:
+    """True only when this message EXPLICITLY names this session (`meta.to_incarnation`).
+
+    THE TWIN-FALLBACK ADMISSION (2026-10-31, phase 3 of the modular-core detangle). When another
+    session of the same agent id holds the RB-21 consumer seat, the old arm refused to listen at
+    all ("NOT listening") and this session quietly became unreachable: mail arrived, the seat sat
+    there, and nobody was told it could not be woken. The fix is not a second consumer -- it is a
+    SECOND KIND OF LISTENER, one that admits only mail addressed to this incarnation.
+
+    So the one-consumer rule stands untouched: agent-wide mail still wakes exactly the seat that
+    holds the seat, and this listener wakes only for `bifrost-send ... --to-incarnation <sid8>`,
+    which is the sender saying "this one, not whoever holds the seat". Same predicate the
+    wake decision already applies for explicit addressing (wake_worthy's branch 1); factored out
+    so the two cannot drift into two meanings.
+
+    The target is a session-id PREFIX of at least 8 characters (the twin-sync convention)."""
+    meta = getattr(m, "meta", None) or {}
+    target = str(meta.get("to_incarnation") or "")
+    me = str(incarnation or "")
+    return bool(target) and len(target) >= 8 and bool(me) and (me == target or me.startswith(target))
+
+
+def admits(m, *, agent: str, incarnation: str = "", incarnation_only: bool = False) -> bool:
+    """THE ONE admission rule an arm applies to a message, before the tier floor.
+
+    Extracted so the twin-fallback arm and the ordinary arm cannot drift into two meanings --
+    the same reason wake_worthy() exists. `incarnation_only` is the twin-fallback mode: it
+    NARROWS the gate to explicit incarnation addressing and never widens it.
+
+    Order is deliberate: the narrowing filter runs FIRST, so an agent-wide message is refused
+    before any round trip is spent asking whether it would have woken anyone.
+    """
+    if incarnation_only and not incarnation_addressed(m, incarnation=str(incarnation or "")):
+        return False
+    return wake_worthy(m, agent=agent, incarnation=str(incarnation or ""))
+
+
 def _hb_path(agent, session_id=None):
     from core.comm import wake_seat
     return wake_seat.seat_path(agent, session_id)
@@ -282,6 +319,12 @@ def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
 
 WAKE_NOTE_CAP = 4          # messages named in the note; beyond this the line says "+N more"
 WAKE_SNIPPET = 160         # characters of body per message -- enough to know, not to re-read
+#: --wake-full raises both limits rather than removing them: an unbounded note is a note that
+#: becomes unreadable (and un-renderable on a 120-char status line) the first time a long brief
+#: wakes a seat. 20k per message covers every real briefing in this house; the exception path
+#: (`bus read <id>`) is what an operator uses for the rest.
+WAKE_FULL_CHARS = 20000
+WAKE_FULL_MESSAGES = 20
 
 
 def wake_note_path(agent: str, session_id: str = "", tmp: str = None) -> str:
@@ -292,15 +335,24 @@ def wake_note_path(agent: str, session_id: str = "", tmp: str = None) -> str:
 
 
 def write_wake_note(agent: str, session_id: str = "", out: list = None,
-                    tmp: str = None) -> None:
-    """Record WHO woke this seat, for the next turn to announce.
+                    tmp: str = None, full: bool = False) -> None:
+    """Record WHO woke this seat, and -- with `full` -- exactly WHAT they said.
 
     Written ONLY on a mail exit. A deadline self-cycle writes the re-arm trigger instead and
     deliberately leaves no note: nothing arrived, and announcing "you woke" with no sender is
     the count-shaped non-answer this exists to replace.
+
+    THE `full` MODE (2026-10-30 wish, phase 3): "WOKE BY previews are clipped; every wake needed a
+    hand-written json one-liner". The default line stays a PREVIEW on purpose -- it is rendered
+    onto a status line and a 20k body there would be worse than useless. But the seat that has to
+    ACT on the message is left reconstructing it from a stream the note already had in hand, so
+    `--wake-full` keeps the whole body in the same note (and in the note's printout) while the
+    one-line WOKE BY stays a one-liner.
     """
+    cap = WAKE_FULL_MESSAGES if full else WAKE_NOTE_CAP
+    snip = WAKE_FULL_CHARS if full else WAKE_SNIPPET
     rows = []
-    for m in (out or [])[:WAKE_NOTE_CAP]:
+    for m in (out or [])[:cap]:
         if not isinstance(m, dict):
             continue
         # "text" FIRST, because that is the key the producer writes: the wake exit builds
@@ -326,14 +378,46 @@ def write_wake_note(agent: str, session_id: str = "", out: list = None,
         rows.append({"frm": str(m.get("frm") or m.get("from") or "?"),
                      "kind": str(m.get("kind") or "?"),
                      "id": str(m.get("id") or ""),
-                     "snippet": body.strip().replace("\n", " ")[:WAKE_SNIPPET]})
+                     "snippet": body.strip() if full else
+                                body.strip().replace("\n", " ")[:snip]})
     if not rows:
         return
     try:
         with open(wake_note_path(agent, session_id, tmp), "w", encoding="utf-8") as f:
-            json.dump({"at": time.time(), "total": len(out or []), "msgs": rows}, f)
+            json.dump({"at": time.time(), "total": len(out or []), "full": bool(full),
+                       "msgs": rows}, f)
     except Exception:
         pass                     # the note must never cost the wake
+
+
+def render_wake_full(doc, msgs_by_id=None) -> str:
+    """The WHOLE waking message, one block per message, for `--wake-full`.
+
+    Rendered from the message objects the arm already holds (not re-read from the bus): the
+    reader of a wake is the seat that must ACT on it, and re-reading it would be a second,
+    possibly-stale answer to a question this process had in hand. Every field the wire carries is
+    shown, because the field an operator needed and could not see is exactly what produced this
+    wish ("every wake needed a hand-written json one-liner")."""
+    if not isinstance(doc, dict):
+        return ""
+    rows = doc.get("msgs") or []
+    if not rows:
+        return ""
+    out = ["[akashic] WOKE BY (FULL message(s) -- the whole body, not a preview)"]
+    for i, m in enumerate(rows, 1):
+        out.append(f"--- message {i} of {len(rows)}" + (f" (of {doc.get('total')})"
+                                                        if doc.get("total") else ""))
+        out.append(f"  id:    {m.get('id') or '(none)'}")
+        out.append(f"  from:  {m.get('frm')}   kind: {m.get('kind')}")
+        body = (m.get("snippet") or "").rstrip()
+        out.append("  body:")
+        out.extend("    " + ln for ln in body.splitlines()) if body else out.append("    (empty)")
+    more = int(doc.get("total") or len(rows)) - len(rows)
+    if more > 0:
+        out.append(f"... and {more} more message(s) not shown (raise --wake-full's cap or use "
+                   f"`bus read <id>`)")
+    out.append("(read-only: this is what woke the seat; nothing here consumed mail)")
+    return "\n".join(out)
 
 
 def read_wake_note(agent: str, session_id: str = "", tmp: str = None):
@@ -481,7 +565,9 @@ def say_seen_at_fire(agent: str, delivered: list, session_id: str = "") -> int:
 def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
           api=None, hb_path: str = None, my_pid: int = None,
           session_id: str = "", seen_file: str = None,
-          min_tier: int = 3) -> int:   # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
+          min_tier: int = 3,               # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
+          incarnation_only: bool = False,
+          wake_full: bool = False) -> int:
     from core.comm.bifrost_api import BifrostAPI
     api = api if api is not None else BifrostAPI(agent)
     if not api.online_now:
@@ -557,9 +643,14 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             seen.append(f"{frm}:{kind}")
             if kind == "steer":
                 steers += 1
+            # TWIN-FALLBACK ARM (phase 3, 2026-10-31): when another session holds the consumer
+            # seat, this arm admits ONLY mail that names this incarnation -- so an agent-wide
+            # message still wakes exactly one seat (the seat-holder's) and cannot double-wake.
             # T073: the whole wake decision lives in wake_worthy() -- allowlist ratchet,
             # explicit incarnation addressing, echo + room-chatter skips (pins P1-P11).
-            if not wake_worthy(m, agent=agent, incarnation=str(session_id or "")):
+            # admits() puts the fallback's narrowing IN FRONT of that one gate, not beside it.
+            if not admits(m, agent=agent, incarnation=str(session_id or ""),
+                          incarnation_only=incarnation_only):
                 continue
             # THE TIER FLOOR (2026-09-23). A SECOND, independent question asked only of mail
             # that already passed the gate above: not "does this wake a seat" but "how much
@@ -604,7 +695,10 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
                 seen_set.add(ok)
                 seen_keys.append(ok)
             delivered.append(m)
-            out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
+            out.append(({"frm": frm, "kind": kind,
+                         "text": str(getattr(m, "content", "") or "")} if wake_full else
+                        {"frm": frm, "kind": kind,
+                         "text": str(getattr(m, "content", "") or "")[:2000]}))
 
     while not out:
         # T073 P8: near-deadline SELF-CYCLE -- exit before a block would overshoot the
@@ -744,7 +838,19 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         # "Background command completed (exit code 0)" and must spend a tool call on `tail`
         # to recover what this very function is holding (Daniel, 2026-10-05: "how do you get
         # notified what woke you? so you know exactly what came and from whom").
-        write_wake_note(agent, str(session_id or ""), out)
+        write_wake_note(agent, str(session_id or ""), out, full=wake_full)
+        if wake_full:
+            # FIRE-TIME, FULL BODY (phase 3, 2026-10-30 wish: "the WOKE BY preview is clipped;
+            # every wake needed a hand-written json one-liner"). Printed here rather than offered
+            # as a command, because the turn that just started is the one that must act.
+            try:
+                doc = json.load(open(wake_note_path(agent, str(session_id or "")),
+                                     encoding="utf-8"))
+                block = render_wake_full(doc)
+                if block:
+                    print(block)
+            except Exception:
+                pass
     # Read-state-first (Slice C): the governed task ledger prints BEFORE the messages, so a waking
     # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
     try:
@@ -852,6 +958,18 @@ def main() -> int:
                          "1 +directed asks, 2 +settlements of my own asks, 3 everything "
                          "(default, unchanged behaviour). A FLOOR lets a seat stay armed "
                          "over an informational backlog WITHOUT consuming it.")
+    ap.add_argument("--incarnation-only", action="store_true", dest="incarnation_only",
+                    help="TWIN FALLBACK: wake ONLY for mail that explicitly names this "
+                         "incarnation (meta.to_incarnation, i.e. `bifrost-send "
+                         "--to-incarnation <sid8>`). Armed by bifrost-standby when another "
+                         "session of this agent id holds the RB-21 consumer seat, so this "
+                         "session stays reachable without becoming a second consumer and "
+                         "without double-waking on agent-wide mail.")
+    ap.add_argument("--wake-full", action="store_true", dest="wake_full",
+                    help="print the WHOLE waking message(s) at fire time (id, from, kind and "
+                         "the full body) instead of leaving the seat to reconstruct them from "
+                         "the clipped WOKE BY preview. The preview line itself stays a "
+                         "preview on purpose.")
     a = ap.parse_args()
     if a.deadline is None:
         a.deadline = default_deadline_s()
@@ -882,7 +1000,9 @@ def main() -> int:
     clear_rearm_trigger(a.agent, a.session)   # R19: this arm IS the requested re-arm
     try:
         return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me,
-                     session_id=a.session, min_tier=a.min_tier)
+                     session_id=a.session, min_tier=a.min_tier,
+                     incarnation_only=bool(getattr(a, "incarnation_only", False)),
+                     wake_full=bool(getattr(a, "wake_full", False)))
     finally:
         # Remove the seat only if it is still OURS -- a newer watcher may have taken it
         # (newest-wins singleton); deleting its seat would un-arm a live listener.

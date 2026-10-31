@@ -610,6 +610,11 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         gmeta: Dict[str, Any] = {
             "source": "discord", "operator": False, "guest": True,
             "authority": "none",
+            # PROVENANCE (phase 3, 2026-10-30 wish): DECLARED here, at the one door that knows,
+            # rather than inferred downstream. `source: discord` already said where this module
+            # sits; `origin` is the field every read surface queries, so it is set explicitly
+            # instead of leaving the send door to identify the process.
+            "origin": "discord",
             "guest_name": str(author_name or "")[:64], "guest_id": str(author_id),
         }
         if message_id:
@@ -779,6 +784,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                 "mode": spawn_mode}
 
     meta: Dict[str, Any] = {"source": "discord", "operator": True,
+                            "origin": "discord",   # phase 3: DECLARED provenance (see gmeta)
                             "speaker": speaker}
     if message_id:
         # T376 S3a: same law as the guest path -- the relay self-identifies by

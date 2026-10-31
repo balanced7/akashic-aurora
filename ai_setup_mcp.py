@@ -63,6 +63,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # T081-W1: this process IS the MCP door -- stamp it so any boot() routed through here
 # renders 'door: MCP-native'. setdefault so an outer launcher can still override.
 os.environ.setdefault("AKASHIC_SEAT_DOOR", "mcp")
+# PROVENANCE, the bus half (phase 3, 2026-10-30 wish: "bus messages carry provenance (discord /
+# runner / cli / mcp), set at the door that creates them"). AKASHIC_SEAT_DOOR above answers "which
+# door am I" for boot rendering; AKASHIC_DOOR is what core.comm.bus stamps onto every packet this
+# process sends, so a message that arrived through an MCP seat says so ON THE WIRE -- declared,
+# never inferred from the sender's name or the script basename.
+os.environ.setdefault("AKASHIC_DOOR", "mcp")
 
 from mcp.server.fastmcp import FastMCP
 

@@ -67,9 +67,34 @@ from verbs import registry as _verb_registry
 # still in this file (the whisper/sweep line) calls it -- a moved helper must not become a hole.
 from verbs._legacy import (_awareness_subject, cmd_context, cmd_flow,  # noqa: F401
                            cmd_glance, cmd_ground, cmd_knowledge_map, cmd_lookback,
-                           cmd_orient, cmd_recall_bench, cmd_scout, cmd_shadow, cmd_sweep)
+                           cmd_orient, cmd_reachability, cmd_recall_bench, cmd_scout,
+                           cmd_shadow, cmd_sweep, cmd_bus)
 
 _MAX = 4000   # clamp absurdly long fields an agent might paste
+
+
+def _window(args, rows, noun="row", verb="this verb"):
+    """Apply a listing verb's `--limit` to `rows`, and RETURN THE LINE THAT SAYS IT CUT.
+
+    WHY A HELPER (2026-10-30 wish, phase 3 of the modular-core detangle: "a consistent --limit /
+    --json on the listing verbs that lack them"): every listing verb had invented its own cap --
+    `recall` printed 25 and said so, `locks` printed everything, `discover` printed everything --
+    so a reader could not know, without reading each verb's source, whether "I see 25" meant "there
+    are 25" or "there are 900". One helper means one sentence, one place to fix it, and a cap that
+    can never truncate in silence (a silent truncation turns a window into a lie, which is the
+    exact failure the cap exists to prevent).
+
+    `--limit 0` (or absent) means NO CAP: a listing verb that must show everything still can.
+    Returns (rows_to_show, note) where note is "" when nothing was cut."""
+    try:
+        limit = int(getattr(args, "limit", 0) or 0)
+    except (TypeError, ValueError):
+        limit = 0
+    rows = list(rows or [])
+    if limit <= 0 or len(rows) <= limit:
+        return rows, ""
+    return rows[:limit], (f"# showing {limit} of {len(rows)} {noun}(s) -- `{verb} --limit 0` "
+                          f"shows every one")
 
 
 def _clip(s, n=_MAX):
@@ -891,7 +916,10 @@ def cmd_recall(args):
         print(f"ERROR searching: {type(e).__name__}: {e}")
         return 1
     if args.json:
-        print(json.dumps(hits, indent=2, default=str))
+        shown, note = _window(args, hits, "lesson", verb="recall --json")
+        print(json.dumps(shown, indent=2, default=str))
+        if note:
+            print(note, file=sys.stderr)   # JSON stays valid; the cap is confessed on stderr
         return 0
     label = "all lessons" if not query else f"lesson(s) matching '{query}'"
     print(f"# {len(hits)} {label}")
@@ -914,7 +942,8 @@ def cmd_recall(args):
                       f"results — it may exist under a different spelling, or in the "
                       f"full corpus; try knowledge_full(source=\"<source>\") if you "
                       f"have the source pointer, or recall without quotes to broaden")
-    for h in hits[:25]:
+    shown, note = _window(args, hits, "lesson", verb="recall")
+    for h in shown:
         rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
         # [graduated] = rule now enforced by automation (see `graduate`); [benched] = curator
         # retired it for surfaced-never-credited (reversible; see `recall-curate`). Both keep
@@ -923,8 +952,8 @@ def cmd_recall(args):
                (" [benched]" if str(h.get("benched") or "").strip() else "")
         source = h.get("source") or f"learn:experiment:{h.get('experiment_name', '?')}"
         print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {rec} (source: {source})")
-    if len(hits) > 25:
-        print(f"# 25 of {len(hits)} lesson(s) shown; `recall --json` with the same query returns all matches")
+    if note:
+        print(note)
     return 0
 
 
@@ -1195,6 +1224,8 @@ def cmd_injections(args):
               f"{len(i.get('s', []))} lesson(s), {i.get('chars', 0)} chars")
         for s in i.get("s", [])[:3]:
             print(f"           - {s}")
+    if len(inj) > 25:
+        print(f"# 25 of {len(inj)} injection(s) shown; `injections --limit 0 --json` shows every one")
     return 0
 
 
@@ -1450,14 +1481,20 @@ def cmd_discover(args):
         return 0
 
     verbs = list_verbs(args.query)
+    verbs, vnote = _window(args, verbs, "verb", verb="discover")
     if args.json:
-        print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2)); return 0
+        print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2))
+        if vnote:
+            print(vnote, file=sys.stderr)
+        return 0
     q = (args.query or "").strip()
     print(f"# agent_cli.py - {len(verbs)} verb(s)" + (f" matching '{q}'" if q else "")
           + "   (run `py agent_cli.py <verb> -h` for arguments)")
     width = max((len(n) for n, _ in verbs), default=0)
     for n, h in verbs:
         print(f"  {n.ljust(width)}  {h}")
+    if vnote:
+        print(vnote)
     # ZERO MATCHES IS THE MOMENT THE POINTER IS WORTH MOST, and the moment it was
     # missing: asked "check whether a test failure is pre-existing" this path returns 0
     # while `suite-baseline` sits in the list it just searched. A substring search cannot
@@ -5514,12 +5551,67 @@ def cmd_handoff(args):
     except Exception:
         pass
 
+    # A HANDOFF TO A SEAT WITH A LIVE RUNNER (phase 3, 2026-10-30 wish): "warn that a handoff
+    # surfaces only at that seat's next boot, and offer the live path (or deliver live as well,
+    # behind a flag)." The receipt proves the RECORD was written, not that anyone will read it --
+    # a runner holds its lock and works the lane without ever rebooting, so a briefing addressed
+    # to a runner-served seat can sit unread for hours while the sender believes it landed. That
+    # exact cost is already on the record ("a boot-only handoff to a seat's never-rebooting
+    # runner sat unseen for hours"), so this is a warning at the door, not a new delivery law:
+    # the durable record is still written first and unconditionally.
+    delivery: dict = {"state": "not-checked"}
+    live_ref = None
+    try:
+        from core.comm import reachability as _reach
+        runner = _reach.live_runner(to_agent)
+        delivery = {"state": runner.get("state"), "runner": runner.get("holder"),
+                    "runtimes": bool(runner.get("runtimes"))}
+        if runner.get("state") == _reach.UP:
+            delivery["warning"] = (
+                f"'{to_agent}' is served by a LIVE RUNNER: this briefing is only read at that "
+                f"seat's NEXT BOOT, and a runner does not reboot. Deliver it live as well, or the "
+                f"target may not see it for hours.")
+            delivery["live_path"] = (
+                f'py agent_cli.py bifrost-send {args.agent_id} --to {to_agent} --kind inform '
+                f'--text "handoff: {_clip(task, 120)}"')
+        elif runner.get("state") == _reach.UNKNOWN:
+            delivery["warning"] = (f"could not check whether '{to_agent}' has a live runner "
+                                   f"({runner.get('why')}) -- unmeasured, not 'no runner'")
+        if args.deliver_live:
+            from core.comm.bus import get_bus
+            body = (f"LIVE HANDOFF from {args.agent_id} (also recorded as a boot briefing):\n"
+                    f"{task}")
+            if ctx.get("note"):
+                body += f"\n\nnote: {ctx['note']}"
+            if blockers:
+                body += "\n\nblockers: " + " || ".join(blockers)
+            live_ref = get_bus(_clip(args.agent_id, 200)).send(
+                to_agent, "inform", body,
+                meta={"source": "handoff-live", "from_seat": args.agent_id,
+                      "task_ref": _clip(task, 200)})
+            delivery["live_sent"] = bool(live_ref)
+            delivery["live_id"] = live_ref
+            if not live_ref:
+                delivery["live_warning"] = ("the live copy was NOT sent (bus offline or the send "
+                                            "was refused) -- the boot briefing is still recorded")
+    except Exception as exc:                                  # never let a warning break a handoff
+        delivery = {"state": "unknown",
+                    "why": f"{type(exc).__name__}: {exc}"}
+
     if args.json:
         print(json.dumps({"recorded": ok, "from": args.agent_id, "to": to_agent, "task": task,
-                          "clipped": clipped or None}))
+                          "clipped": clipped or None, "delivery": delivery}))
     else:
         print(f"[{'OK' if ok else 'FAIL'}] handoff {args.agent_id} -> {to_agent}: {_clip(task, 80)}")
         print(f"  (the target's next `boot` will surface this as its briefing)")
+        if delivery.get("warning"):
+            print(f"  WARNING: {delivery['warning']}")
+        if delivery.get("live_path") and not args.deliver_live:
+            print(f"  live path:  {delivery['live_path']}")
+        if delivery.get("live_sent"):
+            print(f"  live copy sent (bus id {live_ref}) -- the runner sees it this shift")
+        if delivery.get("live_warning"):
+            print(f"  {delivery['live_warning']}")
         for c in clipped:   # RB-5: the door's RESULT carries the clip, never silent
             print(c)
         _warn_unmirrored()   # session-end: don't hand off on top of unmirrored work
@@ -6631,14 +6723,22 @@ def standby_min_tier(flag=None) -> int:
     return WAKE_FLOOR_DEFAULT
 
 
-def standby_listener_argv(agent_id: str, session_id: str, min_tier: int) -> list:
+def standby_listener_argv(agent_id: str, session_id: str, min_tier: int,
+                          incarnation_only: bool = False, wake_full: bool = False) -> list:
     """The exact listener command the standby parents -- one builder so the pin and the
-    launcher cannot drift (the floor MUST reach the child or the default is a fiction)."""
+    launcher cannot drift (the floor MUST reach the child or the default is a fiction; and the
+    same is now true of the twin-fallback mode: an arm that intends incarnation-only and spawns
+    an agent-wide listener would DOUBLE-WAKE beside the seat-holder, which is the exact
+    redundancy the one-consumer rule exists to prevent)."""
     cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         "scripts", "bifrost_wake.py"), "--agent", agent_id,
            "--min-tier", str(int(min_tier))]
     if session_id:
         cmd += ["--session", session_id]
+    if incarnation_only:
+        cmd += ["--incarnation-only"]
+    if wake_full:
+        cmd += ["--wake-full"]
     return cmd
 
 
@@ -6655,7 +6755,7 @@ def cmd_bifrost_standby(args):
     ensure_lane_defaults()
     floor = standby_min_tier(getattr(args, "min_tier", None))
 
-    def _listen(agent_id, session_id):
+    def _listen(agent_id, session_id, incarnation_only=False):
         # Blocking child, NOT detached: this CLI process is the harness-tracked parent (the T073
         # law -- a detached listener notifies nobody). Env pins the work lane (T045 cutover).
         import subprocess
@@ -6663,7 +6763,10 @@ def cmd_bifrost_standby(args):
                # ORIGIN stamp (2026-10-01): THIS process is the harness-tracked parent, so the
                # listener's exit starts a turn -- the stop hook passes only on this origin.
                "BIFROST_WAKE_ORIGIN": "harness"}
-        return subprocess.run(standby_listener_argv(agent_id, session_id, floor), env=env).returncode
+        return subprocess.run(standby_listener_argv(agent_id, session_id, floor,
+                                                    incarnation_only=incarnation_only,
+                                                    wake_full=bool(getattr(args, "wake_full", False))),
+                              env=env).returncode
 
     from core.coord.session_id import ambient_session_id as _amb_sid
     session = args.session or _amb_sid()[0]
@@ -6698,11 +6801,19 @@ def cmd_bifrost_standby(args):
               f"{s['held_below_floor']} held below floor)")
     except Exception:
         pass
-    if res["decision"] == "listen":
+    if res["decision"] in ("listen", "twin-holds-seat-incarnation-listen"):
         rc = res.get("listen_rc")
+        twin = res["decision"].startswith("twin-")
         how = ("wake-worthy mail or deadline" if rc == 0
                else f"killed or crashed (rc={rc}) -- NOT a wake")   # C1-6: never report a signal death as mail
-        print(f"[standby] listener exited rc={rc} -- {how}; re-run bifrost-standby after handling")
+        if twin and rc == 0:
+            print(f"[standby] incarnation-only listener exited rc=0 -- mail addressed to THIS "
+                  f"session (or its deadline); re-arm after handling")
+        else:
+            print(f"[standby] listener exited rc={rc} -- {how}; re-run bifrost-standby after handling")
+    # EXIT CODE: `twin-holds-seat` with NO listener is the one case that is not reachable by
+    # design (--no-listen asked for report-only). The twin WITH an incarnation listener exits 0:
+    # the session is reachable, which is the whole point of the fallback.
     return 0 if res["decision"] != "twin-holds-seat" else 1
 
 
@@ -8047,12 +8158,16 @@ def cmd_locks(args):
     """Awareness: who holds what right now (across both agents)."""
     from core.comm.locks import LockManager
     locks = LockManager(args.agent_id or "viewer").list_locks()
+    shown, note = _window(args, locks, "lock", verb="locks")
     if args.json:
-        print(json.dumps(locks, indent=2, default=str)); return 0
+        print(json.dumps(shown, indent=2, default=str))
+        if note:
+            print(note, file=sys.stderr)
+        return 0
     if not locks:
         print("# no advisory path-locks held"); return 0
     print(f"# {len(locks)} advisory path-lock(s) held")
-    for lk in locks:
+    for lk in shown:
         mine = " (you)" if lk.get("agent") == args.agent_id else ""
         why = f"  why: {lk.get('note')}" if lk.get("note") else ""
         age = ""
@@ -8068,6 +8183,8 @@ def cmd_locks(args):
         except Exception:
             pass
         print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}{age}{why}")
+    if note:
+        print(note)
     return 0
 
 
@@ -8378,6 +8495,10 @@ def build_parser():
     dsc = sub.add_parser("discover", help="list every verb + its purpose (the self-describing door)")
     dsc.add_argument("query", nargs="?", default="", help="optional substring to filter verbs by name/purpose")
     dsc.add_argument("--json", action="store_true")
+    dsc.add_argument("--limit", type=int, default=0, dest="limit",
+                     help="max verbs to list (default 0 = every one -- the verb table is the "
+                          "self-describing door, and truncating it by default would hide the "
+                          "answer to 'does this system already do X?')")
     dsc.add_argument("--semantic", action="store_true",
                      help="ask at the level of MEANING instead of substring: 'does this "
                           "system already do X?' Returns EXISTS/WHAT/GAP/NEAREST MISS "
@@ -8826,6 +8947,11 @@ def build_parser():
 
     r = sub.add_parser("recall", help="search past lessons (no query = list all)")
     r.add_argument("query", nargs="?", default=""); r.add_argument("--json", action="store_true")
+    # Phase 3 (2026-10-30 wish: "a consistent --limit / --json on the listing verbs that lack
+    # them (recall had no --limit)"). 25 is the number this verb used to hardcode in silence --
+    # the flag makes the window a dial, and `_window` prints the line that says it cut.
+    r.add_argument("--limit", type=int, default=25, dest="limit",
+                   help="max lessons to show (default 25; 0 = every match)")
     r.add_argument("--full", default=None, help="pull the FULL record for one lesson's source pointer "
                     "(e.g. learn:experiment:NAME) -- the one-hop escape from a capped recall-at surface")
     r.add_argument("--agent", default=None,
@@ -8836,6 +8962,8 @@ def build_parser():
 
     li = sub.add_parser("list", help="list ALL lessons in memory")
     li.add_argument("--json", action="store_true")
+    li.add_argument("--limit", type=int, default=25, dest="limit",
+                    help="max lessons to show (default 25; 0 = every one)")
     li.set_defaults(fn=cmd_list)
 
     ra = sub.add_parser("recall-at", help="recall-at-action: relevant lessons/locks for a path or command")
@@ -8913,6 +9041,8 @@ def build_parser():
 
     ij = sub.add_parser("injections", help="the injection ledger: what recall pushed into contexts + cost")
     ij.add_argument("--hours", type=float, default=24, help="window (default 24)")
+    ij.add_argument("--limit", type=int, default=25, dest="limit",
+                    help="max injection rows to show (default 25; 0 = every one)")
     ij.add_argument("--json", action="store_true")
     ij.set_defaults(fn=cmd_injections)
 
@@ -9099,6 +9229,11 @@ def build_parser():
     h.add_argument("--note", default=None, help="free-form context note for the target")
     h.add_argument("--blocker", default=None, help="blockers to flag, separated by ' || '")
     h.add_argument("--list", action="store_true", help="list handoffs addressed to --to (or you) instead of writing")
+    h.add_argument("--deliver-live", action="store_true", dest="deliver_live",
+                   help="ALSO send the briefing on the bus now (kind=inform), so a seat served by "
+                        "a live runner sees it this shift instead of at its next boot. The durable "
+                        "boot briefing is still written; a failed live send is reported, never "
+                        "silently swallowed")
     h.add_argument("--json", action="store_true", help="JSON output")
     h.set_defaults(fn=cmd_handoff)
 
@@ -9329,6 +9464,10 @@ def build_parser():
                                                    "(default: harness session env)")
     sby.add_argument("--no-listen", action="store_true", help="drain + report only; do not block")
     sby.add_argument("--limit", type=int, default=None)
+    sby.add_argument("--wake-full", action="store_true", dest="wake_full",
+                     help="print the WHOLE waking message at fire time (id, sender, kind, full "
+                          "body) instead of leaving the next turn to reconstruct it from the "
+                          "clipped WOKE BY preview or a hand-written json one-liner")
     sby.add_argument("--min-tier", type=int, default=None, dest="min_tier", choices=[0, 1, 2, 3],
                      help="S3 tier floor for this arm: 0 operator only, 1 +directed asks, "
                           "2 +answers to my asks (DEFAULT; env BIFROST_WAKE_MIN_TIER), "
@@ -9566,6 +9705,8 @@ def build_parser():
 
     lks = sub.add_parser("locks", help="show who holds which advisory path-locks")
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")
+    lks.add_argument("--limit", type=int, default=0, dest="limit",
+                     help="max locks to show (default 0 = every held lock)")
     lks.set_defaults(fn=cmd_locks)
 
     blb = sub.add_parser("bifrost-fetch", help="fetch a spilled payload by content-addressed ref "
@@ -9664,6 +9805,37 @@ def build_parser():
                      help="seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback)")
     swp.add_argument("--json", action="store_true", help="emit observation.snapshot.v1 JSON")
     swp.set_defaults(fn=cmd_sweep)
+
+    rhb = sub.add_parser("reachability",
+                         help="ONE read-only screen: gateway row + its REAL log path, this "
+                              "seat's wake listener, the consumer seat, the last operator "
+                              "exchange, the phone tunnel")
+    rhb.add_argument("agent_id", nargs="?", default="",
+                     help="seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback)")
+    rhb.add_argument("--session", default="",
+                     help="the session whose wake seat to read (default: this process's ambient "
+                          "session id; the name-keyed legacy seat is always listed too)")
+    rhb.add_argument("--no-phone", action="store_true", dest="no_phone",
+                     help="skip the phone/tunnel rungs (a tailnet probe when the network is the "
+                          "thing that is broken)")
+    rhb.add_argument("--json", action="store_true", help="emit the whole report as JSON")
+    rhb.set_defaults(fn=cmd_reachability)
+
+    bus = sub.add_parser("bus",
+                         help="read ONE bus message by id, in full (the exception path behind "
+                              "every clipped preview): `bus read <id>`")
+    # POSITIONAL CHOICE, not add_subparsers: the door-parity checker reads subparsers as
+    # separate VERBS (the `fence` convention), and `read` is not a verb.
+    bus.add_argument("action", choices=["read"], help="read: print one message, every field")
+    bus.add_argument("id", nargs="?", default="",
+                     help="the message id, e.g. 1793405184749-0 (an id is unique only WITHIN a "
+                          "stream; the search covers every carrier stream under the namespace)")
+    bus.add_argument("--agent", default="",
+                     help="narrow the search to one agent's streams (inbox, seat inboxes, lanes)")
+    bus.add_argument("--stream", default="",
+                     help="read one stream directly (disambiguates an id held by several)")
+    bus.add_argument("--json", action="store_true", help="emit the record as JSON")
+    bus.set_defaults(fn=cmd_bus)
 
     ori = sub.add_parser("orient", help="VR/GPS scene: awareness + typed focus + landmarks + "
                                           "return tether, read-only and renderer-neutral")
@@ -10133,6 +10305,9 @@ def build_parser():
     df.add_argument("--needs", default="exec", help="capability required (exec|write|net)")
     df.add_argument("--why", default="", help="one line: what the discharge unblocks")
     df.add_argument("--list", action="store_true", help="show pending items")
+    df.add_argument("--json", action="store_true",
+                    help="machine-readable output (--list emits the pending queue as JSON; a "
+                         "listing verb without --json forced its reader to parse prose)")
     df.add_argument("--done", default=None, metavar="ID", help="discharge one item")
     df.add_argument("--receipt", default="", help="REQUIRED with --done: what happened")
     df.set_defaults(fn=cmd_defer)
@@ -10806,6 +10981,14 @@ def cmd_defer(args):
         return 0
     if getattr(args, "list", False):
         items = dq.pending()
+        # Phase 3 (2026-10-30 wish: consistent --limit/--json on the listing verbs): the queue is
+        # a listing verb, and it had no machine-readable door. It comes FIRST, before the roster
+        # teaching and the discharge hint, because a --json caller wants the data and would have
+        # to strip prose otherwise.
+        if getattr(args, "json", False):
+            print(json.dumps({"agent_id": args.agent_id, "pending": items,
+                              "count": len(items)}, indent=2, default=str))
+            return 0
         # ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY. Until 2026-08-20 an unknown seat's
         # queue printed the same cheerful "queue empty" as a real one, so an unsubstituted $SELF$
         # (or a plain typo) read a phantom queue and reported nothing waiting while the real queue
