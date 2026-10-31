@@ -17,12 +17,12 @@
     ],
     "suffix": ".py"
   },
-  "total": 1733,
+  "total": 1748,
   "by_class": {
-    "seat": 1315,
+    "seat": 1329,
     "path": 32,
     "port": 78,
-    "fork": 308
+    "fork": 309
   },
   "files": {
     "agent_cli.py": {
@@ -164,10 +164,10 @@
       "fork": 2
     },
     "core/comm/discord_inbound.py": {
-      "seat": 63,
+      "seat": 77,
       "path": 0,
       "port": 0,
-      "fork": 6
+      "fork": 7
     },
     "core/comm/discord_ladder.py": {
       "seat": 1,
