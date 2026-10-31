@@ -17,11 +17,15 @@ from pathlib import Path
 import pytest
 
 from arsenal.keylab import beatsync as BS
+from core import local
 from fake_winrt_smtc import PAUSED, PLAYING, FakeSmtc, until
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / "arsenal" / "keylab" / "nowplaying.py"
-PLAYLOG_DIR = Path(os.environ.get("PLAYLOG_DIR", r"E:\dev\playlog"))
+# The play tracker lives in this machine's PRIVATE repo (akashic-local/playlog), found the way core/local.py finds
+# the profile -- never a path written here. PLAYLOG_DIR overrides; no private repo -> the pin skips and says so.
+_PRIVATE = local.profile_dir()
+PLAYLOG_DIR = Path(os.environ.get("PLAYLOG_DIR") or (_PRIVATE.parent / "playlog" if _PRIVATE else "no-akashic-local"))
 
 
 def _np():

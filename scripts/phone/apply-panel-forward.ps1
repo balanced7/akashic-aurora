@@ -5,7 +5,7 @@ apply-panel-forward -- add ONE `-R` to the PhoneLink watcher, so the phone can r
     powershell -File E:\AI-Setup\scripts\phone\apply-panel-forward.ps1 -WhatIf
     powershell -File E:\AI-Setup\scripts\phone\apply-panel-forward.ps1 -Path <a copy>   # prove it
 
-WHY THIS IS A SCRIPT AND NOT AN ALREADY-MADE EDIT. `phonelink.ps1` lives at E:\dev\phonelink, OUTSIDE
+WHY THIS IS A SCRIPT AND NOT AN ALREADY-MADE EDIT. `phonelink.ps1` lives in the private akashic-local repo, OUTSIDE
 this repo, so a commit cannot carry the change and a seat whose file access is confined to the repo
 cannot make it. The honest options were (a) report that the forward is missing, or (b) ship the exact
 transformation as something that can be RUN and PROVEN. This is (b).
@@ -28,7 +28,7 @@ If the watcher's file is not the shape this was written for, it REFUSES and says
 never "fixes" a file it did not recognise.
 #>
 param(
-    [string]$Path = 'E:\dev\phonelink\phonelink.ps1',
+    [string]$Path = '',
     [int]$PanelPort = 8789,
     [switch]$WhatIf
 )
@@ -37,6 +37,20 @@ $ErrorActionPreference = 'Stop'
 function Say($text) { Write-Host $text }
 
 $Q = [char]39                      # a single quote, built explicitly: no escaping to get wrong
+
+# No -Path: the watcher lives in this machine's PRIVATE repo (akashic-local/phonelink). Ask the one loader where
+# that is (core/local.py: AKASHIC_LOCAL, else the marker walk) instead of writing this disk's layout here.
+if (-not $Path) {
+    Push-Location (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent)
+    $private = & py -c "from core import local; p = local.profile_dir(); print(p.parent if p else '')" 2>$null
+    Pop-Location
+    if (-not $private) {
+        Say "REFUSED: no private akashic-local repo on this machine, so no watcher to edit."
+        Say "Pass -Path <phonelink.ps1>. Nothing was changed."
+        exit 2
+    }
+    $Path = Join-Path $private 'phonelink\phonelink.ps1'
+}
 
 if (-not (Test-Path -LiteralPath $Path)) {
     Say "REFUSED: no watcher at $Path"

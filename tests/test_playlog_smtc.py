@@ -1,4 +1,4 @@
-"""The play tracker (playlog.py: outside this repo, in E:/dev/playlog, started at logon by the scheduled task
+"""The play tracker (playlog.py: outside this repo, in the private akashic-local repo, started at logon by the task
 Aurora-PlayLog) reads Spotify's now-playing every 2 s. Until 2026-10-29 each tick asked Windows for a new SMTC session
 manager and enumerated every session: NPSMSvc at 322-404 % of one core, 0 % with the tracker suspended.
 
@@ -19,9 +19,14 @@ from pathlib import Path
 
 import pytest
 
+from core import local
 from fake_winrt_smtc import PAUSED, PLAYING, FakeSmtc, until
 
-PLAYLOG_PY = Path(os.environ.get("PLAYLOG_PY", r"E:\dev\playlog\playlog.py"))
+# The tracker lives in this machine's PRIVATE repo (akashic-local/playlog), found the way core/local.py finds the
+# profile -- never a path written here. PLAYLOG_PY overrides; no private repo -> these skip and say so.
+_PRIVATE = local.profile_dir()
+PLAYLOG_PY = Path(os.environ.get("PLAYLOG_PY") or (_PRIVATE.parent / "playlog" / "playlog.py" if _PRIVATE
+                                                   else "no-akashic-local/playlog.py"))
 ENGINE = {"bpm": 128.0, "conf": 0.9, "db_bpm": 127.0, "chord": "Am", "key": "A minor", "level_db": -12.0}
 T0 = 1_761_750_000.0          # 2025-10-29, local time on this machine
 
