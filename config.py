@@ -60,6 +60,11 @@ PORT_UI = 8787              # Bifrost live agent console (scripts/bifrost_ui.py)
 PORT_UI_RESERVED = 8788     # RESERVED prod-aux. NOT the console. Do not bind for tests.
 PORT_MCP_HTTP = 18765       # ai_setup_mcp.py optional --http mode (MCP is stdio by default).
 
+# The phone control panel (arsenal/panel, 2026-10-31). Loopback ONLY, reached from the S24 through one
+# extra `-R` on the PhoneLink watcher's existing tunnel -- never published to the tailnet. 8789 is the
+# last free prod-band slot beside the console (8787) and the reserved prod-aux (8788).
+PORT_PHONE_PANEL = 8789
+
 # --- BETA (879x) -- E:\AI-Setup-Beta, longer-form integration; prod's waiting room ---
 # Renamed from SANDBOX 2026-08-14 (W156). Same band, same ports, new name: the world
 # gained a sibling, and "sandbox" stopped describing a TIER once there were two of them.
@@ -106,6 +111,11 @@ PORT_REGISTRY = {
     PORT_MCP_HTTP:      {"world": "prod",     "bound_by": "app",
                          "what": "MCP HTTP mode (stdio is the default, so usually silent)",
                          "owner": "ai_setup_mcp.py"},
+    PORT_PHONE_PANEL:   {"world": "prod",     "bound_by": "app",
+                         "what": "the phone control panel: status + allowlisted start/stop "
+                                 "(LOOPBACK ONLY; reaches the phone through the PhoneLink "
+                                 "watcher's ssh -R tunnel, never published to the tailnet)",
+                         "owner": "arsenal/panel (py -m arsenal.panel)"},
     REDIS_PORT:         {"world": "prod",     "bound_by": "container",
                          "what": "canonical knowledge store + bus (db 0 prod / db 15 test)",
                          "owner": "akashic-redis"},

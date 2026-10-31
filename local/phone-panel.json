@@ -1,0 +1,147 @@
+{
+  "_what": "The instance half of the phone control panel (arsenal/panel/): WHICH services Daniel may start and stop from his phone, HOW each one is started, stopped and measured, and the video feed's addresses. Code reads this file; it never carries these facts itself.",
+  "_readme": "Every value here was measured on this PC on 2026-10-31 (the argv and working directory of each live process, read from the process table, not from a doc). A row that cannot be verified is declared HONESTLY rather than optimistically: `probe.absent`, `stop.type: none` with a reason, or `status_only`. See docs/PHONE-PANEL.md for the drill that exercises this file.",
+  "_rule": "No entry here may name a command STRING. `start` is a LIST of arguments; `stop` is one of task_end / service_stop / kill_argv / none. A request from the phone can name only a service id and a verb -- it cannot reach any argument in this file, which is why none of these are injection surface.",
+  "panel": {
+    "_what": "What the screen says about the seat it is reporting on.",
+    "agent": "dsh_agent"
+  },
+  "services": [
+    {
+      "id": "gateway",
+      "label": "Discord gateway",
+      "group": "link",
+      "probe": {"kind": "argv", "match": ["bifrost_runner_discord"]},
+      "start": ["py", "scripts/revive.py", "--target", "gateway"],
+      "start_cwd": "E:/AI-Setup",
+      "stop": {"type": "none", "why": "the gateway is NEVER hand-killed. The house's revive ladder is the only lever: it observes, skips a healthy gateway and heals a dead one. A stop button here would be a hand-kill wearing a nicer label."},
+      "_why": "start and restart both call the revive ladder, which is a RECONCILER: on an already-healthy gateway it changes nothing. That is the intended shape -- Daniel's phone can ask 'make it reachable', not 'kill it'."
+    },
+    {
+      "id": "vj-engine",
+      "label": "VJ engine",
+      "group": "engine",
+      "probe": {"kind": "argv", "match": ["arsenal.keylab", "vj"]},
+      "start": ["py", "-m", "arsenal.keylab", "vj", "--connect"],
+      "start_cwd": "E:/AI-Setup",
+      "stop": {"type": "kill_argv", "match": ["arsenal.keylab", "vj"]},
+      "_why": "With FL Studio open the engine runs in GUEST mode by itself, so no flag is needed for either case."
+    },
+    {
+      "id": "stage-8796",
+      "label": "Stage preview 8796",
+      "group": "stage",
+      "probe": {"kind": "port", "host": "127.0.0.1", "port": 8796},
+      "start": ["py", "-m", "arsenal", "serve", "--port", "8796", "--no-performance-log"],
+      "start_cwd": "E:/AI-Setup/.claude/worktrees/stage-v4",
+      "stop": {"type": "kill_argv", "match": ["arsenal", "serve", "--port", "8796"]},
+      "log": "state/logs/stage-8796.log",
+      "_why": "Measured 2026-10-31: pid 176120 ran exactly this argv with cwd E:/AI-Setup/.claude/worktrees/stage-v4."
+    },
+    {
+      "id": "stage-8798",
+      "label": "Stage preview 8798",
+      "group": "stage",
+      "probe": {"kind": "port", "host": "127.0.0.1", "port": 8798},
+      "start": ["py", "-m", "arsenal", "serve", "--port", "8798", "--no-performance-log"],
+      "start_cwd": "E:/AI-Setup/.claude/worktrees/stage-v4",
+      "stop": {"type": "kill_argv", "match": ["arsenal", "serve", "--port", "8798"]},
+      "log": "state/logs/stage-8798.log",
+      "_why": "Also the port the PhoneLink watcher already forwards to the phone, so the preview is one tap from this panel."
+    },
+    {
+      "id": "runner-deepseek",
+      "label": "Bus runner (deepseek)",
+      "group": "bus",
+      "probe": {"kind": "argv", "match": ["bifrost_runner_deepseek"]},
+      "start": ["py", "scripts/revive.py", "--target", "daemon"],
+      "start_cwd": "E:/AI-Setup",
+      "stop": {"type": "none", "why": "a runner is a CHILD of its daemon, held by the runner lock (RB-21). The house moves a runner by reviving the daemon, not by killing the child: a hand-killed runner leaves the lock and the daemon's supervision disagreeing about who owns the seat."},
+      "_why": "`--target daemon` is a reconciler: it skips the daemons already healthy and raises only the dead, so this button is safe to press on a healthy fleet."
+    },
+    {
+      "id": "runner-kimi",
+      "label": "Bus runner (kimi)",
+      "group": "bus",
+      "probe": {"kind": "argv", "match": ["bifrost_runner_kimi"]},
+      "start": ["py", "scripts/revive.py", "--target", "daemon"],
+      "start_cwd": "E:/AI-Setup",
+      "stop": {"type": "none", "why": "same rule as the deepseek runner: the daemon and the runner lock own this seat, so the revive ladder is the lever and a hand-kill is not."},
+      "_why": "The revive ladder also picks the right runner SCRIPT per agent (a resurrected daemon that omitted --runner-script would spawn the wrong seat's runner). That is exactly the bug this row refuses to reintroduce from a phone."
+    },
+    {
+      "id": "playlog",
+      "label": "Play tracker",
+      "group": "log",
+      "probe": {"kind": "task", "name": "Aurora-PlayLog"},
+      "start": ["schtasks", "/Run", "/TN", "Aurora-PlayLog"],
+      "stop": {"type": "task_end", "name": "Aurora-PlayLog"},
+      "_why": "The tracker runs as the scheduled task Aurora-PlayLog (E:/dev/playlog/playlog.py is outside this repo). Restart = end then run, which is the documented restart from the 2026-10-30 SMTC work. Its state is read with `schtasks /query`; if that cannot be read the row says UNKNOWN, not DOWN."
+    },
+    {
+      "id": "openrgb",
+      "label": "OpenRGB server",
+      "group": "lights",
+      "probe": {"kind": "port", "host": "127.0.0.1", "port": 6742},
+      "start": ["E:/dev/openrgb-1.1/OpenRGB Windows 64-bit/OpenRGB.exe", "--server", "--server-host", "127.0.0.1", "--server-port", "6742", "--startminimized"],
+      "start_cwd": "E:/dev/openrgb-1.1/OpenRGB Windows 64-bit",
+      "stop": {"type": "kill_argv", "match": ["--server-port", "6742"]},
+      "_why": "Measured 2026-10-31: pid 7240 is exactly this argv, serving the SDK on 127.0.0.1:6742. The desk themes and the RGB bridge both talk to that port, so this row's state is also their precondition."
+    },
+    {
+      "id": "mem-watch",
+      "label": "Memory watch",
+      "group": "watch",
+      "probe": {"kind": "argv", "match": ["mem_watch.py"]},
+      "start": ["py", "scripts/ops/mem_watch.py"],
+      "start_cwd": "E:/AI-Setup",
+      "stop": {"type": "kill_argv", "match": ["mem_watch.py"]},
+      "log": "state/logs/mem-watch.jsonl",
+      "_why": "A sampler: it writes a durable JSONL. Killing it loses nothing but the samples it has not taken."
+    },
+    {
+      "id": "apollo",
+      "label": "Apollo (video host)",
+      "group": "video",
+      "probe": {"kind": "absent", "why": "Apollo is not installed on this PC (2026-10-31: no Windows service matching Apollo, no Apollo directory under Program Files). The video card shows this state until it is installed."},
+      "_why": "No start and no stop are declared, so this row renders with NO buttons and a red dot that means 'the video feed does not exist yet', not 'it broke'. When Apollo is installed, this row gains a service probe and an argv -- and nothing else in the panel changes."
+    },
+    {
+      "id": "rill-dsh",
+      "label": "Rill's own DSH process",
+      "group": "services",
+      "status_only": true,
+      "why_no_actions": "the house rule: nobody touches Rill's own DSH process from another surface. Watched here because its state is the answer to 'is the seat that built this page alive'.",
+      "probe": {"kind": "argv", "match": ["--profile", "headless"]}
+    },
+    {
+      "id": "claude-wake-listener",
+      "label": "Claude wake listener",
+      "group": "services",
+      "status_only": true,
+      "why_no_actions": "a phone-triggered listener would be untracked by the harness: it would wake turns nobody armed and no ledger entry would explain it.",
+      "probe": {"kind": "argv", "match": ["bifrost_wake.py"]}
+    },
+    {
+      "id": "phonelink-watcher",
+      "label": "PhoneLink watcher",
+      "group": "services",
+      "status_only": true,
+      "why_no_actions": "restarting it from the phone cuts the phone off, because the watcher IS the tunnel this page arrives through. Restart it at the PC keyboard, never from here.",
+      "probe": {"kind": "argv", "match": ["phonelink.ps1", "watch"]}
+    }
+  ],
+  "video": {
+    "_what": "The two ends of the video feed, as DECLARED values. Daniel's ruling: video = Apollo + Artemis (Serge suggests Artemis instead of moonlight; Artemis's full features need Apollo, the same author's Sunshine fork).",
+    "apollo_web": {
+      "url": "",
+      "why": "Apollo's web UI has no address here because Apollo is not installed. Fill this in when it is, and this line becomes the card's second button."
+    },
+    "artemis": {
+      "label": "Artemis",
+      "deep_link": "intent://#Intent;package=com.limelight.artemis;end",
+      "verified": false,
+      "why": "DECLARED, NOT VERIFIED: the package name com.limelight.artemis has not been checked against Daniel's install (the phone was unreachable while this was built). If the button answers 'no app can open this', correct THIS LINE -- that is one edit, and the failure is visible rather than silent."
+    }
+  }
+}
