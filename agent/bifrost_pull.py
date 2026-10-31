@@ -435,6 +435,17 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8,
     except Exception:
         pass
     msgs = peek_inbox(agent_id, limit=limit)
+    # PROVENANCE on the wire, for the `--json` reader (phase 3, 2026-10-30 wish: "bus messages
+    # carry provenance... shown by `bus read` and bifrost-sync --json"). Lifted to a TOP-LEVEL
+    # field per message because that is the field a script asks about; meta.origin stays exactly
+    # as the sender stamped it, and a message that carries none reads `unknown` -- never a guess.
+    try:
+        from core.comm import provenance as _prov
+        for _m in msgs:
+            if isinstance(_m, dict):
+                _m.setdefault("origin", _prov.of(_m.get("meta")))
+    except Exception:
+        pass                       # provenance must never cost a sync
     pause_line = ""
     try:
         from core.comm.control import format_pause_line, pause_status
