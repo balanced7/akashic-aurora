@@ -68,7 +68,7 @@ from verbs import registry as _verb_registry
 from verbs._legacy import (_awareness_subject, cmd_context, cmd_flow,  # noqa: F401
                            cmd_glance, cmd_ground, cmd_knowledge_map, cmd_lookback,
                            cmd_orient, cmd_reachability, cmd_recall_bench, cmd_scout,
-                           cmd_shadow, cmd_sweep)
+                           cmd_shadow, cmd_sweep, cmd_bus)
 
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
@@ -6688,7 +6688,7 @@ def standby_min_tier(flag=None) -> int:
 
 
 def standby_listener_argv(agent_id: str, session_id: str, min_tier: int,
-                          incarnation_only: bool = False) -> list:
+                          incarnation_only: bool = False, wake_full: bool = False) -> list:
     """The exact listener command the standby parents -- one builder so the pin and the
     launcher cannot drift (the floor MUST reach the child or the default is a fiction; and the
     same is now true of the twin-fallback mode: an arm that intends incarnation-only and spawns
@@ -6701,6 +6701,8 @@ def standby_listener_argv(agent_id: str, session_id: str, min_tier: int,
         cmd += ["--session", session_id]
     if incarnation_only:
         cmd += ["--incarnation-only"]
+    if wake_full:
+        cmd += ["--wake-full"]
     return cmd
 
 
@@ -6726,7 +6728,8 @@ def cmd_bifrost_standby(args):
                # listener's exit starts a turn -- the stop hook passes only on this origin.
                "BIFROST_WAKE_ORIGIN": "harness"}
         return subprocess.run(standby_listener_argv(agent_id, session_id, floor,
-                                                    incarnation_only=incarnation_only),
+                                                    incarnation_only=incarnation_only,
+                                                    wake_full=bool(getattr(args, "wake_full", False))),
                               env=env).returncode
 
     from core.coord.session_id import ambient_session_id as _amb_sid
@@ -9406,6 +9409,10 @@ def build_parser():
                                                    "(default: harness session env)")
     sby.add_argument("--no-listen", action="store_true", help="drain + report only; do not block")
     sby.add_argument("--limit", type=int, default=None)
+    sby.add_argument("--wake-full", action="store_true", dest="wake_full",
+                     help="print the WHOLE waking message at fire time (id, sender, kind, full "
+                          "body) instead of leaving the next turn to reconstruct it from the "
+                          "clipped WOKE BY preview or a hand-written json one-liner")
     sby.add_argument("--min-tier", type=int, default=None, dest="min_tier", choices=[0, 1, 2, 3],
                      help="S3 tier floor for this arm: 0 operator only, 1 +directed asks, "
                           "2 +answers to my asks (DEFAULT; env BIFROST_WAKE_MIN_TIER), "
@@ -9756,6 +9763,22 @@ def build_parser():
                           "thing that is broken)")
     rhb.add_argument("--json", action="store_true", help="emit the whole report as JSON")
     rhb.set_defaults(fn=cmd_reachability)
+
+    bus = sub.add_parser("bus",
+                         help="read ONE bus message by id, in full (the exception path behind "
+                              "every clipped preview): `bus read <id>`")
+    # POSITIONAL CHOICE, not add_subparsers: the door-parity checker reads subparsers as
+    # separate VERBS (the `fence` convention), and `read` is not a verb.
+    bus.add_argument("action", choices=["read"], help="read: print one message, every field")
+    bus.add_argument("id", nargs="?", default="",
+                     help="the message id, e.g. 1793405184749-0 (an id is unique only WITHIN a "
+                          "stream; the search covers every carrier stream under the namespace)")
+    bus.add_argument("--agent", default="",
+                     help="narrow the search to one agent's streams (inbox, seat inboxes, lanes)")
+    bus.add_argument("--stream", default="",
+                     help="read one stream directly (disambiguates an id held by several)")
+    bus.add_argument("--json", action="store_true", help="emit the record as JSON")
+    bus.set_defaults(fn=cmd_bus)
 
     ori = sub.add_parser("orient", help="VR/GPS scene: awareness + typed focus + landmarks + "
                                           "return tether, read-only and renderer-neutral")

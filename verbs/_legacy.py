@@ -24,6 +24,7 @@ one place to look when asking "what did the extraction promise to keep".
 """
 from verbs.groups.awareness.reachability import _reachability_subject, cmd_reachability  # noqa: F401
 from verbs.groups.awareness.sweep import _awareness_subject, cmd_sweep  # noqa: F401
+from verbs.groups.comm.bus import cmd_bus  # noqa: F401
 from verbs.groups.coord.scene import cmd_glance, cmd_ground, cmd_orient, cmd_shadow  # noqa: F401
 from verbs.groups.coord.scout import cmd_scout  # noqa: F401
 from verbs.groups.meters.bench import cmd_recall_bench  # noqa: F401
@@ -43,6 +44,7 @@ __all__ = [
     "cmd_knowledge_map",
     "cmd_lookback",
     "cmd_orient",
+    "cmd_bus",
     "cmd_reachability",
     "cmd_recall_bench",
     "cmd_scout",
