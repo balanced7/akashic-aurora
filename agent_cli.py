@@ -67,7 +67,8 @@ from verbs import registry as _verb_registry
 # still in this file (the whisper/sweep line) calls it -- a moved helper must not become a hole.
 from verbs._legacy import (_awareness_subject, cmd_context, cmd_flow,  # noqa: F401
                            cmd_glance, cmd_ground, cmd_knowledge_map, cmd_lookback,
-                           cmd_orient, cmd_recall_bench, cmd_scout, cmd_shadow, cmd_sweep)
+                           cmd_orient, cmd_reachability, cmd_recall_bench, cmd_scout,
+                           cmd_shadow, cmd_sweep)
 
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
@@ -9664,6 +9665,21 @@ def build_parser():
                      help="seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback)")
     swp.add_argument("--json", action="store_true", help="emit observation.snapshot.v1 JSON")
     swp.set_defaults(fn=cmd_sweep)
+
+    rhb = sub.add_parser("reachability",
+                         help="ONE read-only screen: gateway row + its REAL log path, this "
+                              "seat's wake listener, the consumer seat, the last operator "
+                              "exchange, the phone tunnel")
+    rhb.add_argument("agent_id", nargs="?", default="",
+                     help="seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback)")
+    rhb.add_argument("--session", default="",
+                     help="the session whose wake seat to read (default: this process's ambient "
+                          "session id; the name-keyed legacy seat is always listed too)")
+    rhb.add_argument("--no-phone", action="store_true", dest="no_phone",
+                     help="skip the phone/tunnel rungs (a tailnet probe when the network is the "
+                          "thing that is broken)")
+    rhb.add_argument("--json", action="store_true", help="emit the whole report as JSON")
+    rhb.set_defaults(fn=cmd_reachability)
 
     ori = sub.add_parser("orient", help="VR/GPS scene: awareness + typed focus + landmarks + "
                                           "return tether, read-only and renderer-neutral")
