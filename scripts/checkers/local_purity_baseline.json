@@ -1,0 +1,34 @@
+{
+  "_what": "The frozen count of MACHINE VALUES (tailnet address, LAN address, home path) in the PUBLIC local/panel surface. scripts/checkers/check_core_purity.py enforces the direction: counts may FALL, never rise.",
+  "_why": "A tailnet address is a routable address for one machine and a home path names a person's account; `local/`, arsenal/panel and scripts/phone are all committed to a PUBLIC repo. Both were found headed for the public remote by the 2026-10-31 pre-push scan, so this is a gate rather than a habit. The honest freeze here is ZERO -- these values belong in the private profile (akashic-local/profile/), read through core/local.py's overlay.",
+  "_classes": {
+    "tailnet": "\\b100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])\\.\\d{1,3}\\.\\d{1,3}\\b",
+    "lan": "\\b(?:10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3})\\b",
+    "home": "\\b[A-Za-z]:[\\\\/]+Users[\\\\/][^\\\\/\\s\\\"'`,;:]+|(?<![\\w.])/(?:home|Users)/[A-Za-z0-9._-]+"
+  },
+  "_scope": {
+    "dirs": [
+      "local",
+      "arsenal/panel",
+      "scripts/phone"
+    ],
+    "suffixes": [
+      ".json",
+      ".py",
+      ".ps1",
+      ".sh",
+      ".js",
+      ".html",
+      ".css",
+      ".webmanifest",
+      ".svg"
+    ]
+  },
+  "total": 0,
+  "by_class": {
+    "tailnet": 0,
+    "lan": 0,
+    "home": 0
+  },
+  "files": {}
+}
