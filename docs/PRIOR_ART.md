@@ -29,7 +29,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 - `core/foundation` -- DRIFT (8->10), reviewed 2026-07-26
 - `core/events` -- DRIFT (3->5), reviewed 2026-07-26
-- `core/comm` -- DRIFT (36->73), reviewed 2026-07-26
+- `core/comm` -- DRIFT (36->76), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->35), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->19), reviewed 2026-07-26
@@ -38,10 +38,10 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/fleet` -- DRIFT (2->8), reviewed 2026-07-26
 - `agent/harness` -- DRIFT (9->13), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->13), reviewed 2026-07-26
-- `scripts/checkers` -- DRIFT (12->24), reviewed 2026-07-26
+- `scripts/checkers` -- DRIFT (12->25), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->10), reviewed 2026-07-26
-- `tests` -- DRIFT (331->921), reviewed 2026-07-26
+- `tests` -- DRIFT (331->932), reviewed 2026-07-26
 
 ---
 
@@ -112,7 +112,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/comm` -- 73 modules  ·  DRIFT (36->73)
+## `core/comm` -- 76 modules  ·  DRIFT (36->76)
 
 **What it does.** The Bifrost bus and everything around it -- purpose-keyed lanes (work / trace / sig), per-agent consume cursors, packet envelopes with integrity and fragmentation, expectations and redrives, the wake listener, the launcher, and the fidelity ladder (inform / steer / interrupt / halt). By far our largest subsystem.
 
@@ -450,7 +450,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `scripts/checkers` -- 24 modules  ·  DRIFT (12->24)
+## `scripts/checkers` -- 25 modules  ·  DRIFT (12->25)
 
 **What it does.** Twelve guards run at ship/CI time: door parity, doc currency, pointer promises, comprehensibility, boundaries, clobber scan and others. They fail the build on drift.
 
@@ -518,7 +518,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 921 modules  ·  DRIFT (331->921)
+## `tests` -- 932 modules  ·  DRIFT (331->932)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

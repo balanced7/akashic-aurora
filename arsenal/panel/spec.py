@@ -23,6 +23,17 @@ which is worse than one that refused to start and said why.
 LINES ARE NOT SPLIT. Every argv element is one argument exactly as it will arrive in the child. This
 matters for the house's own services: `py -m arsenal serve --port 8796 --no-performance-log` is five
 elements, not one string to be re-parsed by anything.
+
+TWO PLANES, ONE DOCUMENT (Rill's A1, 2026-10-31). `local/phone-panel.json` is COMMITTED, so it may
+carry only what a stranger's fork could inherit: the allowlist's shape, the house services, the
+loopback ports, and paths written as DERIVATIONS rather than as this machine's absolute truth.
+`${INSTANCE_ROOT}` (the checkout the panel is running from) and a leading `~` are the two
+derivations this loader understands; a token it does NOT understand is a `SpecError`, never a
+literal handed to `subprocess`. This machine's own values -- where OpenRGB is installed, which seat
+the link card reports -- live in the PRIVATE profile (`akashic-local/profile/phone-panel.json`) and
+are laid over the committed defaults by `core.local.load()` before this module ever sees them, so
+`load_document()` still validates exactly one document and the private half is validated by the
+same code as the public half.
 """
 from __future__ import annotations
 
@@ -61,6 +72,13 @@ _ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,39}$")
 _MAX_ARGV = 24
 _MAX_ARG = 260
 _MAX_LABEL = 60
+
+#: The derivations a path (or an argv element) may be written with, so the COMMITTED allowlist
+#: never has to name an absolute truth about one machine. `${INSTANCE_ROOT}` is the tree the panel
+#: is running from -- passed in as `root`, so the same file resolves correctly in a worktree, in a
+#: shadow tree the drill runs against, and in a clone.
+_TOKEN_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+_KNOWN_TOKENS = ("INSTANCE_ROOT",)
 
 
 class SpecError(ValueError):
@@ -122,7 +140,31 @@ def _string(value: Any, where: str, *, limit: int = _MAX_ARG, allow_empty: bool 
     return value
 
 
-def _argv(value: Any, where: str) -> Tuple[str, ...]:
+def _expand(value: str, where: str, root: str) -> str:
+    """Resolve a DERIVED path so the committed allowlist can stay machine-independent.
+
+    Two forms are understood and nothing else: `${INSTANCE_ROOT}` (the panel's own tree) and a
+    leading `~` (the running user's home). An UNKNOWN `${TOKEN}` is a ``SpecError``: passing it
+    through would spawn a child with a literal `${...}` argument, and silently dropping it would
+    start the service in the wrong directory -- both are worse than refusing to start a panel.
+    """
+    def substitute(match):
+        name = match.group(1)
+        if name == "INSTANCE_ROOT":
+            return root
+        raise SpecError(
+            f"{where}: unknown derivation ${{{name}}}. Understood: "
+            f"{', '.join('${' + t + '}' for t in _KNOWN_TOKENS)} and a leading '~'. A value that "
+            f"is true only on one machine belongs in the private profile "
+            f"(akashic-local/profile/phone-panel.json), not in this committed file.")
+
+    out = _TOKEN_RE.sub(substitute, value)
+    if out.startswith("~"):
+        out = os.path.expanduser(out)
+    return out
+
+
+def _argv(value: Any, where: str, root: str) -> Tuple[str, ...]:
     """A frozen argv vector. A STRING IS REFUSED on purpose: a string is the shape that invites
     `shell=True` later, and it is also the shape that silently splits on a space inside a path."""
     _need(not isinstance(value, str), where,
@@ -131,7 +173,8 @@ def _argv(value: Any, where: str) -> Tuple[str, ...]:
     _need(isinstance(value, (list, tuple)), where, "argv must be a list of arguments")
     _need(len(value) > 0, where, "argv must not be empty")
     _need(len(value) <= _MAX_ARGV, where, f"argv has more than {_MAX_ARGV} elements")
-    out = tuple(_string(a, f"{where}[{i}]") for i, a in enumerate(value))
+    out = tuple(_expand(_string(a, f"{where}[{i}]"), f"{where}[{i}]", root)
+                for i, a in enumerate(value))
     _need(bool(out[0].strip()), where, "argv[0] (the executable) must not be blank")
     return out
 
@@ -164,7 +207,7 @@ def _spec(raw: Dict[str, Any], index: int, root: str) -> ServiceSpec:
               "question than 'is this service up on this PC'")
         probe["host"] = host
     elif kind == "argv":
-        probe["match"] = list(_argv(probe.get("match"), f"{where}.probe.match"))
+        probe["match"] = list(_argv(probe.get("match"), f"{where}.probe.match", root))
         _need(len(probe["match"]) > 0, f"{where}.probe.match", "needs at least one element")
     elif kind in ("task", "service"):
         probe["name"] = _string(probe.get("name"), f"{where}.probe.name", limit=120)
@@ -175,13 +218,15 @@ def _spec(raw: Dict[str, Any], index: int, root: str) -> ServiceSpec:
     start = None
     start_cwd = None
     if raw.get("start") is not None:
-        start = _argv(raw.get("start"), f"{where}.start")
+        start = _argv(raw.get("start"), f"{where}.start", root)
         cwd = raw.get("start_cwd")
         if cwd is not None:
-            start_cwd = _string(cwd, f"{where}.start_cwd", limit=260)
+            start_cwd = os.path.normpath(_expand(_string(cwd, f"{where}.start_cwd", limit=260),
+                                                f"{where}.start_cwd", root))
             _need(os.path.isabs(start_cwd), f"{where}.start_cwd",
-                  "must be an absolute path -- a relative one resolves against wherever the panel "
-                  "happened to be launched from, which is not a thing to leave to chance")
+                  "must be an absolute path (or a derivation -- ${INSTANCE_ROOT}, a leading '~'): "
+                  "a relative one resolves against wherever the panel happened to be launched "
+                  "from, which is not a thing to leave to chance")
             _need(".." not in start_cwd.replace("\\", "/").split("/"), f"{where}.start_cwd",
                   "must not walk up with '..'")
 
@@ -198,7 +243,7 @@ def _spec(raw: Dict[str, Any], index: int, root: str) -> ServiceSpec:
         elif stype == "service_stop":
             stop["name"] = _string(stop.get("name"), f"{where}.stop.name", limit=120)
         elif stype == "kill_argv":
-            stop["match"] = list(_argv(stop.get("match"), f"{where}.stop.match"))
+            stop["match"] = list(_argv(stop.get("match"), f"{where}.stop.match", root))
             _need(len(stop["match"]) > 0, f"{where}.stop.match", "needs at least one element")
         elif stype == "none":
             stop["why"] = _string(stop.get("why", "stopping this from the phone is refused"),
@@ -215,7 +260,7 @@ def _spec(raw: Dict[str, Any], index: int, root: str) -> ServiceSpec:
     log = None
     if raw.get("log") is not None:
         log = _string(raw.get("log"), f"{where}.log", limit=260)
-        norm = log.replace("\\", "/")
+        norm = _expand(log.replace("\\", "/"), f"{where}.log", root)
         _need(".." not in norm.split("/"), f"{where}.log", "must not walk up with '..'")
         log = norm if os.path.isabs(norm) else os.path.join(root, norm)
 
@@ -235,16 +280,6 @@ def load_document(path: str, root: Optional[str] = None):
                     URL scheme is a fact about that app on that phone, and a guess ships a dead button);
       * `panel`  -- the agent id and session the link card reports, and an optional confirm TTL.
     A fork with no `video` section gets a video card that says so, which is the honest answer."""
-    specs, meta = _load(path, root)
-    return specs, meta
-
-
-def load_specs(path: str, root: Optional[str] = None) -> Dict[str, ServiceSpec]:
-    """The allowlist alone. Raises SpecError on ANY violation, naming the offender."""
-    return _load(path, root)[0]
-
-
-def _load(path: str, root: Optional[str]):
     try:
         with open(path, "r", encoding="utf-8") as fh:
             doc = json.load(fh)
@@ -256,9 +291,20 @@ def _load(path: str, root: Optional[str]):
             f"buttons do nothing'.")
     except ValueError as exc:
         raise SpecError(f"the allowlist at {path} is not valid JSON: {exc}")
-    _need(isinstance(doc, dict), path, "the allowlist must be a JSON object")
+    return from_document(doc, path, root)
+
+
+def from_document(doc, source: str = "<in-memory>", root: Optional[str] = None):
+    """Validate an ALREADY-PARSED allowlist. Returns (specs, meta) -- the same contract as above.
+
+    This is the seam the private overlay needs: `core.local.load()` hands back the MERGED document
+    (public defaults + this machine's profile), and the merged document is validated by exactly the
+    same code as a file on disk -- one validator, so the private half cannot arrive through a
+    second, laxer door. It also keeps every pin able to build a document in memory with no file.
+    """
+    _need(isinstance(doc, dict), source, "the allowlist must be a JSON object")
     rows = doc.get("services")
-    _need(isinstance(rows, list) and len(rows) > 0, f"{path}.services",
+    _need(isinstance(rows, list) and len(rows) > 0, f"{source}.services",
           "must be a non-empty list")
     base = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     out: Dict[str, ServiceSpec] = {}
@@ -270,6 +316,11 @@ def _load(path: str, root: Optional[str]):
         out[spec.id] = spec
     meta = {k: v for k, v in doc.items() if k not in ("services",) and not k.startswith("_")}
     return out, meta
+
+
+def load_specs(path: str, root: Optional[str] = None) -> Dict[str, ServiceSpec]:
+    """The allowlist alone. Raises SpecError on ANY violation, naming the offender."""
+    return load_document(path, root)[0]
 
 
 def as_dict(spec: ServiceSpec) -> Dict[str, Any]:

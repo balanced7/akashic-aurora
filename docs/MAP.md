@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (44 of 209 modules lack both pin and paper by name)
+## GAP queue (44 of 212 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -90,7 +90,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (73 modules)
+## core/comm/  (76 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -104,6 +104,7 @@ Class: reference
 | `bridge_seal.py` | bridge_seal — the sealed envelope and the chain, for a bridge that may pass through a midpoint. | tests/test_bridge_seal_hardening.py | GAP |  |
 | `bridge_status.py` | Remote-bridge status and remediation — the model the Bifrost UI renders. | tests/test_bridge_status_pins.py | GAP |  |
 | `bus.py` | Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams. | tests/test_bifrost_bus.py | GAP | `AGENT_ID`, `AKASHIC_UNATTENDED_S`, `BIFROST_INCARNATION`, `BIFROST_NAMESPACE`, `BIFROST_REASK_WINDOW_S`, `BIFROST_REPLY_DEDUP_TTL_S`, `CLAUDE_CODE_SESSION_ID`, `PYTEST_CURRENT_TEST` |
+| `bus_read.py` | bus_read -- one message, by id, in full: the exception path behind every clipped preview. | tests/test_bus_read_verb.py | GAP | `BIFROST_NAMESPACE` |
 | `conductor_gate.py` | conductor_gate -- succession detection + the acting conductor's bounded mandate. | tests/drill_conductor_gate.py | GAP | `AKASHIC_CONDUCTOR_SUCCESSORS`, `AKASHIC_OPERATOR_IDS`, `BIFROST_AGENT_ID` |
 | `context_hints.py` | Context Hints -- compact, ephemeral, per-agent context forwarding between peers. | tests/test_context_hints_gate.py | GAP |  |
 | `control.py` | Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration. | tests/test_bifrost_control_halt.py | docs/library/design/20260712_control-plane-namespace-isolation-claude_fade67.md | `BIFROST_MAX_HOPS`, `BIFROST_MAX_REPLIES_PER_MIN`, `BIFROST_NAMESPACE` |
@@ -141,6 +142,8 @@ Class: reference
 | `peer_ready.py` | peer_ready -- make the peer EXIST before asking it something (T197c). | tests/test_t197c_peer_ready.py | GAP |  |
 | `presets.py` | Fan presets: a named answer contract bound to the parser that reads it back. | tests/test_arsenal_presets.py | GAP |  |
 | `promoter.py` | Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger. | tests/test_bifrost_promoter.py | GAP | `AKASHIC_ACK_UNHANDLED_HOURS` |
+| `provenance.py` | provenance -- WHERE a message came from, stamped by the door that creates it. | tests/test_bus_provenance.py | docs/library/contract/20261007_fact-sourcing-provenance-ladder_84c3e2.md |  |
+| `reachability.py` | reachability -- one screen answering "is this seat reachable, and by which path?" (READ-ONLY). | tests/test_boot_reports_reachability.py | GAP | `AKASHIC_OPERATOR_IDS`, `AKASHIC_PHONE_PORT`, `AKASHIC_PHONE_TAILNET`, `BIFROST_NAMESPACE` |
 | `reaper.py` | reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded. | tests/test_t108_s4_reaper_hardening.py | research/reviewed/fence-lite-s4-reaper-kimi-2026-07-28.md |  |
 | `remote_relay.py` | Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1). | tests/test_remote_relay_pins.py | GAP | `AKASHIC_REMOTE_BRIDGE_PEER_URL` |
 | `resume_on_deaf.py` | resume_on_deaf -- S2 of the wake ladder (T420, Daniel 2026-10-01). | tests/test_resume_on_deaf.py | GAP | `AKASHIC_WAKE_EXPECTED_DIR`, `AKASHIC_WAKE_RESUMES_DIR` |

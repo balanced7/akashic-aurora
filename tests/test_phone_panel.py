@@ -327,7 +327,10 @@ def test_a_request_string_never_reaches_a_command(tmp_path):
 def test_a_non_loopback_host_is_refused_by_the_constructor(tmp_path):
     world = FakeWorld()
     panel = _panel_from(BASE_SPEC, world, port=0, tmp_path=tmp_path)
-    for host in ("0.0.0.0", "192.168.0.10", "100.116.105.68", "::", "localhost.evil.com"):
+    # 100.64.0.1 is the GENERIC carrier-grade-NAT example (RFC 6598), not this house's phone.
+    # The first draft used the real tailnet address as the vector, which put a routable address
+    # for one machine into a PUBLIC repo to test a rule that has nothing to do with that machine.
+    for host in ("0.0.0.0", "192.168.0.10", "100.64.0.1", "::", "localhost.evil.com"):
         with pytest.raises(ValueError, match="loopback only"):
             PanelServer(panel, host=host, port=0)
 

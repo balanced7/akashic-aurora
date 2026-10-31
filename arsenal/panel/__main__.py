@@ -30,7 +30,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from arsenal.panel.server import API_VERSION, DEFAULT_PORT, Panel, PanelServer  # noqa: E402
-from arsenal.panel.spec import SpecError, load_document  # noqa: E402
+from arsenal.panel.spec import SpecError, from_document, load_document  # noqa: E402
 from arsenal.panel.status import ReachabilityCache  # noqa: E402
 
 
@@ -42,27 +42,43 @@ def _default_port() -> int:
         return DEFAULT_PORT
 
 
-def _local_path(name: str) -> str:
-    """`local/<name>.json` in THIS checkout, resolved by marker walk rather than by env.
+def _local_document(name: str):
+    """`local/<name>.json` MERGED with this machine's private profile, through the ONE loader.
 
-    Deliberately not an env override: a panel started from a worktree must read THAT worktree's
-    instance data, or the drill would exercise the main checkout's allowlist instead of the one under
-    test (the same reasoning as core/local.py, which this mirrors on purpose)."""
-    here = os.path.abspath(os.path.dirname(__file__))
-    probe = here
-    for _ in range(8):
-        if os.path.exists(os.path.join(probe, "agent_cli.py")):
-            return os.path.join(probe, "local", name + ".json")
-        parent = os.path.dirname(probe)
-        if parent == probe:
-            break
-        probe = parent
-    return os.path.join(ROOT, "local", name + ".json")
+    The committed file is the allowlist's SHAPE plus the house services; the machine half -- where
+    OpenRGB is installed, which seat the link card reports -- lives in the private profile
+    (`akashic-local/profile/phone-panel.json`) and must never be committed to a public repo. So the
+    panel asks `core.local`, exactly as every checker asks it, rather than parsing `local/` itself:
+    a second parser here would silently drop the private half, and the panel would come up looking
+    healthy while two of its rows carried defaults belonging to somebody else's machine.
+
+    `core.local.load()` announces an absent profile in one loud line on stderr and then returns the
+    public defaults, so a fork with no profile still runs -- it just says so.
+    """
+    try:
+        from core import local as local_layer
+    except ImportError as exc:                     # pragma: no cover - every checkout has core/
+        raise SpecError(
+            f"the panel reads its allowlist through core/local.py, which could not be imported "
+            f"({exc}). Reading local/{name}.json with a private parser here would drop the private "
+            f"profile silently, so this is a refusal rather than a fallback.")
+    try:
+        return local_layer.load(name), str(local_layer.local_path(name))
+    except local_layer.LocalDataMissing as exc:
+        raise SpecError(str(exc))
+
+
+def _allowlist(args):
+    """(specs, meta, source): an explicit `--spec` file, or the merged Local document."""
+    if args.spec:
+        return (*load_document(args.spec), args.spec)
+    doc, path = _local_document("phone-panel")
+    specs, meta = from_document(doc, path)
+    return specs, meta, path
 
 
 def build_panel(args) -> Panel:
-    spec_path = args.spec or _local_path("phone-panel")
-    specs, meta = load_document(spec_path)
+    specs, meta, _source = _allowlist(args)
     panel_meta = meta.get("panel") or {}
     agent = (args.agent or os.environ.get("AKASHIC_AGENT_ID")
              or str(panel_meta.get("agent") or ""))
@@ -78,9 +94,8 @@ def build_panel(args) -> Panel:
 
 def self_check(args) -> int:
     """Print what the panel WOULD control. Binds nothing, starts nothing, probes nothing."""
-    spec_path = args.spec or _local_path("phone-panel")
     try:
-        specs, meta = load_document(spec_path)
+        specs, meta, spec_path = _allowlist(args)
     except SpecError as exc:
         print(f"REFUSED: {exc}")
         return 2

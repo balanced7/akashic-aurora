@@ -20,7 +20,8 @@ project exists to remove. When the phone is dark, the fix is Daniel tapping link
 param(
     [switch]$WhatIf,
     [int]$PanelPort = 8789,
-    [string]$HostName = ''      # override: an address to try first
+    [string]$HostName = '',     # override: an address to try first
+    [string]$Tailnet = ''       # override: the phone's tailnet address (see Get-PhoneTailnet)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,7 +29,6 @@ $Repo   = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # ...\phone-pa
 $Source = Join-Path $PSScriptRoot ''
 $Remote = 's24'
 $Port   = 8022
-$Tailnet = '100.116.105.68'
 $Ssh = 'C:\Program Files\Git\usr\bin\ssh.exe'   # Windows' OpenSSH 9.5 fails KEX against the phone
 $Scp = 'C:\Program Files\Git\usr\bin\scp.exe'
 $SshConf = "$env:USERPROFILE\.ssh\config"
@@ -36,6 +36,69 @@ $RemoteDir = '.shortcuts/tasks'
 $Files = @('link-up.sh', 'link-down.sh', 'link-status.sh')
 
 function Say($text) { Write-Host $text }
+
+# ---- the phone's tailnet address: THIS MACHINE's value, never the repo's -----------------------
+# A tailnet address is a routable address for one machine, so it belongs to the private profile
+# (akashic-local/profile/reachability.json) and NOT in a public repo -- this script used to carry it
+# as a literal, which is exactly the leak the pre-push scan exists to catch. Same three sources as
+# core/local.py: the flag, $AKASHIC_PHONE_TAILNET, then the profile found via $AKASHIC_LOCAL or a
+# marker walk. Absent is NOT fatal here: the phone may still answer on the LAN (the `s24` entry in
+# ~/.ssh/config), and a REFUSAL at the end will say which addresses were tried.
+function Get-LocalProfileDir {
+    if ($env:AKASHIC_LOCAL) {
+        if (Test-Path (Join-Path $env:AKASHIC_LOCAL 'profile') -PathType Container) {
+            return (Join-Path $env:AKASHIC_LOCAL 'profile')
+        }
+        if (Test-Path (Join-Path $env:AKASHIC_LOCAL '.akashic-local')) {
+            return (Join-Path $env:AKASHIC_LOCAL 'profile')
+        }
+        return $null   # a set-but-unusable variable is a misconfiguration, not an absent machine
+    }
+    $probe = $Repo
+    while ($probe) {
+        $cands = @()
+        $sib = Join-Path $probe 'akashic-local'
+        if (Test-Path $sib -PathType Container) { $cands += $sib }
+        foreach ($kid in (Get-ChildItem -Path $probe -Directory -ErrorAction SilentlyContinue)) {
+            $deep = Join-Path $kid.FullName 'akashic-local'
+            if (Test-Path $deep -PathType Container) { $cands += $deep }
+        }
+        foreach ($c in $cands) {
+            if (Test-Path (Join-Path $c '.akashic-local')) { return (Join-Path $c 'profile') }
+        }
+        $parent = Split-Path -Parent $probe
+        if (-not $parent -or $parent -eq $probe) { break }
+        $probe = $parent
+    }
+    return $null
+}
+
+function Get-PhoneTailnet {
+    if ($env:AKASHIC_PHONE_TAILNET) { return $env:AKASHIC_PHONE_TAILNET }
+    $dir = Get-LocalProfileDir
+    if (-not $dir) {
+        Say "note: no private profile found (no `$AKASHIC_LOCAL, no '.akashic-local' marker in an"
+        Say "      akashic-local directory at or one level under a parent of $Repo), so the tailnet"
+        Say "      address is UNKNOWN and only the LAN candidates below will be tried."
+        return ''
+    }
+    $f = Join-Path $dir 'reachability.json'
+    if (-not (Test-Path $f)) { return '' }
+    try { $doc = Get-Content -Raw -Path $f | ConvertFrom-Json } catch {
+        Say "note: the profile's ${f} is not readable JSON; the tailnet address is UNKNOWN"
+        return ''
+    }
+    if ($null -eq $doc.version) {
+        Say "note: the profile's ${f} carries no 'version', so it was NOT used (same refusal as"
+        Say "      core/local.py: an unversioned overlay is a shape we have not agreed to read)."
+        return ''
+    }
+    $host_ = $doc.phone.tailnet_host
+    if ($host_) { return [string]$host_ }
+    return ''
+}
+
+if (-not $Tailnet) { $Tailnet = Get-PhoneTailnet }
 
 function Test-Port([string]$Ip, [int]$P = $Port, [int]$TimeoutMs = 1200) {
     $c = New-Object System.Net.Sockets.TcpClient
@@ -56,8 +119,16 @@ $candidates = @()
 if ($HostName) { $candidates += $HostName }
 $lan = Get-LanHost
 if ($lan) { $candidates += $lan }
-$candidates += $Tailnet
+if ($Tailnet) { $candidates += $Tailnet }
 $candidates = $candidates | Select-Object -Unique
+
+if (-not $candidates) {
+    Say "REFUSED: there is no address to try. The LAN entry for 's24' was not found in"
+    Say "         $SshConf, and no tailnet address was supplied (flag -Tailnet,"
+    Say "         `$AKASHIC_PHONE_TAILNET, or phone.tailnet_host in the private profile)."
+    Say "         Nothing was copied; this is UNKNOWN, not 'the phone is down'."
+    exit 2
+}
 
 $phone = $null
 foreach ($ip in $candidates) {

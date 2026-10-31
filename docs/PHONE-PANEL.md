@@ -73,6 +73,26 @@ on Rill's own wording).
 listener (a phone-triggered listener would be untracked by the harness); the PhoneLink watcher (restarting
 it from the phone cuts the phone off). Each carries its reason in `why_no_actions`.
 
+### Two planes: the committed allowlist, and the machine's profile
+
+`local/phone-panel.json` is **committed to a public repo**, so it carries only what a stranger's fork
+could inherit: the service rows, the loopback ports, and paths written as **derivations** —
+`${INSTANCE_ROOT}/...` (the tree the panel runs from) or a leading `~`. A derivation this loader does not
+understand is a `SpecError`, never a literal handed to `subprocess`.
+
+The values that are true only on THIS PC live in the private profile
+(`akashic-local/profile/phone-panel.json`) and are laid over the committed file by `core.local.load()`
+before `spec.py` validates the result — one document, one validator:
+
+| key | public file | private profile |
+|---|---|---|
+| `panel.agent` | `null` (ask the profile, then `$AKASHIC_AGENT_ID`, else report an empty seat) | `dsh_agent` |
+| `services[openrgb].start` / `.start_cwd` | **absent** — the row keeps its probe and its stop, so the panel can still say whether the SDK is up, and refuses to start a tool it cannot locate | the installed argv and directory |
+
+A service row is merged **by `id`, field by field**, so the profile names the one row it changes instead
+of copying the allowlist. Without a profile the panel still starts (13 rows, `openrgb` probe+stop only)
+and `core.local` says the overlay is absent in one line on stderr — it is not silent, and it is not fatal.
+
 ## The gates on every request
 
 1. **Bind** — `127.0.0.1` only; the constructor *refuses* any other host, and the socket is bound

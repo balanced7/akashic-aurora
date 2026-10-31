@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 29bc0a85b. A bound you discover by collision is not awareness -- this sheet
+> Derived at 87d9a5d81. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (285 names)
+## Configuration flags (289 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +38 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +43 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -89,8 +89,10 @@ Class: reference
 | `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py |
 | `AKASHIC_ONEWORLD_JOURNAL` | `` | core/oneworld/journal.py |
 | `AKASHIC_OPERATOR_ID` | `` | core/comm/operator_reply.py |
-| `AKASHIC_OPERATOR_IDS` | `OPERATOR_IDS_DEFAULT` | core/comm/conductor_gate.py, scripts/bifrost_wake.py |
+| `AKASHIC_OPERATOR_IDS` | `OPERATOR_IDS_DEFAULT` | core/comm/conductor_gate.py, core/comm/reachability.py, scripts/bifrost_wake.py |
 | `AKASHIC_PAYLOAD_CAPTURE` | `"1"` | agent/harness/capture.py |
+| `AKASHIC_PHONE_PORT` | `` | core/comm/reachability.py |
+| `AKASHIC_PHONE_TAILNET` | `` | core/comm/reachability.py |
 | `AKASHIC_PLAN_RECALL` | `"1"` | agent/harness/actions.py, scripts/hooks/claude_userpromptsubmit.py |
 | `AKASHIC_PLAY_NETWORK` | `"0"` | core/toolbelt/play_sandbox.py |
 | `AKASHIC_PLAY_OUTPUT_MAX` | `"65536"` | core/toolbelt/play_sandbox.py |
@@ -125,6 +127,7 @@ Class: reference
 | `AKASHIC_SELF_RESTART_MIN_BEHIND` | `"3"` | core/comm/self_restart.py |
 | `AKASHIC_SELF_RESTART_MIN_UPTIME_S` | `"900"` | core/comm/self_restart.py |
 | `AKASHIC_SESSION8` | `` | agent_cli.py |
+| `AKASHIC_SESSION_ID` | `` | arsenal/panel/__main__.py |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SHIFT_LOOP` | `"1"` | core/comm/shift_turn.py |
@@ -179,7 +182,7 @@ Class: reference
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py, scripts/bifrost_runner_deepseek.py |
-| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/dsh_plugin/bridge.py +37 |
+| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/dsh_plugin/bridge.py +39 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
 | `BIFROST_REASK_WINDOW_S` | `` | core/comm/bus.py |
@@ -272,6 +275,7 @@ Class: reference
 | `PACKET_INTEGRITY_ENABLED` | `True` | core/comm/packet_spec.py |
 | `PACKET_INTEGRITY_TRACE` | `False` | core/comm/packet_spec.py |
 | `PACKET_TRACE_SPOT_INTERVAL` | `DEFAULT_TRACE_SPOT_INTERVAL` | core/comm/packet_spec.py |
+| `PURITY_SURFACE` | `""` | scripts/checkers/check_core_purity.py |
 | `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py, core/comm/wake_seat.py, scripts/ops/archive_transcripts.py |
 | `PYTHONPATH` | `""` | agent_cli.py, core/__init__.py, scripts/quiet/sitecustomize.py |
 | `PYTHONUTF8` | `` | arsenal/media/ff.py |
@@ -295,11 +299,11 @@ Class: reference
 | `STORM_DEPTH_THRESHOLD` | `50` | core/comm/storm_detect.py |
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
-| `TEMP` | `"."` | arsenal/keylab/fl/device_AuroraKeyLab.py, core/recall/precision_audit.py, scripts/hooks/snippet_autofile.py +1 |
+| `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/hooks/snippet_autofile.py, scripts/ops/archive_transcripts.py |
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (390 numeric constants)
+## Mechanical bounds (396 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -463,6 +467,7 @@ Class: reference
 | `MAX_BAND_NOTES` | 7 | arsenal/jam/schemas.py | a bass and up to 6 upper voices (MUSIC 3.2) |
 | `MAX_BARS` | 64 | arsenal/band.py |  |
 | `MAX_BEATS` | 64 | arsenal/jam/schemas.py |  |
+| `MAX_BODY` | 2,048 | arsenal/panel/server.py |  |
 | `MAX_BODY` | 240 | core/toolbelt/contest.py | a second voice is shorter than the first; chorus, not solo. |
 | `MAX_BODY` | 400 | core/toolbelt/toast.py | gratitude is short; the leaderboard guard is distinct-users love |
 | `MAX_CHARS` | 300 | scripts/hooks/snippet_autofile.py | likewise |
@@ -487,6 +492,7 @@ Class: reference
 | `MAX_NAME` | 60 | arsenal/pianolooks.py |  |
 | `MAX_NOTES` | 88 | arsenal/pianocue.py |  |
 | `MAX_NOTES_PER_LANE` | 4,096 | arsenal/fl/vfx/arsenal_band.py |  |
+| `MAX_OUTSTANDING` | 32 | arsenal/panel/tokens.py |  |
 | `MAX_PADS_BODY` | 4,096 | arsenal/keylab/vj.py |  |
 | `MAX_PATTERNS` | 64 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
@@ -592,6 +598,7 @@ Class: reference
 | `SAME_HARMONY_SHORT_MS` | 1,000 | arsenal/practice.py | ...or when the new bass is shorter than this, on a note the chord already holds |
 | `SAY_MAX` | 120 | arsenal/jam/schemas.py |  |
 | `SCALE_MIN_NOTES` | 12 | arsenal/practice_riff.py |  |
+| `SCAN_LIMIT` | 300 | core/comm/reachability.py |  |
 | `SCENE_NAME_MAX` | 40 | arsenal/keylab/vj.py |  |
 | `SCHEMA_KNOWN_MAX` | 1 | core/library/atoms.py |  |
 | `SEATSEEN_TTL_S` | 86,400 | core/comm/roster.py | kimi F1: death must outlive the worklive TTL to be RENDERABLE |
@@ -647,6 +654,7 @@ Class: reference
 | `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
 | `VIS_MAX_SHADOW_STEPS` | 64 | arsenal/shaders/twins/light.py | visibility.glsl's constant loop ceiling (a literal 64 there) |
 | `WAKE_FLOOR_DEFAULT` | 2 | agent_cli.py |  |
+| `WAKE_FULL_CHARS` | 20,000 | scripts/bifrost_wake.py |  |
 | `WAKE_NOTE_CAP` | 4 | scripts/bifrost_wake.py | messages named in the note; beyond this the line says "+N more" |
 | `WALK_STEP_MAX_MS` | 1,000 | arsenal/practice.py | ...and back-to-back windows this short, each on a new bass note under the same notes, are |
 | `WARNING_MAX` | 300 | arsenal/jam/schemas.py |  |
@@ -657,7 +665,6 @@ Class: reference
 | `WINDOW_PENALTY_MS` | 600 | arsenal/practice.py | the cost of one more window, in pitch-class-milliseconds |
 | `WINDOW_TICKS` | 2,048 | arsenal/analysis.py |  |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py |  |
-| `_BOUNDED_READ_CAP` | 8,000,000 | core/comm/toolbox.py | bytes per stream read back into memory |
 | `_CAP_MAX` | 200 | agent/harness/capture.py |  |
 | `_CAP_STR` | 400 | agent/harness/capture.py |  |
 | `_CMDLINE_MAX` | 32,000 | arsenal/media/audio.py |  |
@@ -669,8 +676,11 @@ Class: reference
 | `_KEEP_MAX` | 64 | arsenal/keylab/governor.py |  |
 | `_LIMIT_MAX` | 128 | arsenal/keylab/governor.py | the most slot times one bucket file holds with room to spare |
 | `_MAX` | 4,000 | agent_cli.py | clamp absurdly long fields an agent might paste |
+| `_MAX_ARG` | 260 | arsenal/panel/spec.py |  |
+| `_MAX_ARGV` | 24 | arsenal/panel/spec.py |  |
 | `_MAX_BLOB` | 3,000,000 | scripts/checkers/check_secrets.py |  |
 | `_MAX_DETAIL_CHARS` | 8,000 | core/events/event_log.py | raw is rich, but a single payload is still bounded |
+| `_MAX_LABEL` | 60 | arsenal/panel/spec.py |  |
 | `_MAX_LECTURE_BYTES` | 2,000,000 | core/library/college.py |  |
 | `_MAX_NOTE` | 100,000 | agent_cli.py | durable note bodies: a ceiling against runaway pastes, not a working size |
 | `_MAX_STEPS` | 100,000 | arsenal/jam/tempomap.py |  |

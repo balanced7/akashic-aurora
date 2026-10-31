@@ -27,7 +27,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (73 modules)
+## core/comm/  (76 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -38,6 +38,7 @@
 - `bridge_seal.py` — bridge_seal — the sealed envelope and the chain, for a bridge that may pass through a midpoint.
 - `bridge_status.py` — Remote-bridge status and remediation — the model the Bifrost UI renders.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
+- `bus_read.py` — bus_read -- one message, by id, in full: the exception path behind every clipped preview.
 - `conductor_gate.py` — conductor_gate -- succession detection + the acting conductor's bounded mandate.
 - `context_hints.py` — Context Hints -- compact, ephemeral, per-agent context forwarding between peers.
 - `control.py` — Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration.
@@ -75,6 +76,8 @@
 - `peer_ready.py` — peer_ready -- make the peer EXIST before asking it something (T197c).
 - `presets.py` — Fan presets: a named answer contract bound to the parser that reads it back.
 - `promoter.py` — Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger.
+- `provenance.py` — provenance -- WHERE a message came from, stamped by the door that creates it.
+- `reachability.py` — reachability -- one screen answering "is this seat reachable, and by which path?" (READ-ONLY).
 - `reaper.py` — reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded.
 - `remote_relay.py` — Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1).
 - `resume_on_deaf.py` — resume_on_deaf -- S2 of the wake ladder (T420, Daniel 2026-10-01).

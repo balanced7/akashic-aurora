@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (113 verbs)
+## CLI door -- `py agent_cli.py <verb>` (115 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -26,10 +26,11 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bifrost-resume` | un-freeze bus auto-responders |  |
 | `bifrost-send` | send a message to another agent on the bus | `<agent_id>*` `<text>` `--text-file` `--to` `--kind` `--broadcast` `--answers` `--expect-reply-within` `--to-incarnation` `--json` |
 | `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
-| `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` `--min-tier {0,1,2,3}` |
+| `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` `--wake-full` `--min-tier {0,1,2,3}` |
 | `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
 | `boop` | the smallest verb in the house: zero arguments, always answered | `--surface` `--agent` |
 | `boot` | print an agent's startup context | `<agent_id>*` `--task` `--json` `--sources-json` |
+| `bus` | read ONE bus message by id, in full (the exception path behind every clipped preview): `bus read <id>` | `<action>* {read}` `<id>` `--agent` `--stream` `--json` |
 | `captions` | YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) | `<url>*` `--out` `--langs` `--keep-vtt` `--punctuate {hybrid,gaps,model,line,none}` |
 | `capture` | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) | `<ref>` `--from-agent` `--count` `--persist` `--title` `--thread` `--agent` `--per-stream` `--as-doc` `--cite/--cites` `--type` `--arc` `--json` |
 | `clobber-scan` | W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt | `<path>*` `--json` |
@@ -37,10 +38,10 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `compare` | what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled | `<a>` `<b>` `--list` `--limit` `--json` |
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
 | `context` | W0.5/W0.6: one anchor, every plane -- or `--stats` to meter the stream | `<anchor>` `--level` `--stats` `--hours` `--limit` `--json` |
-| `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
+| `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--json` `--done` `--receipt` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` `--disk` `--hours` `--scope` |
 | `discord` | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists | `<action> {status,test,send}` `--text` `--kind` `--json` |
-| `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--semantic` |
+| `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--limit` `--semantic` |
 | `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt,arc}` |
 | `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--deploy` `--page` `--progress` `--json` |
 | `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |
@@ -60,16 +61,16 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `graduate` | retire a lesson from recall surfacing -- automation now enforces its rule | `<agent_id>*` `--experiment` `--enforced-by` `--undo` `--json` |
 | `grant` | S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring | `--bootstrap` `<agent_id>` `--role` `--by` `--reason` `--hours` `--permanent` `--caps` `--add-caps` `--drop-caps` `--replace` `--path-scope` `--request-ref` `--revoke` `--list` `--dry-run` `--json` |
 | `ground` | typed evidence for verb:<name>, or bounded recovery evidence for seat:<id> --continuity | `<target>*` `--agent` `--continuity` `--json` |
-| `handoff` | hand work to another agent (writes a briefing its next boot reads) | `<agent_id>*` `--to` `--task` `--note` `--blocker` `--list` `--json` |
+| `handoff` | hand work to another agent (writes a briefing its next boot reads) | `<agent_id>*` `--to` `--task` `--note` `--blocker` `--list` `--deliver-live` `--json` |
 | `harnesses` | integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers | `--json` |
-| `injections` | the injection ledger: what recall pushed into contexts + cost | `--hours` `--json` |
+| `injections` | the injection ledger: what recall pushed into contexts + cost | `--hours` `--limit` `--json` |
 | `kata` | grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real') | `<agent_id>*` `<name>*` |
 | `kit` | install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor) | `<agent_id>*` `<kit_name>` `--show` `--json` |
 | `knowledge-map` | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) | `<query>*` `--per-layer` `--json` |
 | `learn` | record a lesson | `<agent_id>*` `--experiment` `--repeat-of` `--recall-outcome` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` `--root-cause` `--files-affected` |
-| `list` | list ALL lessons in memory | `--json` |
+| `list` | list ALL lessons in memory | `--json` `--limit` |
 | `lock` | claim an advisory path-lock (C2) | `<agent_id>*` `<path>*` `--ttl` `--json` |
-| `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |
+| `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` `--limit` |
 | `log` | record an arbitrary narrative Beat | `<kind>` `--summary` `--source` `--category` `--task` `--json` |
 | `lookback` | one question over the rationale corpus: the strategic WHY, layered + drillable (P7) | `<question>*` `--per-layer` `--layers` `--json` |
 | `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--retire-ghosts` `--apply` `--min-age-h` `--limit-scan` `--min-evidence {unhandled,consumed,replied,acked}` `--open` `--state` `--intent` `--as {act,decline,defer,delegate}` `--to` `--note` `--backfill` `--incarnation` `--json` |
@@ -82,7 +83,8 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `packet-trace` | N0 dry-run: explain the static route for one packet kind (no send) | `<kind>*` `--json` |
 | `promoted` | query durable salient Bifrost msgs (kind=bifrost_msg / B2) | `--limit` `--since` `--until` `--json` |
 | `pulse` | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only | `<agent>` `--json` |
-| `recall` | search past lessons (no query = list all) | `<query>` `--json` `--full` `--agent` |
+| `reachability` | ONE read-only screen: gateway row + its REAL log path, this seat's wake listener, the consumer seat, the last operator exchange, the phone tunnel | `<agent_id>` `--session` `--no-phone` `--json` |
+| `recall` | search past lessons (no query = list all) | `<query>` `--json` `--limit` `--full` `--agent` |
 | `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--gesture` `--subject` `--domain` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
 | `recall-audit` | is recall ACCURATE? blind labelling pack + precision/recall/agreement score | `<action>* {pack,score}` `--n` `--seed` `--limit` `--out` `--labels` `--labels-file` `--misses` `--total-surfaced` `--json` |
 | `recall-bench` | W0.3: grade recall against the answer key (recall@k, abstention, chrome share) | `--set` `--limit` `--json` |
