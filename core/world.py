@@ -181,6 +181,65 @@ def _from_name(leaf: str) -> Optional[str]:
     return None
 
 
+def _parent_checkout(root: Path) -> Optional[Path]:
+    """The checkout this one is a GIT WORKTREE of, or None.
+
+    A linked worktree (`.claude/worktrees/<name>`, or any `git worktree add`) has a `.git` FILE
+    containing `gitdir: <parent>/.git/worktrees/<name>` rather than a directory. That line is the
+    only proof git gives us that this tree belongs to another one, and it is the proof used here:
+    the parent path is reconstructed and required to exist before anything is read from it.
+
+    WHY THIS EXISTS (2026-10-30 wish, phase 3 of the modular-core detangle): "(c) worktrees
+    inherit `.aurora-world` from their parent checkout instead of printing UNKNOWN checkout ...
+    falling back on every commit". Measured on this checkout before the fix: every command in
+    `.claude/worktrees/modular-core-p3` printed
+
+        [world] UNKNOWN checkout -- the checkout is named 'modular-core-p3', which matches no
+        world, and no .aurora-world was found in it
+
+    on every single invocation, because marker rung 2 looks only in the tree's own root and rung 3
+    (`git worktree` leaf names) matches nothing. The consequence is not cosmetic: UNKNOWN READS
+    BUT DOES NOT WRITE, so every worktree agent has to remember `echo alpha > .aurora-world`
+    before it can write anything -- and a rule you must remember is not a rule.
+    """
+    try:
+        dot_git = root / ".git"
+        if not dot_git.is_file():
+            return None
+        text = dot_git.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return None
+    if not text.startswith("gitdir:"):
+        return None
+    target = text.split(":", 1)[1].strip()
+    try:
+        gitdir = Path(target)
+        if not gitdir.is_absolute():
+            gitdir = (root / gitdir).resolve()
+        # <parent>/.git/worktrees/<name>  ->  <parent>
+        if gitdir.parent.name != "worktrees" or gitdir.parent.parent.name != ".git":
+            return None
+        parent = gitdir.parent.parent.parent
+        return parent if parent.is_dir() else None
+    except (OSError, ValueError):
+        return None
+
+
+def _inherited_marker(root: Path) -> tuple:
+    """(world, parent) from the PARENT checkout's marker, or (None, None). Never guesses."""
+    parent = _parent_checkout(root)
+    if parent is None:
+        return None, None
+    try:
+        raw = (parent / MARKER).read_text(encoding="utf-8", errors="replace").strip().lower()
+    except OSError:
+        return None, None
+    canon = ALIASES.get(raw, raw)
+    if canon in WORLDS:
+        return canon, parent
+    return None, None
+
+
 def resolve(root: Optional[Path] = None,
             env: Optional[Mapping[str, str]] = None) -> World:
     """Resolve the world. Never raises -- an unresolvable checkout gets UNKNOWN."""
@@ -211,6 +270,17 @@ def resolve(root: Optional[Path] = None,
         return replace(UNKNOWN, why=f"{MARKER} says {raw!r}, which is not a world "
                                     f"(legal: {', '.join(WORLDS)})")
 
+    # 2b. a GIT WORKTREE inherits its parent checkout's marker (phase 3, 2026-10-30 wish).
+    # Placed BELOW this tree's own marker on purpose: a worktree that declares itself beats its
+    # parent, so one checkout can still be pulled into another world deliberately. Placed ABOVE
+    # the name rung because inheritance is evidence about the same repository, while a directory
+    # leaf is a coincidence of how somebody typed `git worktree add`.
+    inherited, parent = _inherited_marker(root)
+    if inherited:
+        return replace(WORLDS[inherited], source="inherited",
+                       why=f"this is a git worktree of {parent}, whose {MARKER} says "
+                           f"{inherited}")
+
     # 3. the directory name -- convenience, never the guarantee
     guess = _from_name(root.name)
     if guess:
@@ -218,8 +288,15 @@ def resolve(root: Optional[Path] = None,
                        why=f"the checkout is named {root.name!r}")
 
     # 4. UNKNOWN. Deliberately not prod.
+    borrowed = ""
+    try:
+        par = _parent_checkout(root)
+        if par is not None:
+            borrowed = (f"; it is a git worktree of {par}, which carries no {MARKER} either")
+    except Exception:
+        pass
     return replace(UNKNOWN, why=f"the checkout is named {root.name!r}, which matches no "
-                                f"world, and no {MARKER} was found in it")
+                                f"world, and no {MARKER} was found in it{borrowed}")
 
 
 _cached: Optional[World] = None

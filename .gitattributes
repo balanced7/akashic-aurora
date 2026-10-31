@@ -50,3 +50,55 @@
 *.mid    binary
 *.mp4    binary
 *.woff2  binary
+
+# =============================================================================================
+# 2026-10-31, phase 3 of the modular-core detangle (Daniel approved the list 2026-10-30:
+# "I love your proposed changes, fantastic work!!!").
+#
+# (a) THE REST OF THE TEXT SURFACE. The policy above is right and it stops short: MEASURED with
+#     `git ls-files --eol` before writing this block, the INDEX is already LF for every tracked
+#     file (0 i/crlf), while 164 tracked files still carry CRLF in a working tree -- and every one
+#     of them is an extension the rules above do not name:
+#         .jsonl 73   .ps1 31   .log 16   extensionless 11   .bat 8   .cmd 4   .gitignore 3
+#         .tsv 3   .patch 2   .gitattributes 2   .ini 1   .out 1   .mdc 1   .svg 1   .spec 1
+#     (.bat and .cmd are CRLF ON PURPOSE -- see the batch exception above; they are listed here as
+#     evidence, not as a defect.) That residue is what produced the "CRLF will be replaced by LF"
+#     warning on every commit and made out-of-tree diffs read as rewrites.
+#
+#     NO MASS REWRITE IN THIS BRANCH: these lines change nothing on disk today. They bind NEW and
+#     RE-COMMITTED files to the index's LF, which is exactly the convergence the wish asked for.
+#     TO RENORMALISE THE EXISTING TREE, as its own deliberate commit (never inside a feature
+#     branch -- it touches 164 blobs and every open branch will conflict):
+#         git add --renormalize .
+#         git commit -m "renormalise: the line-ending policy, applied"
+#     A no-op on a tree that is already converged, so it is safe to re-run as an audit.
+*.jsonl  text eol=lf
+*.ps1    text eol=lf
+*.log    text eol=lf
+*.tsv    text eol=lf
+*.patch  text eol=lf
+*.ini    text eol=lf
+*.out    text eol=lf
+*.spec   text eol=lf
+*.mdc    text eol=lf
+*.svg    text eol=lf
+
+# The extensionless text files git's autocrlf was guessing about. Named explicitly so the answer
+# is a rule rather than a machine setting: LICENSE/NOTICE/.gitignore/.gitattributes are TEXT and
+# are byte-read by tests, so a CRLF checkout is a test failure waiting for a fresh clone.
+LICENSE        text eol=lf
+NOTICE         text eol=lf
+.gitignore     text eol=lf
+.gitattributes text eol=lf
+
+# (b) docs/PHYSICS.md IS DERIVED -- scripts/generators/gen_physics_sheet.py regenerates it and
+#     scripts/githooks/pre_commit.py stages the fresh copy on EVERY commit (`regenerate_derived`).
+#     A merge of two derived sheets is meaningless: both sides are right and neither is the
+#     truth, so git used to stop the merge with conflict markers in a file that the very next
+#     commit would overwrite anyway. `merge=union` is a BUILT-IN git driver -- no per-clone
+#     `git config merge.<name>.driver` is needed, which is why this is a driver rather than
+#     "stop tracking it and regenerate": a fresh clone still gets the sheet, and a conflicted
+#     merge still completes. The union result is TEMPORARY: it is a superset of both sides and
+#     the next commit regenerates the one true sheet over it. Verified by hand on a scratch repo
+#     before writing this line (merge produced both sides' lines, no markers, no manual resolve).
+docs/PHYSICS.md merge=union

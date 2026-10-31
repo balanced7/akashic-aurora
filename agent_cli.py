@@ -73,6 +73,30 @@ from verbs._legacy import (_awareness_subject, cmd_context, cmd_flow,  # noqa: F
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
 
+def _window(args, rows, noun="row", verb="this verb"):
+    """Apply a listing verb's `--limit` to `rows`, and RETURN THE LINE THAT SAYS IT CUT.
+
+    WHY A HELPER (2026-10-30 wish, phase 3 of the modular-core detangle: "a consistent --limit /
+    --json on the listing verbs that lack them"): every listing verb had invented its own cap --
+    `recall` printed 25 and said so, `locks` printed everything, `discover` printed everything --
+    so a reader could not know, without reading each verb's source, whether "I see 25" meant "there
+    are 25" or "there are 900". One helper means one sentence, one place to fix it, and a cap that
+    can never truncate in silence (a silent truncation turns a window into a lie, which is the
+    exact failure the cap exists to prevent).
+
+    `--limit 0` (or absent) means NO CAP: a listing verb that must show everything still can.
+    Returns (rows_to_show, note) where note is "" when nothing was cut."""
+    try:
+        limit = int(getattr(args, "limit", 0) or 0)
+    except (TypeError, ValueError):
+        limit = 0
+    rows = list(rows or [])
+    if limit <= 0 or len(rows) <= limit:
+        return rows, ""
+    return rows[:limit], (f"# showing {limit} of {len(rows)} {noun}(s) -- `{verb} --limit 0` "
+                          f"shows every one")
+
+
 def _clip(s, n=_MAX):
     s = "" if s is None else str(s)
     if len(s) <= n:
@@ -892,7 +916,10 @@ def cmd_recall(args):
         print(f"ERROR searching: {type(e).__name__}: {e}")
         return 1
     if args.json:
-        print(json.dumps(hits, indent=2, default=str))
+        shown, note = _window(args, hits, "lesson", verb="recall --json")
+        print(json.dumps(shown, indent=2, default=str))
+        if note:
+            print(note, file=sys.stderr)   # JSON stays valid; the cap is confessed on stderr
         return 0
     label = "all lessons" if not query else f"lesson(s) matching '{query}'"
     print(f"# {len(hits)} {label}")
@@ -915,7 +942,8 @@ def cmd_recall(args):
                       f"results — it may exist under a different spelling, or in the "
                       f"full corpus; try knowledge_full(source=\"<source>\") if you "
                       f"have the source pointer, or recall without quotes to broaden")
-    for h in hits[:25]:
+    shown, note = _window(args, hits, "lesson", verb="recall")
+    for h in shown:
         rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
         # [graduated] = rule now enforced by automation (see `graduate`); [benched] = curator
         # retired it for surfaced-never-credited (reversible; see `recall-curate`). Both keep
@@ -924,8 +952,8 @@ def cmd_recall(args):
                (" [benched]" if str(h.get("benched") or "").strip() else "")
         source = h.get("source") or f"learn:experiment:{h.get('experiment_name', '?')}"
         print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {rec} (source: {source})")
-    if len(hits) > 25:
-        print(f"# 25 of {len(hits)} lesson(s) shown; `recall --json` with the same query returns all matches")
+    if note:
+        print(note)
     return 0
 
 
@@ -1196,6 +1224,8 @@ def cmd_injections(args):
               f"{len(i.get('s', []))} lesson(s), {i.get('chars', 0)} chars")
         for s in i.get("s", [])[:3]:
             print(f"           - {s}")
+    if len(inj) > 25:
+        print(f"# 25 of {len(inj)} injection(s) shown; `injections --limit 0 --json` shows every one")
     return 0
 
 
@@ -1451,14 +1481,20 @@ def cmd_discover(args):
         return 0
 
     verbs = list_verbs(args.query)
+    verbs, vnote = _window(args, verbs, "verb", verb="discover")
     if args.json:
-        print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2)); return 0
+        print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2))
+        if vnote:
+            print(vnote, file=sys.stderr)
+        return 0
     q = (args.query or "").strip()
     print(f"# agent_cli.py - {len(verbs)} verb(s)" + (f" matching '{q}'" if q else "")
           + "   (run `py agent_cli.py <verb> -h` for arguments)")
     width = max((len(n) for n, _ in verbs), default=0)
     for n, h in verbs:
         print(f"  {n.ljust(width)}  {h}")
+    if vnote:
+        print(vnote)
     # ZERO MATCHES IS THE MOMENT THE POINTER IS WORTH MOST, and the moment it was
     # missing: asked "check whether a test failure is pre-existing" this path returns 0
     # while `suite-baseline` sits in the list it just searched. A substring search cannot
@@ -8122,12 +8158,16 @@ def cmd_locks(args):
     """Awareness: who holds what right now (across both agents)."""
     from core.comm.locks import LockManager
     locks = LockManager(args.agent_id or "viewer").list_locks()
+    shown, note = _window(args, locks, "lock", verb="locks")
     if args.json:
-        print(json.dumps(locks, indent=2, default=str)); return 0
+        print(json.dumps(shown, indent=2, default=str))
+        if note:
+            print(note, file=sys.stderr)
+        return 0
     if not locks:
         print("# no advisory path-locks held"); return 0
     print(f"# {len(locks)} advisory path-lock(s) held")
-    for lk in locks:
+    for lk in shown:
         mine = " (you)" if lk.get("agent") == args.agent_id else ""
         why = f"  why: {lk.get('note')}" if lk.get("note") else ""
         age = ""
@@ -8143,6 +8183,8 @@ def cmd_locks(args):
         except Exception:
             pass
         print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}{age}{why}")
+    if note:
+        print(note)
     return 0
 
 
@@ -8453,6 +8495,10 @@ def build_parser():
     dsc = sub.add_parser("discover", help="list every verb + its purpose (the self-describing door)")
     dsc.add_argument("query", nargs="?", default="", help="optional substring to filter verbs by name/purpose")
     dsc.add_argument("--json", action="store_true")
+    dsc.add_argument("--limit", type=int, default=0, dest="limit",
+                     help="max verbs to list (default 0 = every one -- the verb table is the "
+                          "self-describing door, and truncating it by default would hide the "
+                          "answer to 'does this system already do X?')")
     dsc.add_argument("--semantic", action="store_true",
                      help="ask at the level of MEANING instead of substring: 'does this "
                           "system already do X?' Returns EXISTS/WHAT/GAP/NEAREST MISS "
@@ -8901,6 +8947,11 @@ def build_parser():
 
     r = sub.add_parser("recall", help="search past lessons (no query = list all)")
     r.add_argument("query", nargs="?", default=""); r.add_argument("--json", action="store_true")
+    # Phase 3 (2026-10-30 wish: "a consistent --limit / --json on the listing verbs that lack
+    # them (recall had no --limit)"). 25 is the number this verb used to hardcode in silence --
+    # the flag makes the window a dial, and `_window` prints the line that says it cut.
+    r.add_argument("--limit", type=int, default=25, dest="limit",
+                   help="max lessons to show (default 25; 0 = every match)")
     r.add_argument("--full", default=None, help="pull the FULL record for one lesson's source pointer "
                     "(e.g. learn:experiment:NAME) -- the one-hop escape from a capped recall-at surface")
     r.add_argument("--agent", default=None,
@@ -8911,6 +8962,8 @@ def build_parser():
 
     li = sub.add_parser("list", help="list ALL lessons in memory")
     li.add_argument("--json", action="store_true")
+    li.add_argument("--limit", type=int, default=25, dest="limit",
+                    help="max lessons to show (default 25; 0 = every one)")
     li.set_defaults(fn=cmd_list)
 
     ra = sub.add_parser("recall-at", help="recall-at-action: relevant lessons/locks for a path or command")
@@ -8988,6 +9041,8 @@ def build_parser():
 
     ij = sub.add_parser("injections", help="the injection ledger: what recall pushed into contexts + cost")
     ij.add_argument("--hours", type=float, default=24, help="window (default 24)")
+    ij.add_argument("--limit", type=int, default=25, dest="limit",
+                    help="max injection rows to show (default 25; 0 = every one)")
     ij.add_argument("--json", action="store_true")
     ij.set_defaults(fn=cmd_injections)
 
@@ -9650,6 +9705,8 @@ def build_parser():
 
     lks = sub.add_parser("locks", help="show who holds which advisory path-locks")
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")
+    lks.add_argument("--limit", type=int, default=0, dest="limit",
+                     help="max locks to show (default 0 = every held lock)")
     lks.set_defaults(fn=cmd_locks)
 
     blb = sub.add_parser("bifrost-fetch", help="fetch a spilled payload by content-addressed ref "
@@ -10248,6 +10305,9 @@ def build_parser():
     df.add_argument("--needs", default="exec", help="capability required (exec|write|net)")
     df.add_argument("--why", default="", help="one line: what the discharge unblocks")
     df.add_argument("--list", action="store_true", help="show pending items")
+    df.add_argument("--json", action="store_true",
+                    help="machine-readable output (--list emits the pending queue as JSON; a "
+                         "listing verb without --json forced its reader to parse prose)")
     df.add_argument("--done", default=None, metavar="ID", help="discharge one item")
     df.add_argument("--receipt", default="", help="REQUIRED with --done: what happened")
     df.set_defaults(fn=cmd_defer)
@@ -10921,6 +10981,14 @@ def cmd_defer(args):
         return 0
     if getattr(args, "list", False):
         items = dq.pending()
+        # Phase 3 (2026-10-30 wish: consistent --limit/--json on the listing verbs): the queue is
+        # a listing verb, and it had no machine-readable door. It comes FIRST, before the roster
+        # teaching and the discharge hint, because a --json caller wants the data and would have
+        # to strip prose otherwise.
+        if getattr(args, "json", False):
+            print(json.dumps({"agent_id": args.agent_id, "pending": items,
+                              "count": len(items)}, indent=2, default=str))
+            return 0
         # ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY. Until 2026-08-20 an unknown seat's
         # queue printed the same cheerful "queue empty" as a real one, so an unsubstituted $SELF$
         # (or a plain typo) read a phantom queue and reported nothing waiting while the real queue
