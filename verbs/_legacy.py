@@ -22,8 +22,28 @@ package resolves. Four kinds of outside, all real:
 So: nothing in this file does work. It is a list of aliases, kept boring on purpose, and it is the
 one place to look when asking "what did the extraction promise to keep".
 """
-from verbs.groups.coord.scene import cmd_orient  # noqa: F401
+from verbs.groups.awareness.sweep import _awareness_subject, cmd_sweep  # noqa: F401
+from verbs.groups.coord.scene import cmd_glance, cmd_ground, cmd_orient, cmd_shadow  # noqa: F401
+from verbs.groups.coord.scout import cmd_scout  # noqa: F401
+from verbs.groups.meters.bench import cmd_recall_bench  # noqa: F401
+from verbs.groups.meters.context import cmd_context  # noqa: F401
+from verbs.groups.research.flow import cmd_flow  # noqa: F401
+from verbs.groups.research.walk import cmd_knowledge_map, cmd_lookback  # noqa: F401
 
 __all__ = [
+    # `_awareness_subject` is private but load-bearing: one verb body still in the door script
+    # (the boot/whisper path) calls it, so the door imports it back through here. It is the reason
+    # this file exists in the first place -- a moved helper must not become a moved hole.
+    "_awareness_subject",
+    "cmd_context",
+    "cmd_flow",
+    "cmd_glance",
+    "cmd_ground",
+    "cmd_knowledge_map",
+    "cmd_lookback",
     "cmd_orient",
+    "cmd_recall_bench",
+    "cmd_scout",
+    "cmd_shadow",
+    "cmd_sweep",
 ]

@@ -63,7 +63,11 @@ from core.recall.surface import (cmd_recall_at, cmd_recall_feedback, cmd_recall_
 # local/README.md, not here: Core code must not name a seat, and that includes a colleague's name
 # in a comment. The gate counts prose, deliberately.)
 from verbs import registry as _verb_registry
-from verbs._legacy import cmd_orient                                  # noqa: F401  (set_defaults)
+# Every extracted verb, under its original name. `_awareness_subject` rides along because one body
+# still in this file (the whisper/sweep line) calls it -- a moved helper must not become a hole.
+from verbs._legacy import (_awareness_subject, cmd_context, cmd_flow,  # noqa: F401
+                           cmd_glance, cmd_ground, cmd_knowledge_map, cmd_lookback,
+                           cmd_orient, cmd_recall_bench, cmd_scout, cmd_shadow, cmd_sweep)
 
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
@@ -5679,93 +5683,10 @@ def cmd_promoted(args):
     return 0
 
 
-def cmd_recall_bench(args) -> int:
-    """W0.3: grade recall against an answer key, by driving the REAL trigger.
-
-    The 2026-08-08 dossier's finding is why this drives path/command and never a query: querying
-    the store directly returns the right lesson first almost every time, so keying the bench on a
-    query would measure the half that already works. The failure is in WHEN, not WHAT.
-    """
-    import json as _json
-    from core.recall import bench as _b
-    from core.recall.at_action import recall_at
-    try:
-        meta = _b.load(getattr(args, "set", None) or None)
-    except Exception as e:                                                # noqa: BLE001
-        print(f"ERROR: could not load the moment set ({type(e).__name__}: {e})")
-        return 1
-    k = int(getattr(args, "limit", None) or 5)
-    # The ceiling probe must be GATE-FREE, or it measures the gate it exists to bound: with the
-    # live floor applied, a lesson the gate rejects would read as UNMATCHABLE (a matching defect)
-    # when it is really gate-suppressed. floor 0 keeps the two diagnoses separable.
-    import functools as _ft
-    _probe = _ft.partial(recall_at, min_relevance=0.0)
-    d = _b.score(meta.get("moments") or [], recall_at, k=k, probe_fn=_probe)
-    if getattr(args, "json", False):
-        print(_json.dumps({"meta": {kk: vv for kk, vv in meta.items() if kk != "moments"},
-                           "result": d}, indent=2, default=str))
-    else:
-        print(_b.render(d, meta))
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/meters/bench.py
 
 
-def cmd_context(args) -> int:
-    """W0.4: the instrument over the touch stream. `context --stats` is the first mode of the
-    context door; the anchor modes are W0.5/W0.6 and are not built yet.
-
-    It exists because W0.2 put a new record on the hot path of every seat and shipping that
-    without a meter would ask the house to trust a cost nobody measured. The reconciliation gates
-    Wave 1 on 24 h of this number, which is why the verb landed the same night the emit did.
-    """
-    import json as _json
-    import time as _time
-
-    # W0.5/W0.6: an anchor asks the scene; --stats meters the stream. One verb, because they are
-    # the same door at two altitudes -- "what is true about this location" and "what is this
-    # organ costing" -- and splitting them would mint a second name for one surface.
-    anchor = getattr(args, "anchor", None)
-    if anchor:
-        from core.coord import scene as _scene
-        from core.events import touch as _touch
-        try:
-            sc = _scene.build(anchor, subject=(os.getenv("AKASHIC_AGENT_ID") or "claude"),
-                              roots=_touch.default_roots(),
-                              level=int(getattr(args, "level", None) or 1))
-        except Exception as e:                                            # noqa: BLE001
-            print(f"ERROR: {e}")
-            return 1
-        print(_json.dumps(sc, indent=2, default=str) if getattr(args, "json", False)
-              else _scene.render(sc))
-        return 0
-
-    from core.events import touch_stats as _ts
-    window = float(getattr(args, "hours", None) or 24)
-    try:
-        from core.comm.bus import Bus
-        c = Bus("claude")._client
-        rows = c.xrange("events:raw", min="-", max="+", count=int(getattr(args, "limit", None) or 20000))
-    except Exception as e:                                                # noqa: BLE001
-        print(f"ERROR: could not read events:raw ({type(e).__name__}: {e})")
-        return 1
-    recs = []
-    for _mid, f in rows:
-        try:
-            raw = next(iter(f.values()))
-            recs.append(_json.loads(raw.decode() if isinstance(raw, bytes) else str(raw)))
-        except Exception:                                                 # noqa: BLE001
-            continue          # one unreadable row is not a reason to report nothing
-    drops = 0
-    try:
-        from core.events import touch as _touch
-        drops = _touch.drops()
-    except Exception:                                                     # noqa: BLE001
-        pass
-    rep = _ts.compute(recs, now=_time.time(), window_h=window, drops=drops)
-    if getattr(args, "json", False):
-        print(_json.dumps(rep, indent=2, default=str))
-    else:
-        print(_ts.render(rep))
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/meters/context.py
 
 
 def cmd_doctor_deploy() -> int:
@@ -6006,85 +5927,10 @@ def cmd_doctor(args):
     return 0
 
 
-def cmd_lookback(args):
-    """P7 (T027): one question over the rationale corpus -- the strategic WHY, layered and
-    drillable. Temporal drill (story/events) answers what happened; this answers why it is
-    the way it is: docs (currency-labeled) -> research/reviewed -> notes (incl. retired) ->
-    promoted bus -> chapters -> git bodies, each hit with its drill pointer."""
-    from core.recall.lookback import lookback
-    question = " ".join(args.question or [])
-    layers = [s.strip() for s in (args.layers or "").split(",") if s.strip()] or None
-    hits = lookback(question, per_layer=args.per_layer or 3, layers=layers)
-    if args.json:
-        print(json.dumps(hits, indent=2, default=str)); return 0
-    if not hits:
-        print(f"# lookback: nothing above the relevance floor for: {question!r}\n"
-              "  (try different terms; layers: docs,research,notes,promoted,chapters,git)")
-        return 0
-    print(f"# lookback: {question}")
-    current_layer = None
-    for h in hits:
-        if h["layer"] != current_layer:
-            current_layer = h["layer"]
-            print(f"\n## {current_layer}")
-        # Headline number = the SORT KEY, so position and figure agree; relevance beside it, named,
-        # because it is the one that says why the row matched. Printing only the component used to
-        # make a correctly-ordered list look unsorted (measured 0.382, 0.215, 0.248 in one layer).
-        _rel = h.get("relevance")
-        _why = f", rel {_rel}" if _rel is not None and _rel != h.get("score") else ""
-        print(f"  [{h['status']}] {h['source']}  (rank {h['score']}{_why})")
-        print(f"      {h['excerpt']}")
-        print(f"      drill: {h['drill']}")
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/research/walk.py
 
 
-def cmd_knowledge_map(args):
-    """R8 (T059): WALK the knowledge neighborhood of a topic instead of querying it blind.
-    lookback returns a flat ranked list; this returns a graph -- surface hits (L1), the
-    one-hop neighborhood reached by WALKING the related_to edges the system already grows
-    (L2, both directions), and the on-topic archive of retired/superseded records (L3).
-    Each node carries a drill pointer; neighborhood nodes name the edge that reached them."""
-    from core.recall.knowledge_map import knowledge_map
-    topic = " ".join(args.query or []) if isinstance(args.query, list) else (args.query or "")
-    topic = topic.strip()
-    m = knowledge_map(topic, per_layer=args.per_layer or 6)
-    if args.json:
-        print(json.dumps(m, indent=2, default=str)); return 0
-    if not topic:
-        print("# knowledge-map: give a topic to walk (e.g. 'lanes', 'wedge', 'supersession')")
-        return 0
-    c = m["counts"]
-    print(f"# KNOWLEDGE MAP: {topic}   "
-          f"({c['surface']} surface | {c['neighborhood']} neighborhood | {c['archive']} archive)")
-    if not (m["surface"] or m["neighborhood"] or m["archive"]):
-        print("  (nothing above the relevance floor -- try different terms)")
-        return 0
-
-    def _row(n, indent="  "):
-        edge = f" +{n['edge_count']} edges" if n.get("edge_count") else ""
-        rel = f" (rel {n['score']})" if n.get("score") is not None else ""
-        print(f"{indent}[{n['kind']}:{n['status']}] {n['title']}{rel}{edge}")
-        if n.get("via"):
-            v = n["via"]
-            arrow = "<--" if v["direction"] == "in" else "-->"
-            matched = f" [{','.join(v['matched'])}]" if v.get("matched") else ""
-            print(f"{indent}    via {v['from']} {arrow}{matched}")
-        print(f"{indent}    {n['excerpt']}")
-        print(f"{indent}    drill: {n['drill']}")
-
-    if m["surface"]:
-        print("\n## L1 surface -- direct topic hits")
-        for n in m["surface"]:
-            _row(n)
-    if m["neighborhood"]:
-        print("\n## L2 neighborhood -- one hop along the edges (relevance alone can't reach these)")
-        for n in m["neighborhood"]:
-            _row(n)
-    if m["archive"]:
-        print("\n## L3 archive -- on topic but retired/superseded (reachable, not live)")
-        for n in m["archive"]:
-            _row(n)
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/research/walk.py
 
 
 def cmd_fence(args):
@@ -6169,69 +6015,7 @@ def cmd_fence(args):
     print(f"ERROR: unknown fence action {action!r}"); return 1
 
 
-def cmd_flow(args):
-    """R3 (T054): OTel-style waterfall of recent message flows across lanes. lookback
-    answers WHY, knowledge-map answers WHAT'S NEAR -- this answers WHAT HAPPENED: which
-    ask produced which answer, on which lane, with what gap, and whether one logical
-    message arrived MORE than once (double-delivery renders as xN COPIES, never N rows)."""
-    from core.comm.flow_trace import flow_trace
-    unit = {"m": 60_000, "h": 3_600_000, "d": 86_400_000}
-    w = str(args.window or "6h").strip().lower()
-    try:
-        window_ms = int(float(w[:-1]) * unit[w[-1]]) if w and w[-1] in unit else int(w) * 60_000
-    except Exception:
-        print(f"ERROR: bad --window {args.window!r} (use e.g. 30m, 6h, 1d)"); return 1
-    out = flow_trace(args.agent, window_ms=window_ms)
-    if args.json:
-        print(json.dumps(out, indent=2, default=str)); return 0
-    if out.get("offline"):
-        print("# flow: bus offline (Redis unreachable)"); return 1
-
-    def _dups(node):
-        return (1 if node["copies"] > 1 else 0) + sum(_dups(c) for c in node["children"])
-
-    c = out["counts"]
-    dup_nodes = sum(_dups(f["root"]) for f in out["flows"])
-    who = f" touching {args.agent}" if args.agent else ""
-    print(f"# FLOW TRACE -- last {w}{who}   ({c['flows']} flow(s) | {c['nodes']} msg(s) | "
-          f"{c['copies']} observed | {dup_nodes} duplicated | window dropped {c['dropped_by_window']})")
-    if not out["flows"]:
-        print("  (no flows in the window -- widen --window or check the bus)")
-        return 0
-
-    def _fmt_ms(ms):
-        if ms < 1000:
-            return f"+{ms}ms"
-        s = ms / 1000.0
-        if s < 60:
-            return f"+{s:.1f}s"
-        m, sec = divmod(int(s), 60)
-        if m < 60:
-            return f"+{m}m{sec:02d}s"
-        h, m2 = divmod(m, 60)
-        return f"+{h}h{m2:02d}m"
-
-    def _row(n, depth):
-        pad = "  " * depth
-        off = "0ms" if not n["offset_ms"] else _fmt_ms(n["offset_ms"])
-        dup = f"  x{n['copies']} COPIES" if n["copies"] > 1 else ""
-        miss = f"  (answers {n['answers_missing']} -- outside window)" if n.get("answers_missing") else ""
-        kb = f"{n['len'] / 1024:.1f}KB" if n["len"] >= 1024 else f"{n['len']}B"
-        print(f"  {pad}{off:>9}  [{','.join(n['lanes'])}] {n['frm']} -> {n['to']}  "
-              f"{n['kind']}  {kb}{dup}{miss}")
-        if n.get("snippet"):
-            print(f"  {pad}           {n['snippet']!r}")
-        for ch in n["children"]:
-            _row(ch, depth + 1)
-
-    for fl in out["flows"][:args.limit]:
-        span = _fmt_ms(fl["span_ms"]).lstrip("+") if fl["span_ms"] else "single"
-        print(f"\n[flow {fl['flow']}]  {fl['nodes']} msg, span {span}")
-        _row(fl["root"], 0)
-    hidden = len(out["flows"]) - min(len(out["flows"]), args.limit)
-    if hidden:
-        print(f"\n  (+{hidden} more flow(s) -- raise --limit)")
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/research/flow.py
 
 
 def _ack_refusal_hint(raw_ref: str, resolution_failed: bool) -> str:
@@ -6656,37 +6440,7 @@ def cmd_resident(args):
     return 0
 
 
-def cmd_scout(args):
-    """T292: the scout verb -- one command for the read-only pre-flight.
-
-    'Is another seat mid-flight in my area / has this been done already' -- answered from
-    a pack built live (ledger, locks, the role's own verdicts), by a resident wearer
-    (deepseek default) or a blind tier-0 branch. The verdict files itself under
-    role=Scout and waits, visibly unadjudicated, for an operator to rule.
-    """
-    from core.fleet import scout as SC
-    q = " ".join(args.text or []).strip()
-    if not q:
-        print("usage: py agent_cli.py scout \"is anyone mid-flight on <area>?\"",
-              file=sys.stderr)
-        return 2
-    try:
-        r = SC.scout_ask(q, wearer=args.wearer, by=(args.by or "claude"),
-                         blind=bool(args.blind), question_shape=args.shape)
-    except ValueError as e:
-        print(f"[scout] {e}", file=sys.stderr)
-        return 1
-    if args.json:
-        print(json.dumps(r, ensure_ascii=False, default=str))
-        return 0 if r.get("ok") else 1
-    secs = (r.get("pack_meta") or {}).get("sections") or {}
-    bounds = ", ".join(f"{k}={v}" for k, v in sorted(secs.items()))
-    print(f"# scout [{r['tier']}] ask {r['ask_id']}  (pack: {bounds})")
-    print(r.get("answer") or f"(no answer -- {r.get('why') or 'ask failed'})")
-    print(f"\n-- verdict filed unadjudicated. When you have CHECKED this answer: "
-          f"py agent_cli.py resident adjudicate {r['ask_id']} --outcome confirmed|refuted "
-          f"--by <operator>", file=sys.stderr)
-    return 0 if r.get("ok") else 1
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/coord/scout.py
 
 
 def cmd_report(args):
@@ -7566,34 +7320,10 @@ def build_sweep(agent_id: str, *, providers=None) -> str:
     return render_snapshot(build_snapshot(agent_id, providers=providers))
 
 
-def _awareness_subject(args) -> str:
-    explicit = str(getattr(args, "agent_id", "") or "").strip()
-    inherited = str(os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
-    subject = explicit or inherited
-    if not subject:
-        raise ValueError(
-            "awareness subject is required: pass `sweep <agent_id>` or set "
-            "AKASHIC_AGENT_ID"
-        )
-    return subject
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/awareness/sweep.py
 
 
-def cmd_sweep(args):
-    """`sweep`: the awareness snapshot -- bus, bench, health, moved in one bounded block.
-    Read-only, fail-open, deterministic, and explicit about the observed subject."""
-    try:
-        subject = _awareness_subject(args)
-    except ValueError as exc:
-        print(f"ERROR: {exc}")
-        return 2
-    from core.comm.awareness import build_snapshot
-    snapshot = build_snapshot(subject)
-    if getattr(args, "json", False):
-        print(json.dumps(snapshot.as_dict(), indent=2, default=str))
-    else:
-        from core.comm.awareness import render_snapshot
-        print(render_snapshot(snapshot))
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/awareness/sweep.py
 
 
 # cmd_orient MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/coord/scene.py.
@@ -7601,33 +7331,7 @@ def cmd_sweep(args):
 # that is the same object `set_defaults(fn=cmd_orient)` binds below. This is the strangler rail --
 # the body left, the contract stayed.
 
-def cmd_shadow(args):
-    """Render one deterministic proposed-action ghost without executing it."""
-    subject = str(getattr(args, "agent", "") or
-                  os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
-    if not subject:
-        print("ERROR: intent shadow subject is required: pass --agent <id> or set "
-              "AKASHIC_AGENT_ID")
-        return 2
-    try:
-        arguments = json.loads(str(getattr(args, "args_json", "{}") or "{}"))
-    except json.JSONDecodeError as exc:
-        print(f"ERROR: --args-json must be one JSON object ({exc})")
-        return 2
-    if not isinstance(arguments, dict):
-        print("ERROR: --args-json must decode to one JSON object")
-        return 2
-    try:
-        from core.coord.intent_shadow import build_intent_shadow, render_intent_shadow
-        shadow = build_intent_shadow(subject, str(args.target), arguments)
-    except (ValueError, RuntimeError) as exc:
-        print(f"ERROR: {exc}")
-        return 2
-    if getattr(args, "json", False):
-        print(json.dumps(shadow, ensure_ascii=False, indent=2, default=str))
-    else:
-        print(render_intent_shadow(shadow))
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/coord/scene.py
 
 
 def cmd_college(args):
@@ -7678,26 +7382,7 @@ def cmd_college(args):
     return 0
 
 
-def cmd_ground(args):
-    """Build typed verb evidence or a non-authoritative seat continuity profile."""
-    subject = str(getattr(args, "agent", "") or
-                  os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
-    if not subject:
-        print("ERROR: ground subject is required: pass --agent <id> or set "
-              "AKASHIC_AGENT_ID")
-        return 2
-    try:
-        from core.coord.ground import ground as _ground, render as _render_ground
-        result = _ground(str(args.target), subject=subject,
-                         continuity=bool(getattr(args, "continuity", False)))
-    except ValueError as exc:
-        print(f"ERROR: {exc}")
-        return 2
-    if getattr(args, "json", False):
-        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
-    else:
-        print(_render_ground(result))
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/coord/scene.py
 
 
 _SHELL_HOME_MARK = "# >>> akashic shell-home"
@@ -10906,41 +10591,7 @@ def cmd_reentry(args):
     return 0
 
 
-def cmd_glance(args):
-    """T079/T060: one bounded, read-only projection over named authorities.
-
-    Slice one exposes only the program projection. Adding an arbitrary subject
-    label before a subject-specific reader exists would make scope look wider
-    than the evidence, so future projections extend the parser deliberately.
-    """
-    from core.context.world_snapshot import (
-        build_program_world_snapshot,
-        project_operational_brief,
-    )
-
-    projection = str(getattr(args, "glance_projection", "") or "program")
-    if projection != "program":
-        print(f"[glance] unsupported projection: {projection}", file=sys.stderr)
-        return 2
-    snapshot = build_program_world_snapshot(
-        ledger_path=getattr(args, "ledger_path", None),
-        max_items=getattr(args, "max_items", 64),
-    )
-    payload = (
-        project_operational_brief(snapshot)
-        if bool(getattr(args, "brief", False))
-        else snapshot
-    )
-    compact = bool(getattr(args, "compact", False))
-    print(
-        json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=None if compact else 2,
-            separators=(",", ":") if compact else None,
-        )
-    )
-    return 0
+# MOVED (2026-10-30, modular-core phase 2) -> verbs/groups/coord/scene.py
 
 
 def cmd_secret(args):

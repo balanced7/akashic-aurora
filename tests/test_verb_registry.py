@@ -119,18 +119,39 @@ def test_list_verbs_delegates_and_keeps_its_shape():
 def test_every_verb_spelling_resolves_and_only_nested_ones_lack_a_fn():
     _published()
     parser = agent_cli.build_parser()
-    nested = _nested_parents(parser)
+    parents = _nested_parents(parser)
+    nested_flagged = {name for name, spec in vreg.REGISTRY.items() if spec.nested}
+    assert nested_flagged <= parents, (
+        "a verb flagged `nested` whose parser has no nested subparsers -- the flag would be a "
+        f"guess: {sorted(nested_flagged - parents)}")
+    for name in sorted(parents):
+        spec = vreg.REGISTRY[name]
+        assert spec.fn is None or callable(spec.fn), name
     without_fn = {name for name, spec in vreg.REGISTRY.items() if spec.fn is None}
-    assert without_fn <= nested, (
+    assert without_fn <= parents, (
         "these verbs have no fn and are NOT nested dispatch -- i.e. a verb that would be "
-        f"unreachable through set_defaults: {sorted(without_fn - nested)}")
+        f"unreachable through set_defaults: {sorted(without_fn - parents)}")
     resolvable = {name for name, spec in vreg.REGISTRY.items() if callable(spec.fn)}
-    assert len(resolvable) >= len(vreg.REGISTRY) - len(nested), (
-        f"only {len(resolvable)} of {len(vreg.REGISTRY)} verbs resolve to a callable")
     for name in sorted(resolvable):
         assert vreg.resolve(name) is vreg.REGISTRY[name].fn
-    print(f"--- resolution ---\n  {len(resolvable)} resolve to a callable; "
-          f"{len(without_fn)} nested-dispatch verbs accounted for {sorted(without_fn)} OK")
+    print(f"--- resolution ---\n  {len(resolvable)} resolve to a callable "
+          f"({len(nested_flagged)} of them REPRESENTATIVE of a nested dispatch); "
+          f"{len(without_fn)} have no fn at all {sorted(without_fn)} OK")
+
+
+def test_a_nested_dispatch_verb_still_reports_its_moved_body():
+    """`glance` dispatches through nested subparsers, so its parent parser binds no fn.
+
+    Left alone, a representative-less table would report `module == ""` for it and the verb would
+    silently vanish from `moved()` -- present in the door, absent from the extraction's own progress
+    bar. Pinned because it is exactly the class of blindness this file exists for.
+    """
+    _published()
+    spec = vreg.get_spec("glance")
+    assert spec is not None and spec.nested, spec
+    assert callable(spec.fn) and spec.fn.__name__ == "cmd_glance", spec
+    assert spec.moved, "a moved body behind a nested dispatch must still read as moved"
+    print("--- nested dispatch ---\n  glance: representative fn, nested flag, still `moved` OK")
 
 
 def test_no_add_parser_spelling_can_vanish_from_the_table():

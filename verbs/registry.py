@@ -56,9 +56,13 @@ class VerbSpec:
     """One row of the verb table.
 
     name        the CLI spelling (`knowledge-map`), i.e. what a human types.
-    fn          the callable `build_parser` binds via `set_defaults(fn=...)`. None is honest and
-                expected for a verb whose dispatch lives in NESTED subparsers (their own rows in
-                `sa.choices` carry the fn); it never means "broken".
+    fn          the callable the door runs. For a verb whose dispatch lives in NESTED subparsers
+                (`college start`, `glance program`) this is a REPRESENTATIVE -- the first nested
+                parser's fn -- and `nested` is True. That is deliberately not None: a verb whose
+                body moved is still a verb whose body moved, and a table that answered "no
+                function" for it would hide the extraction from `moved()` and from any caller that
+                asks what would run. None remains possible and honest only when NO nested parser
+                binds a fn at all.
     help        the one-line purpose, exactly as the door advertises it.
     local       True if the verb reads or writes the Local layer; False if it is pure Core; None
                 if nobody has declared it yet.
@@ -66,6 +70,7 @@ class VerbSpec:
                 not a live table.
     module      the module the body lives in, so `agent_cli`'s own verbs are visibly distinct from
                 the extracted ones. This is the strangler's progress bar.
+    nested      True when this verb dispatches through nested subparsers, so `fn` is representative.
     """
 
     name: str
@@ -74,6 +79,7 @@ class VerbSpec:
     local: Optional[bool] = None
     door_notes: str = ""
     module: str = ""
+    nested: bool = False
 
     @property
     def moved(self) -> bool:
@@ -83,7 +89,7 @@ class VerbSpec:
     def as_dict(self) -> Dict[str, Any]:
         return {"name": self.name, "help": self.help, "local": self.local,
                 "door_notes": self.door_notes, "module": self.module, "moved": self.moved,
-                "fn": getattr(self.fn, "__name__", None)}
+                "nested": self.nested, "fn": getattr(self.fn, "__name__", None)}
 
 
 REGISTRY: Dict[str, VerbSpec] = {}
@@ -144,6 +150,24 @@ def publish(parser) -> Dict[str, VerbSpec]:
             fn = sub.get_default("fn") if sub is not None else None
         except Exception:                                          # pragma: no cover
             fn = None
+        nested = False
+        if fn is None and sub is not None:
+            # Nested dispatch (college/glance/doc/resident/suite/tool): the parent binds no fn, so
+            # take the first nested parser that does and mark it representative. Without this a
+            # moved body behind a nested dispatch would report `module == ""` and vanish from
+            # `moved()` -- a verb the door runs, invisible to the extraction's own progress bar.
+            import argparse
+            inner = next((a for a in sub._actions
+                          if isinstance(a, argparse._SubParsersAction)), None)
+            if inner is not None:
+                for _choice, inner_parser in inner.choices.items():
+                    try:
+                        candidate = inner_parser.get_default("fn")
+                    except Exception:                              # pragma: no cover
+                        continue
+                    if callable(candidate):
+                        fn, nested = candidate, True
+                        break
         declared = _DECLARATIONS.get(fn, {}) if callable(fn) else {}
         rows.append(VerbSpec(
             name=name,
@@ -152,6 +176,7 @@ def publish(parser) -> Dict[str, VerbSpec]:
             local=declared.get("local"),
             door_notes=declared.get("door_notes", ""),
             module=(getattr(fn, "__module__", "") or "") if callable(fn) else "",
+            nested=nested,
         ))
     REGISTRY.clear()                              # in place: holders keep a live view
     REGISTRY.update({row.name: row for row in rows})

@@ -26,10 +26,10 @@
   },
   "files": {
     "agent_cli.py": {
-      "seat": 168,
+      "seat": 164,
       "path": 8,
       "port": 7,
-      "fork": 46
+      "fork": 45
     },
     "core/__init__.py": {
       "seat": 1,
@@ -1158,6 +1158,18 @@
       "path": 1,
       "port": 10,
       "fork": 1
+    },
+    "verbs/groups/coord/scout.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 1
+    },
+    "verbs/groups/meters/context.py": {
+      "seat": 2,
+      "path": 0,
+      "port": 0,
+      "fork": 0
     }
   }
 }
