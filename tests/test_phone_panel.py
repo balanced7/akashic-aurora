@@ -810,6 +810,35 @@ def test_the_house_allowlist_validates_and_keeps_the_fences():
     assert "video" in meta and "artemis" in meta["video"]
 
 
+def test_the_page_script_only_references_elements_the_page_has(tmp_path):
+    """A cheap pin with a real bite: every `$("id")` in app.js must exist in page.html.
+
+    There is no browser in this suite, so the class of defect a page can ship without any test noticing
+    is a script reaching for an element that was renamed in the HTML. The failure is silent in the worst
+    way -- the first missing lookup throws and every render after it stops, leaving a page that loads and
+    does nothing. Parsing the two files against each other closes that class without a browser."""
+    import re
+
+    web = REPO / "arsenal" / "panel" / "web"
+    html = (web / "page.html").read_text(encoding="utf-8")
+    js = (web / "app.js").read_text(encoding="utf-8")
+    page_ids = set(re.findall(r'\bid="([^"]+)"', html))
+    wanted = set(re.findall(r'\$\("([^"]+)"\)', js))
+    assert page_ids, "page.html declares no ids at all -- the regex or the page changed shape"
+    missing = sorted(wanted - page_ids)
+    assert missing == [], f"app.js references element id(s) the page does not have: {missing}"
+    # and the reverse direction, for the ones that must be wired: every declared card is rendered
+    for required in ("offline", "asof", "verdict", "link-rows", "video-rows", "services",
+                     "watch-rows", "audit-rows", "confirm", "toast", "refresh"):
+        assert required in page_ids, f"page.html lost the {required!r} element"
+    # the PWA pieces the manifest promises must actually be served by the route table
+    from arsenal.panel.server import ASSETS
+    manifest = json.loads((web / "manifest.webmanifest").read_text(encoding="utf-8"))
+    for icon in manifest.get("icons") or []:
+        assert icon["src"] in ASSETS, f"the manifest promises {icon['src']} but ASSETS does not serve it"
+    assert manifest["start_url"] in ASSETS and manifest["scope"] == "/"
+
+
 # ------------------------------------------------------------------------------ helpers
 def _stub_reach(state=UP):
     def fetch(agent, session):

@@ -39,7 +39,7 @@ arsenal/panel/               the control API and the PWA (stdlib only)
 local/phone-panel.json       WHICH services, HOW each starts/stops, and the video addresses
 scripts/phone/               link-up.sh · link-down.sh · link-status.sh · push-to-phone.ps1
                              apply-panel-forward.ps1 · drill-panel.py
-tests/test_phone_panel.py    37 pins, all on fakes
+tests/test_phone_panel.py    38 pins, all on fakes
 ```
 
 Run it: `py -m arsenal.panel` (or `--port 8900` for a test port). `--self-check` validates the allowlist and
@@ -115,7 +115,7 @@ phone's own), and report exactly which piece is missing when one is.
 
 ## Receipts
 
-**Unit gate** — `py -m pytest tests/test_phone_panel.py` → **37 passed**. Fakes only: no real daemon,
+**Unit gate** — `py -m pytest tests/test_phone_panel.py` → **38 passed**. Fakes only: no real daemon,
 scheduled task or port is touched. Covered: the allowlist refusing anything else; no shell and no argument
 injection (AST check + the exact argv handed to a spawn + hostile ids producing no call); loopback-only
 bind; Host 421 / Origin 403; the status schema; the confirm token (missing, wrong target, replay, expiry,
