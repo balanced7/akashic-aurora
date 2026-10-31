@@ -341,23 +341,42 @@ def consumer_seat(agent: str) -> Dict[str, Any]:
             "ttl_s": getattr(runner_lock, "SESSION_CONSUMER_TTL", None)}
 
 
-def runner_seat(agent: str) -> Dict[str, Any]:
-    """Is a live RUNNER (not a session) holding this agent id? A handoff surfaces only at a
-    seat's next boot, so 'the seat has a runner' is the fact that decides whether a handoff
-    will sit unseen."""
+def live_runner(agent: str) -> Dict[str, Any]:
+    """Is a live RUNNER (rather than a session) bound to this agent id?
+
+    THE QUESTION A HANDOFF ACTUALLY NEEDS ANSWERED (2026-10-30 wish): a handoff briefing is read
+    by the target's next `boot`, and a RUNNER does not reboot -- it holds the runner lock and
+    works the lane until it is drained or displaced. So a handoff addressed to a seat whose work
+    is done by a runner can sit unread for hours while the sender believes it landed. This
+    function is the fact that makes that visible, and it is the ONE definition both `reachability`
+    and the handoff warning read (two implementations would disagree at the worst moment).
+
+    Three rungs, in the order that makes an answer honest:
+      * the runner LOCK (`runner_lock.holder`) -- the authoritative "a runner is bound here";
+      * the daemon's published runtimes card (`incarnation.daemon_runtimes`) -- a second,
+        independent witness, because a lock can outlive a wedged runner by its TTL;
+      * neither -> DOWN (no runner), which is a different claim from UNKNOWN (could not look).
+    """
+    out: Dict[str, Any] = {"state": UNKNOWN, "holder": None, "runtimes": {}}
+    why = []
     try:
         from core.comm import runner_lock
-        info = runner_lock.runner_holder(agent) if hasattr(runner_lock, "runner_holder") else None
-    except Exception:
-        info = None
-    if info is None:
-        try:
-            from core.comm import incarnation
-            rt = incarnation.daemon_runtimes(agent)
-        except Exception:
-            rt = {}
-        return {"state": UP if rt else DOWN, "runtimes": rt}
-    return {"state": UP, "holder": info}
+        out["holder"] = runner_lock.holder(agent)
+        out["state"] = UP if out["holder"] else DOWN
+    except Exception as exc:
+        why.append(f"runner lock unreadable: {type(exc).__name__}: {exc}")
+    try:
+        from core.comm import incarnation
+        out["runtimes"] = incarnation.daemon_runtimes(agent) or {}
+        if out["runtimes"]:
+            out["state"] = UP
+    except Exception as exc:
+        why.append(f"daemon runtimes unreadable: {type(exc).__name__}: {exc}")
+    if why and out["state"] == UNKNOWN:
+        out["why"] = "; ".join(why)
+    elif why:
+        out["partial"] = "; ".join(why)      # one rung answered, one did not -- say both
+    return out
 
 
 # ------------------------------------------------------------------------ 4. operator mail
@@ -526,7 +545,7 @@ def report(agent: str, session: str = "", *, phone: bool = True) -> Dict[str, An
     for name, fn in (("gateway", gateway),
                      ("wake_listener", lambda: wake_seats(agent, session)),
                      ("consumer_seat", lambda: consumer_seat(agent)),
-                     ("runner", lambda: runner_seat(agent)),
+                     ("runner", lambda: live_runner(agent)),
                      ("operator_mail", lambda: operator_mail(agent))):
         try:
             rungs[name] = fn()
@@ -622,15 +641,18 @@ def render(rep: Dict[str, Any]) -> str:
         lines.append("")
         lines.append(f"[{_MARK.get(rn.get('state'), '????')}] runner (a handoff surfaces at its "
                      f"NEXT boot)")
+        if rn.get("holder"):
+            lines.append(f"       runner lock held by {rn['holder'].get('token', '?')} "
+                         f"since {rn['holder'].get('ts', '?')}")
         if rn.get("runtimes"):
             try:
                 lines.append(f"       runtimes: {json.dumps(rn['runtimes'])[:300]}")
             except Exception:
                 lines.append("       runtimes present")
-        elif rn.get("holder"):
-            lines.append(f"       holder: {rn.get('holder')}")
-        else:
-            lines.append("       no live runner reported")
+        if rn.get("state") != UP:
+            lines.append(f"       {rn.get('why') or 'no live runner reported'}")
+        if rn.get("partial"):
+            lines.append(f"       (partial read: {rn['partial']})")
 
     om = r.get("operator_mail") or {}
     lines.append("")

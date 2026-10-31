@@ -5515,12 +5515,67 @@ def cmd_handoff(args):
     except Exception:
         pass
 
+    # A HANDOFF TO A SEAT WITH A LIVE RUNNER (phase 3, 2026-10-30 wish): "warn that a handoff
+    # surfaces only at that seat's next boot, and offer the live path (or deliver live as well,
+    # behind a flag)." The receipt proves the RECORD was written, not that anyone will read it --
+    # a runner holds its lock and works the lane without ever rebooting, so a briefing addressed
+    # to a runner-served seat can sit unread for hours while the sender believes it landed. That
+    # exact cost is already on the record ("a boot-only handoff to a seat's never-rebooting
+    # runner sat unseen for hours"), so this is a warning at the door, not a new delivery law:
+    # the durable record is still written first and unconditionally.
+    delivery: dict = {"state": "not-checked"}
+    live_ref = None
+    try:
+        from core.comm import reachability as _reach
+        runner = _reach.live_runner(to_agent)
+        delivery = {"state": runner.get("state"), "runner": runner.get("holder"),
+                    "runtimes": bool(runner.get("runtimes"))}
+        if runner.get("state") == _reach.UP:
+            delivery["warning"] = (
+                f"'{to_agent}' is served by a LIVE RUNNER: this briefing is only read at that "
+                f"seat's NEXT BOOT, and a runner does not reboot. Deliver it live as well, or the "
+                f"target may not see it for hours.")
+            delivery["live_path"] = (
+                f'py agent_cli.py bifrost-send {args.agent_id} --to {to_agent} --kind inform '
+                f'--text "handoff: {_clip(task, 120)}"')
+        elif runner.get("state") == _reach.UNKNOWN:
+            delivery["warning"] = (f"could not check whether '{to_agent}' has a live runner "
+                                   f"({runner.get('why')}) -- unmeasured, not 'no runner'")
+        if args.deliver_live:
+            from core.comm.bus import get_bus
+            body = (f"LIVE HANDOFF from {args.agent_id} (also recorded as a boot briefing):\n"
+                    f"{task}")
+            if ctx.get("note"):
+                body += f"\n\nnote: {ctx['note']}"
+            if blockers:
+                body += "\n\nblockers: " + " || ".join(blockers)
+            live_ref = get_bus(_clip(args.agent_id, 200)).send(
+                to_agent, "inform", body,
+                meta={"source": "handoff-live", "from_seat": args.agent_id,
+                      "task_ref": _clip(task, 200)})
+            delivery["live_sent"] = bool(live_ref)
+            delivery["live_id"] = live_ref
+            if not live_ref:
+                delivery["live_warning"] = ("the live copy was NOT sent (bus offline or the send "
+                                            "was refused) -- the boot briefing is still recorded")
+    except Exception as exc:                                  # never let a warning break a handoff
+        delivery = {"state": "unknown",
+                    "why": f"{type(exc).__name__}: {exc}"}
+
     if args.json:
         print(json.dumps({"recorded": ok, "from": args.agent_id, "to": to_agent, "task": task,
-                          "clipped": clipped or None}))
+                          "clipped": clipped or None, "delivery": delivery}))
     else:
         print(f"[{'OK' if ok else 'FAIL'}] handoff {args.agent_id} -> {to_agent}: {_clip(task, 80)}")
         print(f"  (the target's next `boot` will surface this as its briefing)")
+        if delivery.get("warning"):
+            print(f"  WARNING: {delivery['warning']}")
+        if delivery.get("live_path") and not args.deliver_live:
+            print(f"  live path:  {delivery['live_path']}")
+        if delivery.get("live_sent"):
+            print(f"  live copy sent (bus id {live_ref}) -- the runner sees it this shift")
+        if delivery.get("live_warning"):
+            print(f"  {delivery['live_warning']}")
         for c in clipped:   # RB-5: the door's RESULT carries the clip, never silent
             print(c)
         _warn_unmirrored()   # session-end: don't hand off on top of unmirrored work
@@ -9116,6 +9171,11 @@ def build_parser():
     h.add_argument("--note", default=None, help="free-form context note for the target")
     h.add_argument("--blocker", default=None, help="blockers to flag, separated by ' || '")
     h.add_argument("--list", action="store_true", help="list handoffs addressed to --to (or you) instead of writing")
+    h.add_argument("--deliver-live", action="store_true", dest="deliver_live",
+                   help="ALSO send the briefing on the bus now (kind=inform), so a seat served by "
+                        "a live runner sees it this shift instead of at its next boot. The durable "
+                        "boot briefing is still written; a failed live send is reported, never "
+                        "silently swallowed")
     h.add_argument("--json", action="store_true", help="JSON output")
     h.set_defaults(fn=cmd_handoff)
 
