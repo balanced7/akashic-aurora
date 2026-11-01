@@ -52,7 +52,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { LOCK_DIR, acquireGpuLock } from "./gpu_lock.mjs";
-import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { QUIET_FLAGS, judgeFor, renderFlags, rendererName } from "../shaders/headless.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -551,6 +551,8 @@ async function main() {
     height: { type: "string", default: "360" },
     "lock-dir": { type: "string", default: LOCK_DIR },
     "gpu-wait-min": { type: "string", default: "30" },
+    // render on the real GPU instead of SwiftShader: attended runs only (see headless.mjs GPU_FLAGS)
+    gpu: { type: "boolean", default: false },
     "burst-s": { type: "string", default: "150" },
     // the frametime phase: other copies of the page to time against this one, interleaved in one browser (label=dir,...)
     "compare-webs": { type: "string", default: "" },
@@ -654,10 +656,10 @@ async function main() {
     try {
       // a 0.5 s poll (vj_verify's): lanes that render in short chunks take the lock straight back after each one, and a
       // slower poll rarely lands in the gap (2026-10-27: at 2 s, a run waited out every burst of another storm run)
-      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 500 });
+      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (${rendererName(opt.gpu)})`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 500 });
       const held = Date.now();   // the burst's time runs from the lock, not from the wait for it
       entry.wait_s = Math.round((held - t0) / 100) / 10;
-      chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0",
+      chrome = spawn(opt.chrome, [...renderFlags(opt.gpu), ...QUIET_FLAGS, "--remote-debugging-port=0",
         `--user-data-dir=${profile}`, `--window-size=${bw},${bh}`, "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore", windowsHide: true });
       const [p, w] = await waitFor(() => { try { const [a, b] = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split(/\r?\n/); return a && b ? [a, b] : null; } catch { return null; } }, 30000, "DevToolsActivePort");
       browser = await connect(`ws://127.0.0.1:${p}${w}`);
@@ -690,9 +692,9 @@ async function main() {
         await ev("(window.__vjx && window.__vjx.cardOff(), true)");   // clean frames: no name cards
         if (!report.webgl) {
           report.webgl = await ev(`(() => { const g = document.getElementById("gl").getContext("webgl2"); const d = g.getExtension("WEBGL_debug_renderer_info"); return d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); })()`);
-          report.renderer_check = judgeRenderer(report.webgl);
+          report.renderer_check = judgeFor(opt.gpu)(report.webgl);
         }
-        if (!judgeRenderer(report.webgl).ok) throw new Error(`refusing to judge: not SwiftShader (${report.webgl})`);
+        if (!judgeFor(opt.gpu)(report.webgl).ok) throw new Error(`refusing to judge: not ${rendererName(opt.gpu)} (${report.webgl})`);
       };
       await body({ ev, load, deadline: held + Number(opt["burst-s"]) * 1000 });
     } catch (err) { entry.error = String((err && err.stack) || err); console.log(`ERROR [${name}]`, entry.error); }

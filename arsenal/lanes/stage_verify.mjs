@@ -65,6 +65,38 @@
 //   --stitch dirA,dirB,...   no browser: judge kickstorm's chunks, each on its own with the same verifier code (chunks
 //                overlapping by a second or more, so every one-second window lies inside one chunk), and report case K1's
 //                and K3's checks and predictions from them.
+// KICK ROUND 3 and THE HAZE FADER (2026-10-29):
+//   bank         kick 5's colour bank on the screen: wide shots, groove and drop, the first bank and a later one; pages A
+//                (no press), B (kick 5 pressed), C (A without the lasers' pass: the laser mask); the pre-registered bars
+//                B1-B5 are in phaseBank's comment.
+//   haze         F5 through the fake engine (absolute and rel-filed cc109) at 0, 0.5 and 1, and 0 with the haze's passes
+//                off: the bars H1-H5 are in phaseHaze's comment.
+// PALETTES phases (2026-10-28, arsenal/web/palettes.js):
+//   palettes     the contact sheet: each palette (--pal-ids a,b; all thirty by default) landed through the page's door, the
+//                --pal-look (drop) from --pal-shot (FOH_WIDE), settled, drawn; --pal-kick adds the same view with a colour
+//                kick on the rings and on the strand. PNGs to --sheet-dir (else the receipt folder).
+//   phonebar     the headless phone check (915 x 412, touch): the PALETTE pad's label, the colour strip's wash of the BANK's
+//                colours (kick 5 deals them: the setup's own cycle, else the palette's bank cycle), a touch that queues the
+//                next palette, the page's palette event only on a change, the frame time with the bar against without it, a
+//                finger on the colour strip dealing the bank one place, and the landing on the 16-bar line.
+// CAMERA DISTANCE phase (2026-10-29, arsenal/web/stage/distance.js; not in the default list: run it attended, --gpu):
+//   distance     the same shot (HALO_LOCK, FOH_WIDE) at CLOSE, MEDIUM and FAR: the rings' on-screen box through the renderer's
+//                own camera (close >= 3x far, medium between), a dolly not a zoom, the picture's luminance and true-black
+//                share, stills distance-<shot>-<stop>.png; the keys Q / Q again / Shift+E / Esc and the F8 fader on the
+//                60 fps virtual clock; the phone segment at 667 x 375 to 915 x 412; the high shots at FAR; a held stop
+//                through two moving shots; the cut spacing after a C-key shot.
+// THE CHORD PHRASING phase (2026-10-29, arsenal/web/stage/grammar.js + ensemble.js):
+//   chords       real keystrokes (CDP Input.dispatchKeyEvent: trusted, so the page's "key" source with its number row),
+//                every frame drawn and read back on FOH_WIDE in the demo's break, flash protection on: a chord (1 then 5
+//                33 ms later) and a fast strum (6 5 4, 33 ms apart) played twice -- ?grammar=0 (today's singles) and the
+//                grammar -- comparing the attack identities (distinct kick punches), the limiter's interventions and the
+//                verifier's flash count; then (grammar only) Daniel's slow sweep (6 5 4 3 2 1 then back 2 3 4 5 6, 183 ms
+//                apart: the fade out and in) and the explicit B (held, 9 down to 1 and back), with the level's path
+//                per frame and stills to the receipt folder for the eye.
+// SETUPS phase (2026-10-29, arsenal/web/stage/setups.js; not in the default list: run it attended, --gpu):
+//   setups       every setup held (?setup=<id>) against the palettes' own looks (?setups=off): the demo's drop at 640 x 360,
+//                every frame drawn and judged, protection on, kick 5 tapped three times; the pre-registered bars S1-S6 are in
+//                phaseSetups' comment; stills setups-<id>.png to --sheet-dir (else the receipt folder).
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -75,8 +107,10 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { acquireGpuLock } from "./gpu_lock.mjs";
-import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { QUIET_FLAGS, judgeFor, renderFlags, rendererName } from "../shaders/headless.mjs";
 import { expandScene } from "../web/stage/rig.js";
+import { deOK } from "../web/palettes.js";
+import { SIGMA_MAX, hazeCurve } from "../web/stage/atmos.js";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url)).replace(/[\\/]+$/, "");
 const MAIN = REPO.split(/[\\/]\.claude[\\/]worktrees[\\/]/)[0];
@@ -111,11 +145,25 @@ const { values: opt } = parseArgs({
     "sheet-dir": { type: "string", default: "" },
     "lock-dir": { type: "string", default: join(MAIN, "state", "arsenal", "gpu-render.lock") },
     "gpu-wait-min": { type: "string", default: "6" },
+    // render on the real GPU instead of SwiftShader: attended runs only (see headless.mjs GPU_FLAGS)
+    gpu: { type: "boolean", default: false },
     "flash-seconds": { type: "string", default: "8" },
     "flash-scale": { type: "string", default: "1" },
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
     query: { type: "string", default: "" },
     set: { type: "string", default: "source-v1" },
+    "pal-ids": { type: "string", default: "" },
+    "pal-look": { type: "string", default: "drop" },
+    "pal-shot": { type: "string", default: "FOH_WIDE" },
+    "pal-kick": { type: "boolean", default: false },
+    // the bank phase's diagnosis: F5 (haze) at this level on every page ("" leaves the set's default)
+    "bank-haze": { type: "string", default: "" },
+    // the setups phase's diagnosis: only these setups ("" all), and kick 5's taps (1) or none (0)
+    "setups-ids": { type: "string", default: "" },
+    "setups-taps": { type: "string", default: "1" },
+    "setups-lasers": { type: "string", default: "" },
+    // the palettes whose own looks (no setup) are measured beside the setups (the baseline's spread)
+    "setups-palettes": { type: "string", default: "" },
   },
 });
 if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.set)) { console.log(`ERROR --set ${opt.set}: a set name`); process.exit(2); }
@@ -228,10 +276,10 @@ async function burst(name, body) {
   let gpu = null, chrome = null, browser = null;
   const phase = report.phases[name] = { console: [], exceptions: [] };
   try {
-    gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `stage_verify ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 2000 });
+    gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `stage_verify ${name} (${rendererName(opt.gpu)})`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 2000 });
     phase.lock = { dir: opt["lock-dir"], acquired_at: gpu.owner.acquiredAt };
     const tLock = Date.now();          // the burst (under three minutes) starts when the lock is ours, not while waiting
-    chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0", `--user-data-dir=${profile}`,
+    chrome = spawn(opt.chrome, [...renderFlags(opt.gpu), ...QUIET_FLAGS, "--remote-debugging-port=0", `--user-data-dir=${profile}`,
       `--window-size=${W},${H}`, "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore", windowsHide: true });
     const [cdpPort, cdpPath] = await waitFor(() => { try { const [p, w] = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split(/\r?\n/); return p && w ? [p, w] : null; } catch { return null; } }, 30000, "DevToolsActivePort");
     browser = await connect(`ws://127.0.0.1:${cdpPort}${cdpPath}`);
@@ -381,9 +429,9 @@ async function phaseLoad({ ev, open, shot, phase }) {
   await open(`demo=1&vt=1&${BASE}`);
   await ev(PAGE_PROBE);
   const renderer = await ev("window.__probe.renderer()");
-  const judged = judgeRenderer(renderer);
+  const judged = judgeFor(opt.gpu)(renderer);
   phase.renderer = renderer;
-  check("load: the renderer is SwiftShader (no hardware)", judged.ok, renderer);
+  check(opt.gpu ? "load: the renderer is the GPU (--gpu)" : "load: the renderer is SwiftShader (no hardware)", judged.ok, renderer);
   // a few seconds of the show, so the grid locks and the first section starts (timed: SwiftShader's frame cost)
   const tRun = Date.now();
   await ev(`(() => { for (let i = 0; i < 90; i++) window.__vt.step(${F}); window.__stage.renderer.gl.finish(); return true; })()`);
@@ -778,6 +826,8 @@ function kickCase(cells, frame0, j, errs) {
   for (const [k, [a, b]] of Object.entries(KICK_SEGMENTS)) {
     const xs = cells.slice(Math.max(0, a - frame0), Math.max(0, Math.min(b, end) - frame0));
     seg[k] = { frames: xs.length, whole: a >= frame0 && b <= end, limited: xs.filter((x) => x.lim).length, strobing_frames: xs.filter((x) => x.ks > 0).length,
+               hold90: xs.filter((x) => x.hd >= 0.9).length, edge10: xs.filter((x) => x.sm >= 0.1).length, hard_hold: xs.filter((x) => x.he).length,
+               max_hold: +Math.max(0, ...xs.map((x) => x.hd || 0)).toFixed(4), max_seam: +Math.max(0, ...xs.map((x) => x.sm || 0)).toFixed(4),
                both_strobing: xs.filter((x) => x.ks >= 2).length, two_live: xs.filter((x) => x.kn >= 2).length, rows: [...new Set(xs.map((x) => x.rows).filter(Boolean))].slice(0, 12) };
   }
   const held = ["A", "B", "C"].filter((k) => seg[k].frames);
@@ -838,6 +888,11 @@ function stitchKickstorm(dirs) {
   }
   const held = ["A", "B", "C"].filter((k) => seg[k].frames);
   const heldFrames = held.reduce((s, k) => s + seg[k].frames, 0), heldLimited = held.reduce((s, k) => s + seg[k].limited, 0);
+  const segs = Object.keys(KICK_SEGMENTS).filter((k) => seg[k].frames);
+  const sum = (f) => segs.reduce((a, k) => a + (seg[k][f] || 0), 0);
+  report.phases.stitch_holds = { segments: segs.join(""), frames: sum("frames"), limited: sum("limited"), hold90: sum("hold90"), edge10: sum("edge10"),
+                                 hard_hold: sum("hard_hold"), max_hold: Math.max(0, ...segs.map((k) => seg[k].max_hold || 0)), max_seam: Math.max(0, ...segs.map((k) => seg[k].max_seam || 0)) };
+  console.log(`kickstorm chunked holds (the frozen-tile measure, segments ${segs.join("")}): ${JSON.stringify(report.phases.stitch_holds)}`);
   const prereg = {
     P1_gate: { worst, worst_red: worstRed, held: worst <= 3 && worstRed <= 3, chunks: judged },
     P2_held_strobe_limited_share: { frames: heldFrames, limited: heldLimited, share: +(heldLimited / Math.max(1, heldFrames)).toFixed(4), held: heldLimited / Math.max(1, heldFrames) < 0.1 },
@@ -900,6 +955,32 @@ async function phaseFlash({ ev, open, shot, phase, deadline }, storm = false) {
       const g = s.renderer.info.gains;
       const row = { L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, section: s.state().section, shot: s.director.pose.shot,
                     lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0 };
+      // the frozen-tile measure (flash toggle, 2026-10-28): hd, the largest share of any point of the shown frame that is
+      // the previous shown frame (a hold); sm, the largest step of the limiter's controls across a cell border (a seam);
+      // he, a hold of 0.9 or more at a cell with such a step of 0.1 or more beside it (a hard-edged hold). From the
+      // limiter's own gains, the ones the apply pass used this frame (a limiter with holdMetrics() measures itself; the v1
+      // limiter's per-cell gains are measured here)
+      if (s.limiter && s.limiter.gains) {
+        const hm = typeof s.limiter.holdMetrics === "function" ? s.limiter.holdMetrics() : ((A, B) => {
+          let hd = 0, sm = 0, he = 0;
+          for (let q = 0; q < 16; q++) {
+            hd = Math.max(hd, B[q]);
+            const nb = [];
+            if (q % 4 < 3) nb.push(q + 1);
+            if (q % 4 > 0) nb.push(q - 1);
+            if (q < 12) nb.push(q + 4);
+            if (q >= 4) nb.push(q - 4);
+            for (const o of nb) {
+              const st = Math.max(Math.abs(A[q] - A[o]), Math.abs(B[q] - B[o]));
+              sm = Math.max(sm, st);
+              if (B[q] >= 0.9 && st >= 0.1) he = 1;
+            }
+          }
+          return { hd, sm, he };
+        })(s.limiter.gains.cellA, s.limiter.gains.cellB);
+        row.hd = +hm.hd.toFixed(4); row.sm = +hm.sm.toFixed(4); row.he = hm.he ? 1 : 0;
+        if (!row.lim) { row.hd = 0; row.sm = 0; row.he = 0; }
+      }
       if (mode === "kicks") { const ks = s.programmer.kick.list; row.kn = ks.length; row.ks = ks.filter((k) => k.strobing).length; row.rows = ks.map((k) => k.card.name).join("+"); }
       else if (debug) { const K = s.programmer.kick; row.kd = { room: K.headroom, live: K.list.map((k) => [k.kind, k.card.name, +K._env(k, s.state().pos ?? 0).toFixed(3), k.motion ? k.motion.id : null, k.held ? 1 : 0]), gov: { ...K.gov }, beams: s.renderer.info.beams, lm: s.renderer.info.beamPowerLm, ib: s.renderer.inBeamFaded || 0 }; }
       out.push(row);
@@ -931,6 +1012,10 @@ async function phaseFlash({ ev, open, shot, phase, deadline }, storm = false) {
   const j = judgeFlashes(series);
   phase.judged = { worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red, full: j.windows.full, windows: j.windows };
   phase.limited_frames = series.map((x, i) => (x.lim ? i : -1)).filter((i) => i >= 0).slice(0, 80);
+  phase.holds = { frames: series.length, limited: series.filter((x) => x.lim).length, hold90: series.filter((x) => x.hd >= 0.9).length,
+                  edge10: series.filter((x) => x.sm >= 0.1).length, hard_hold: series.filter((x) => x.he).length,
+                  max_hold: +Math.max(0, ...series.map((x) => x.hd || 0)).toFixed(4), max_seam: +Math.max(0, ...series.map((x) => x.sm || 0)).toFixed(4) };
+  console.log(`${kicks ? "kickstorm" : storm ? "storm" : "flash"} holds (the frozen-tile measure): ${JSON.stringify(phase.holds)}`);
   if (opt["flash-debug"] && !kicks) phase.debug_frames = series.map((x) => ({ L: x.L, R: x.R, N: x.N, lim: x.lim, kd: x.kd, shot: x.shot }));
   phase.full_series = series.slice(0, 160).map((x) => +(x.L.reduce((a, v, i) => a + v * x.N[i], 0) / x.N.reduce((a, v) => a + v, 0)).toFixed(4));
   phase.timeline = series.map((x, i) => [i, x.section, x.shot]).filter((r, i, a) => i === 0 || r[1] !== a[i - 1][1] || r[2] !== a[i - 1][2]);
@@ -950,7 +1035,7 @@ async function phaseFlash({ ev, open, shot, phase, deadline }, storm = false) {
   if (kicks) {
     // every frame's cells, for --stitch (the chunks of one run judged as one)
     phase.N = series.length ? series[0].N : null;
-    phase.cells = series.map((x) => ({ L: x.L, R: x.R, lim: x.lim, ks: x.ks, kn: x.kn, rows: x.rows }));
+    phase.cells = series.map((x) => ({ L: x.L, R: x.R, lim: x.lim, ks: x.ks, kn: x.kn, rows: x.rows, hd: x.hd, sm: x.sm, he: x.he }));
     const pageErrors = await ev("window.__stage.errors.slice(0, 5)");
     const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + pageErrors.length;
     Object.assign(phase, kickCase(phase.cells, from, j, errs));
@@ -1047,6 +1132,10 @@ async function phaseKickPix({ ev, open, phase, deadline }) {
     log("start");
     if (c.setLook !== null) { stepTo(c.setLook, false); s.programmer.setLook(c.look, posNow(), { fade: 0 }); }
     log("look");
+    // (fix round, 2026-10-29: kick 5's colour bank LATCHES, so after page B's first kick-5 case its stage stood a bank on
+    // from page A's and every later control frame differed -- the comparison was unsound since KICK round 3. Each case
+    // starts both pages from the palette's own colours, bank 0, on its way in, so the wheels are home by its frames.)
+    if (s.programmer.bank && s.programmer.bank.on) s.programmer._bankReset();
     stepTo(c.start + c.phase - 4 / 24, false);
     log("at case");
     s.setShot(c.shot, 0.5); s.resetLimiter();
@@ -1248,6 +1337,438 @@ async function phaseKickRepeat({ ev, open, phase, deadline }) {
 
 // KICK v2 in the real page: the page-level pad door, the two buttons at once, the live level, the strobe band, key 5 and
 // Shift; then four contact frames of the kicks on FOH_WIDE (the receipt folder, for the eye). Logic every 60 fps frame.
+// KICK ROUND 3, THE COLOUR BANK (2026-10-29, kick.js header): what the SCREEN shows after a press of kick 5. Daniel: "also
+// pressing 5 never seems to change the full stage worth of lights, just a few accent lights. I want 5 to change light groups
+// using a palate across all the elements" and "I also want kick 5 to also adjust all lasers". The page in engine mode on
+// the fake engine (the groove section: its lasers' lattice runs), flash protection on (automation), at 832 x 384, the frames
+// read every second pixel. Each case: a look, a wide shot pinned, the bank stepped to k on both pages (programmer
+// bankAdvance, no burst), the limiter fresh, 30 frames drawn; page A draws on; page B presses kick 5 (0.8, held a quarter
+// beat) through the pad door; page C is A with the lasers' pass off (the laser pixels are where A and C differ by dE76 > 10).
+// Every frame from the press is drawn (the limiter sees them all). Frames read: the next frame (f1), a quarter beat on (q),
+// and four beats on (latched: the burst has faded, the bank holds).
+// PRE-REGISTERED (written before the first run): in the latched frame of every case
+//   B1  of the lit pixels (CIELAB L* >= 20 in A or B), 60 % or more have a hue in both frames (C* >= 10) that moved by
+//       30 degrees or more;
+//   B2  of the laser pixels, 80 % or more changed colour (dE76 > 10);
+//   B3  the red rule: B has no more saturated-red pixels (encoded R / (R + G + B) >= 0.8, L* >= 20) than A, plus 0.1 % of
+//       the frame, in every frame read;
+//   B4  the limiter (protection on) acted on no frame of B from the press to the latched frame;
+//   B5  the press shows on the next frame (f1: 1 % of the frame by dE76 > 10, as kickpix's R4).
+const BANK_W = 832, BANK_H = 384, BANK_STEP = 2;
+const BANK_CASES = (() => {
+  const out = [];
+  let pos = 16;
+  // k: the bank both pages stand at before the press (page B's own presses run it one ahead of page A, so each case
+  // starts both at 2 x its index: the comparison is always one step)
+  for (const look of ["groove", "drop"]) for (const shot of ["FOH_WIDE", "TRIBUNE_34"]) for (let j = 0; j < 2; j++) { out.push({ look, shot, k: 2 * out.length, start: pos + ((0.37 * out.length) % 1) }); pos += 12; }
+  return out;
+})();
+const BANK_CASE = String.raw`((c, mode) => {
+  const s = window.__stage, F = 1000 / 60, STEP = ${BANK_STEP};
+  const posNow = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+  const stepTo = (p, draw, each) => { s.skipRender = !draw; while (posNow() < p - 1e-9) { window.__vt.step(F); if (each) each(); } s.skipRender = false; };
+  const gl = s.renderer.gl, canvas = document.getElementById("gl");
+  const read = () => {
+    const w = canvas.width, h = canvas.height, buf = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    const sw = Math.floor(w / STEP), sh = Math.floor(h / STEP), sub = new Uint8Array(sw * sh * 3);
+    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) { const i = ((y * STEP) * w + x * STEP) * 4, o = (y * sw + x) * 3; sub[o] = buf[i]; sub[o + 1] = buf[i + 1]; sub[o + 2] = buf[i + 2]; }
+    let bin = ""; for (let i = 0; i < sub.length; i += 0x8000) bin += String.fromCharCode.apply(null, sub.subarray(i, i + 0x8000));
+    return btoa(bin);
+  };
+  let acted = 0;
+  const count = () => { const g = s.renderer.info.gains; if (g && (g.a !== 1 || g.b !== 0)) acted++; };
+  if (mode === "C") s.features({ lasers: false });
+  if (c.setLook) { stepTo(c.start - 8, false); s.programmer.setLook(c.look, posNow(), { fade: 0 }); }
+  stepTo(c.start - 1, false);
+  s.setShot(c.shot, 0.5); s.resetLimiter();
+  for (let j = s.programmer.bank.count; j < c.k; j++) s.programmer.bankAdvance(posNow());
+  for (let i = 0; i < 30; i++) window.__vt.step(F);
+  stepTo(c.start, true);
+  const pressAt = posNow(), before = s.programmer.bank.count;
+  acted = 0;
+  if (mode === "B") window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0.8, on: true } }));
+  window.__vt.step(F); count();
+  const f1 = read();
+  stepTo(pressAt + 0.25, true, count);
+  const q = read();
+  if (mode === "B") window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0, on: false } }));
+  stepTo(pressAt + 4, true, count);
+  const L = read();
+  window.__bank = { f1, q, L };
+  // (review V5) each bank group's mean LED colour (lit cells, level-weighted) and its lit heads' mean colour, the
+  // programmer's own arrays at the latched frame
+  const P = s.programmer, groups = {};
+  for (let gi = 0; gi < P.bankG.names.length; gi++) {
+    const m = [0, 0, 0, 0], h = [0, 0, 0, 0];
+    for (let c = 0; c < P.nC; c++) { if (P.bankG.cellG[c] !== gi) continue; const l = P.pixels[c * 4 + 3]; if (l < 0.05) continue; m[0] += P.pixels[c * 4]; m[1] += P.pixels[c * 4 + 1]; m[2] += P.pixels[c * 4 + 2]; m[3] += l; }
+    for (let i = 0; i < P.nH; i++) { if (P.bankG.headG[i] !== gi) continue; const o = i * 16; if (P.heads[o + 2] < 0.02) continue; h[0] += P.heads[o + 3]; h[1] += P.heads[o + 4]; h[2] += P.heads[o + 5]; h[3]++; }
+    groups[P.bankG.names[gi]] = { cells: m[3] > 0 ? [m[0] / m[3], m[1] / m[3], m[2] / m[3]] : null, heads: h[3] ? [h[0] / h[3], h[1] / h[3], h[2] / h[3]] : null };
+  }
+  return { sizes: [f1.length, q.length, L.length], acted, bankBefore: before, bankAfter: s.programmer.bank.count,
+           protection: s.flashProtection().on, bank: s.programmer.bankStatus(), groups, look: s.renderer.look || null };
+})`;
+function labOf3(px) {
+  const n = px.length / 3, out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = LIN8[px[i * 3]], g = LIN8[px[i * 3 + 1]], b = LIN8[px[i * 3 + 2]];
+    const fx = labF((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), fy = labF(0.2126 * r + 0.7152 * g + 0.0722 * b), fz = labF((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+    out[i * 3] = 116 * fy - 16; out[i * 3 + 1] = 500 * (fx - fy); out[i * 3 + 2] = 200 * (fy - fz);
+  }
+  return out;
+}
+const isRed8 = (px, i) => { const r = px[i * 3], g = px[i * 3 + 1], b = px[i * 3 + 2], s = r + g + b; return s > 0 && r / s >= 0.8; };
+async function phaseBank({ ev, open, shot, phase, deadline }) {
+  phase.size = [BANK_W, BANK_H]; phase.sample_step = BANK_STEP; phase.cases_planned = BANK_CASES.length;
+  phase.prereg = { B1: "latched: >= 60 % of lit pixels (L* >= 20 in A or B) have a hue (C* >= 10) in both frames that moved >= 30 degrees",
+                   B2: "latched: >= 80 % of laser pixels (A vs lasers-off C, dE76 > 10) changed colour (A vs B dE76 > 10)",
+                   B3: "B's saturated-red pixels (encoded R share >= 0.8, L* >= 20) <= A's + 0.1 % of the frame, every read frame",
+                   B4: "the limiter acted on no frame of B from the press to the latched frame (protection on)",
+                   B5: "the press shows on the next frame: >= 1 % of the frame by dE76 > 10",
+                   // review V5 (2026-10-29), registered before the fix round's first bank run; B1 stays as registered for the
+                   // record (a one-family palette cannot move 60 % of its pixels' hue 30 degrees)
+                   B6: "latched: >= 70 % of lit pixels (L* >= 20 in A or B) changed colour by dE76 > 10 (any palette)",
+                   B7: "latched: every bank group lit in both pages moved its mean colour (LEDs, level-weighted; lit heads) by dEOK > 0.04" };
+  const cases = BANK_CASES.map((c, i) => ({ ...c, setLook: i === 0 || BANK_CASES[i - 1].look !== c.look }));
+  const query = `engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&w=${BANK_W}&h=${BANK_H}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`;
+  const fetchB = async (name, len) => { const parts = []; for (let i = 0; i < len; i += 262144) parts.push(await ev(`window.__bank.${name}.slice(${i}, ${i + 262144})`, 60000)); return Buffer.from(parts.join(""), "base64"); };
+  const pages = {};
+  for (const mode of ["A", "C", "B"]) {
+    await open(query);
+    await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+    if (opt["bank-haze"] !== "") { await ev(`window.__stage.fader("haze", ${Number(opt["bank-haze"])})`); phase.haze_fader = Number(opt["bank-haze"]); }
+    pages[mode] = [];
+    for (const c of cases) {
+      if (Date.now() > deadline - 20000) break;
+      const r = await ev(`${BANK_CASE}(${JSON.stringify(c)}, ${JSON.stringify(mode)})`, 160000);
+      // stills for the eye: the latched frame of each look's first case, with and without the press
+      if (mode !== "C" && c.setLook) await shot(join(sheetDir || outDir, `bank-${c.look}-${c.shot}-${mode === "A" ? "before" : "after"}.png`));
+      const fr = {};
+      for (const [k, name] of ["f1", "q", "L"].entries()) fr[name] = await fetchB(name, r.sizes[k]);
+      pages[mode].push({ ...r, fr });
+    }
+  }
+  const rows = [];
+  for (let i = 0; i < Math.min(pages.A.length, pages.B.length, pages.C.length); i++) {
+    const c = cases[i], A = pages.A[i], B = pages.B[i], C = pages.C[i];
+    const row = { look: c.look, shot: c.shot, bank_from: B.bankBefore, bank_to: B.bankAfter, limiter_acted_B: B.acted, protection: B.protection, finish: B.look };
+    // B7: the programmer's groups, A against B at the latched frame
+    const moved = [], still = [];
+    for (const [name, ga] of Object.entries(A.groups || {})) {
+      const gb = (B.groups || {})[name];
+      if (!gb) continue;
+      for (const part of ["cells", "heads"]) if (ga[part] && gb[part]) (deOK(ga[part], gb[part]) > 0.04 ? moved : still).push(`${name}.${part}`);
+    }
+    row.groups_moved = moved.length; row.groups_still = still;
+    for (const name of ["f1", "q", "L"]) {
+      const a = A.fr[name], b = B.fr[name], la = labOf3(a), lb = labOf3(b), lc = labOf3(C.fr[name]);
+      const n = la.length / 3;
+      let lit = 0, hued = 0, laser = 0, laserCh = 0, ch10 = 0, redA = 0, redB = 0, chromaLit = 0, bright = 0, brightHued = 0, litCh10 = 0;
+      const dhs = [];
+      for (let p = 0; p < n; p++) {
+        const LA = la[p * 3], LB = lb[p * 3], aA = la[p * 3 + 1], bA = la[p * 3 + 2], aB = lb[p * 3 + 1], bB = lb[p * 3 + 2];
+        const dAB = Math.hypot(LA - LB, aA - aB, bA - bB);
+        if (dAB > 10) ch10++;
+        if (LA >= 20 || LB >= 20) {
+          lit++;
+          if (dAB > 10) litCh10++;
+          if (LA >= 50 || LB >= 50) bright++;
+          if (Math.hypot(aA, bA) >= 10 && Math.hypot(aB, bB) >= 10) {
+            let dh = Math.abs(Math.atan2(bA, aA) - Math.atan2(bB, aB)) * 180 / Math.PI;
+            if (dh > 180) dh = 360 - dh;
+            chromaLit++; dhs.push(dh);
+            if (dh >= 30) { hued++; if (LA >= 50 || LB >= 50) brightHued++; }
+          }
+        }
+        if (Math.hypot(LA - lc[p * 3], aA - lc[p * 3 + 1], bA - lc[p * 3 + 2]) > 10) { laser++; if (dAB > 10) laserCh++; }
+        if (LA >= 20 && isRed8(a, p)) redA++;
+        if (LB >= 20 && isRed8(b, p)) redB++;
+      }
+      dhs.sort((x, y) => x - y);
+      row[name] = { lit_share: +(lit / n).toFixed(4), hue30: lit ? +(hued / lit).toFixed(4) : null,
+                    chroma_lit_share: lit ? +(chromaLit / lit).toFixed(4) : null, hue30_of_chroma: chromaLit ? +(hued / chromaLit).toFixed(4) : null,
+                    hue_move_median: dhs.length ? +dhs[dhs.length >> 1].toFixed(1) : null, bright_share: +(bright / n).toFixed(4), hue30_of_bright: bright ? +(brightHued / bright).toFixed(4) : null, laser_px: laser, laser_changed: laser ? +(laserCh / laser).toFixed(4) : null,
+                    changed_de10: +(ch10 / n).toFixed(4), lit_de10: lit ? +(litCh10 / lit).toFixed(4) : null, red_A: +(redA / n).toFixed(5), red_B: +(redB / n).toFixed(5) };
+    }
+    rows.push(row);
+    console.log(`bank case ${c.look.padEnd(6)} ${c.shot.padEnd(11)} bank ${row.bank_from}->${row.bank_to}: latched hue>=30 ${(100 * row.L.hue30).toFixed(1)} % of lit (${(100 * row.L.lit_share).toFixed(1)} % of frame lit; ${(100 * row.L.chroma_lit_share).toFixed(1)} % of lit chromatic, of those ${(100 * row.L.hue30_of_chroma).toFixed(1)} % moved, median ${row.L.hue_move_median} deg; L*>=50 ${(100 * row.L.bright_share).toFixed(1)} % of frame, ${(100 * (row.L.hue30_of_bright ?? 0)).toFixed(1)} % moved), lasers changed ${row.L.laser_changed === null ? "-" : (100 * row.L.laser_changed).toFixed(1) + " %"} of ${row.L.laser_px} px; lit dE10 ${(100 * row.L.lit_de10).toFixed(1)} %; groups moved ${row.groups_moved}${row.groups_still.length ? ` (still: ${row.groups_still.join(", ")})` : ""}; f1 dE10 ${(100 * row.f1.changed_de10).toFixed(1)} %; q hue>=30 ${(100 * row.q.hue30).toFixed(1)} %; red A ${row.L.red_A} B ${row.L.red_B}; limiter acted ${row.limiter_acted_B}`);
+  }
+  phase.cases = rows;
+  phase.bank_status = pages.B.length ? pages.B[pages.B.length - 1].bank : null;
+  check(`bank: every case measured (${rows.length} of ${cases.length})`, rows.length === cases.length, { measured: rows.length });
+  check("bank: the press stepped the bank by one in every case (B), A and C stayed, and A and B stood at the same bank before it", rows.length && rows.every((r) => r.bank_to === r.bank_from + 1) && pages.A.every((x, i) => x.bankAfter === x.bankBefore && x.bankBefore === pages.B[i].bankBefore), rows.map((r, i) => [pages.A[i].bankBefore, r.bank_from, r.bank_to]));
+  check("bank: flash protection on in every page", ["A", "B", "C"].every((m) => pages[m].length && pages[m].every((x) => x.protection)));
+  check("bank B1: latched, 60 % or more of the lit pixels moved hue by 30 degrees or more", rows.length && rows.every((r) => r.L.hue30 >= 0.6), rows.map((r) => `${r.look} ${r.shot} ${r.bank_from}: ${r.L.hue30}`));
+  check("bank B2: latched, 80 % or more of the laser pixels changed colour", rows.length && rows.every((r) => r.L.laser_px > 200 && r.L.laser_changed >= 0.8), rows.map((r) => `${r.look} ${r.shot} ${r.bank_from}: ${r.L.laser_changed} of ${r.L.laser_px}`));
+  check("bank B3: the red rule, no saturated red added", rows.length && rows.every((r) => ["f1", "q", "L"].every((n) => r[n].red_B <= r[n].red_A + 0.001)), rows.map((r) => [r.L.red_A, r.L.red_B]));
+  check("bank B4: the limiter acted on no frame of B (protection on)", rows.length && rows.every((r) => r.limiter_acted_B === 0), rows.map((r) => r.limiter_acted_B));
+  check("bank B5: the press shows on the next frame", rows.length && rows.every((r) => r.f1.changed_de10 >= 0.01), rows.map((r) => r.f1.changed_de10));
+  check("bank B6: latched, 70 % or more of the lit pixels changed colour (dE76 > 10)", rows.length && rows.every((r) => r.L.lit_de10 >= 0.7), rows.map((r) => `${r.look} ${r.shot} ${r.bank_from}: ${r.L.lit_de10}`));
+  check("bank B7: latched, every bank group lit in both pages moved its mean colour (dEOK > 0.04)", rows.length && rows.every((r) => r.groups_moved > 0 && !r.groups_still.length), rows.map((r) => `${r.look} ${r.shot} ${r.bank_from}: ${r.groups_moved} moved${r.groups_still.length ? ", still " + r.groups_still.join(" ") : ""}`));
+}
+
+// THE HAZE FADER (2026-10-29, atmos.js header). Daniel: "It looks like the haze knob doesn't quite fully control the haze".
+// The page in engine mode on FOH_WIDE at 832 x 384: the KeyLab's F5 sent through the fake engine as cc109 (as an absolute
+// event, and once as the "rel" event the hub's decoder can file a fader as), then 6 s of logic, then drawn. Pages at
+// F5 = 0, 0.25, 0.5, 0.75 (review V4), 1 and one at 0 with the haze's passes (wide beams, veil) off, the same frame
+// position in each.
+// PRE-REGISTERED (written before the first run): H1 the state's haze level follows the fader (|H - F5| < 0.01), sigma0 is
+// 0 at F5 = 0 and SIGMA_MAX x F5 otherwise (review V4: SIGMA_MAX x hazeCurve(F5)), every hazer plume 0 at F5 = 0; H2 at F5 = 0 the frame equals the frame with
+// the haze passes off (pixels differing by dE76 > 3: 0.2 % or less: no haze left anywhere on screen); H3 the frame's mean
+// luminance rises 0 < 0.5 < 1; H4 the HUD row reads the real level; H5 a rel-filed cc109 moves the fader too.
+async function phaseHaze({ ev, open, phase, deadline }) {
+  const query = `engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&w=${BANK_W}&h=${BANK_H}&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`;
+  const F = 1000 / 60;
+  // (review V4: and F5 at a quarter and three quarters, for H6)
+  const runs = [{ f5: 0, rel: false, off: false }, { f5: 0.25, rel: false, off: false }, { f5: 0.5, rel: true, off: false }, { f5: 0.75, rel: false, off: false }, { f5: 1, rel: false, off: false }, { f5: 0, rel: false, off: true }];
+  const out = [];
+  for (const r of runs) {
+    if (Date.now() > deadline - 15000) break;
+    await open(query);
+    await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+    const raw = Math.round(r.f5 * 127);
+    send(r.rel ? { t: "ctl", id: "cc109", kind: "rel", value: 0.5, delta: raw - 64 } : { t: "ctl", id: "cc109", kind: "abs", value: raw / 127, delta: 0 });
+    await waitFor(() => ev(`Math.abs(window.__stage.faders.haze - ${raw / 127}) < 1e-6`), 10000, "the fader event");
+    const got = await ev(String.raw`(() => {
+      const s = window.__stage, F = ${F}, STEP = ${BANK_STEP};
+      if (${r.off}) s.features({ beams: false, veil: false });
+      s.skipRender = true; for (let i = 0; i < 360; i++) window.__vt.step(F); s.skipRender = false;
+      s.setShot("FOH_WIDE", 0.5);
+      for (let i = 0; i < 6; i++) window.__vt.step(F);
+      const gl = s.renderer.gl, canvas = document.getElementById("gl"), w = canvas.width, h = canvas.height, buf = new Uint8Array(w * h * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      const sw = Math.floor(w / STEP), sh = Math.floor(h / STEP), sub = new Uint8Array(sw * sh * 3);
+      for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) { const i = ((y * STEP) * w + x * STEP) * 4, o = (y * sw + x) * 3; sub[o] = buf[i]; sub[o + 1] = buf[i + 1]; sub[o + 2] = buf[i + 2]; }
+      let bin = ""; for (let i = 0; i < sub.length; i += 0x8000) bin += String.fromCharCode.apply(null, sub.subarray(i, i + 0x8000));
+      window.__haze = btoa(bin);
+      const st = s.state();
+      return { size: window.__haze.length, haze: st.haze, pos: st.pos };
+    })()`, 160000);
+    // the HUD row refreshes every 100 ms of the page's clock: step a few frames without drawing, then read it
+    const hud = await ev(String.raw`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 8; i++) window.__vt.step(${F}); s.skipRender = false; return (document.getElementById("hud-haze") || {}).textContent || null; })()`);
+    const parts = [];
+    for (let i = 0; i < got.size; i += 262144) parts.push(await ev(`window.__haze.slice(${i}, ${i + 262144})`, 60000));
+    const px = Buffer.from(parts.join(""), "base64");
+    let lum = 0;
+    for (let p = 0; p < px.length; p += 3) lum += 0.2126 * LIN8[px[p]] + 0.7152 * LIN8[px[p + 1]] + 0.0722 * LIN8[px[p + 2]];
+    out.push({ ...r, lab: labOf3(px), mean_lum: lum / (px.length / 3), haze: got.haze, pos: got.pos, hud });
+    console.log(`haze F5 ${r.f5}${r.rel ? " (rel event)" : ""}${r.off ? " haze passes off" : ""}: H ${got.haze.H.toFixed(4)} sigma0 ${got.haze.sigma0.toFixed(5)} hazers max ${Math.max(...got.haze.hazerSigma).toFixed(5)} mean luminance ${(lum / (px.length / 3)).toFixed(5)} pos ${got.pos.toFixed(3)} HUD "${hud}"`);
+  }
+  phase.runs = out.map(({ lab, ...x }) => x);
+  check(`haze: every run measured (${out.length} of ${runs.length})`, out.length === runs.length);
+  if (out.length !== runs.length) return;
+  const at = (f5, off = false) => out.find((x) => x.f5 === f5 && x.off === off);
+  const z = at(0), h5 = at(0.5), one = at(1), zoff = at(0, true);
+  // (review V4: sigma0 is SIGMA_MAX through the fader's curve, atmos.js hazeCurve)
+  check("haze H1: the level is the fader's (H within 0.01 of F5), sigma0 0 at F5 0 and SIGMA_MAX x hazeCurve(F5) above, the hazers' plumes 0 at F5 0",
+        out.every((x) => Math.abs(x.haze.H - x.haze.fader) < 0.01) && z.haze.sigma0 === 0 && z.haze.hazerSigma.every((v) => v === 0) && out.every((x) => Math.abs(x.haze.sigma0 - SIGMA_MAX * hazeCurve(x.haze.H)) < 2e-4) && Math.abs(one.haze.sigma0 - SIGMA_MAX) < 2e-4,
+        out.map((x) => ({ f5: x.haze.fader, H: +x.haze.H.toFixed(4), sigma0: +x.haze.sigma0.toFixed(5), hazers: +Math.max(...x.haze.hazerSigma).toFixed(5) })));
+  let diff = 0;
+  const n = z.lab.length / 3;
+  for (let p = 0; p < n; p++) if (Math.hypot(z.lab[p * 3] - zoff.lab[p * 3], z.lab[p * 3 + 1] - zoff.lab[p * 3 + 1], z.lab[p * 3 + 2] - zoff.lab[p * 3 + 2]) > 3) diff++;
+  phase.zero_vs_passes_off = { differing_de3: diff, share: +(diff / n).toFixed(5), same_pos: Math.abs(z.pos - zoff.pos) < 1e-6 };
+  check("haze H2: at F5 0 the frame is the frame with the haze's passes off (dE76 > 3 on 0.2 % of pixels or less)", phase.zero_vs_passes_off.same_pos && diff / n <= 0.002, phase.zero_vs_passes_off);
+  check("haze H3: the frame's mean luminance rises with F5 (0 < 0.5 < 1)", z.mean_lum < h5.mean_lum && h5.mean_lum < one.mean_lum, [z.mean_lum, h5.mean_lum, one.mean_lum].map((x) => +x.toFixed(5)));
+  check("haze H4: the HUD reads the real level and the fader", /^0 % \(F5\)/.test(z.hud || "") && /^50 % \(F5\)/.test(h5.hud || "") && /^100 % \(F5\)/.test(one.hud || ""), [z.hud, h5.hud, one.hud]);
+  check("haze H5: a cc109 the hub filed as relative moves the fader (F5 64/127 from a rel event)", Math.abs(h5.haze.fader - 64 / 127) < 1e-6 && Math.abs(h5.haze.H - 64 / 127) < 0.01, h5.haze);
+  // H6 (review V4, registered before the fix round's first haze run): equal travel, comparable visible change -- every
+  // quarter of the fader's travel gives 12 % or more of the frame's 0-to-1 rise in mean luminance
+  const q1 = at(0.25), q3 = at(0.75), rise = one.mean_lum - z.mean_lum;
+  const quarters = [z, q1, h5, q3, one].map((x) => x.mean_lum).map((v, i, a) => (i ? (v - a[i - 1]) / rise : null)).slice(1);
+  phase.quarters = quarters.map((x) => +x.toFixed(4));
+  check("haze H6: every quarter of F5's travel gives 12 % or more of the 0-to-1 rise in the frame's mean luminance", rise > 0 && quarters.every((x) => x >= 0.12), phase.quarters);
+}
+
+// SETUPS (2026-10-29, setups.js; Daniel: "i want the lights to cycle different color palates and setups"). Every setup held
+// (?setup=<id>) and the palettes' own looks (?setups=off, the baseline), each on its own page: the demo from bar 16 (the
+// drop) at 640 x 360, flash protection on, every frame drawn and read by the verifier's own probe, the same input on every
+// page (the demo's own pads, and kick 5 tapped through the pad door at frames 120, 240 and 360), the limiter reset at the
+// start. Then a rotation page (?setups=rotate, logic only): the automatic change on the 16-bar line, O on the next bar line.
+// PRE-REGISTERED (written before this phase's first run): S1 every setup lands (the page's setup is the one asked, its laser
+// colours the setup's, no exceptions); S2 at most 3 flashes a second in every window and no red flash, every page; S3 the
+// limiter's frames under each setup at or under the baseline's x 1.25 + 10 (flash protection's limits are not changed: this
+// says the setups do not lean on it much harder than the palettes do); S4 the saturated-red share of lit pixels (encoded R
+// share >= 0.8, L* >= 20) in the final frame at or under the baseline's + 0.1 % of the frame; S5 every kick-5 tap stepped
+// the setup's bank by one (three taps, bank 3 at the end) and changed the lasers; S6 the rotation: the change lands on bar
+// 16-bar line (the phrase origin on the bar grid + 64: in the demo, the drop's first ONE) to the next setup in the order, O lands on the next bar line, the HUD's set row names the setup.
+const SETUPS_FRAMES = 480;
+async function phaseSetups({ ev, open, shot, phase, deadline }) {
+  const fw = 640, fh = 360, bar = 16;
+  const lib = JSON.parse(readFileSync(join(REPO, "arsenal", "web", "stage", "sets", "setups.json"), "utf8"));
+  const ids = opt["setups-ids"] ? opt["setups-ids"].split(",").filter((x) => lib.order.includes(x)) : lib.order;
+  const taps = opt["setups-taps"] !== "0";
+  phase.taps = taps;
+  phase.prereg = { S1: "every setup lands", S2: "worst <= 3 flashes/s, red 0, every page", S3: "limited frames <= baseline x 1.25 + 10",
+                   S4: "red share of the final frame <= baseline + 0.001", S5: "three taps: bank 3, lasers changed", S6: "auto on bar 16's line, O on the next bar line, HUD names it" };
+  const RUN = String.raw`((from, n) => {
+    const s = window.__stage, out = [];
+    const kp = (on) => window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0.9, on } }));
+    for (let i = 0; i < n; i++) {
+      const f = from + i;
+      if (${taps} && (f === 120 || f === 240 || f === 360)) kp(true);
+      if (f === 126 || f === 246 || f === 366) kp(false);
+      window.__vt.step(1000 / 60);
+      const c = window.__probe.cells(), g = s.renderer.info.gains;
+      out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0,
+                 bank: s.programmer.bank.count, lasers: s.programmer.sx.lasers ? s.programmer.sx.lasers.names.join(",") : "palette" });
+    }
+    return out;
+  })`;
+  // (read in the same task as a drawn frame: the canvas does not keep its buffer)
+  const RED = String.raw`(() => {
+    window.__vt.step(1000 / 60);
+    const s = window.__stage, gl = s.renderer.gl, cv = document.getElementById("gl"), w = cv.width, h = cv.height, buf = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    const lin = (v) => { const x = v / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    let lit = 0, red = 0;
+    for (let i = 0; i < buf.length; i += 4) {
+      const r = buf[i], g = buf[i + 1], b = buf[i + 2], Y = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+      const Ls = Y > 0.008856 ? 116 * Math.cbrt(Y) - 16 : 903.3 * Y;
+      if (Ls < 20) continue;
+      lit++; if (r / (r + g + b) >= 0.8) red++;
+    }
+    return { lit: lit / (w * h), red: red / (w * h) };
+  })()`;
+  phase.pages = {};
+  const pals = opt["setups-palettes"] ? opt["setups-palettes"].split(",").filter(Boolean).map((p) => `palette:${p}`) : [];
+  for (const id of ["off", ...pals, ...ids]) {
+    if (Date.now() > deadline - 25000) break;
+    const q = id === "off" ? "setups=off" : id.startsWith("palette:") ? `setups=off&palette=${id.slice(8)}` : `setup=${id}`;
+    await open(`demo=1&vt=1&w=${fw}&h=${fh}&hud=0&quality=receipt&set=${opt.set}&${q}`);
+    await ev(PAGE_PROBE);
+    const setup = await ev(String.raw`(() => {
+      const s = window.__stage, F = 1000 / 60;
+      if (${JSON.stringify(opt["setups-lasers"])} !== "") s.fader("lasers", Number(${JSON.stringify(opt["setups-lasers"])}));
+      s.skipRender = true; for (let i = 0; i < 96 * ${bar} - 30; i++) window.__vt.step(F); s.skipRender = false;
+      for (let i = 0; i < 30; i++) window.__vt.step(F);
+      s.resetLimiter();
+      const st = s.state();
+      return { pos: st.pos, section: st.section, setup: st.setup.id, layer: st.setup.layer, protection: s.flashProtection().on, look: s.renderer.look || null };
+    })()`, 170000);
+    const series = [];
+    for (let done = 0; done < SETUPS_FRAMES && Date.now() < deadline - 15000; done += 60) series.push(...await ev(`${RUN}(${done}, ${Math.min(60, SETUPS_FRAMES - done)})`, 160000));
+    const dealt = await ev("window.__stage.state().kicks.slice(-8).map((k) => `${k.kind}:${k.row}@${k.pressPos.toFixed(2)}`)");
+    const red = await ev(RED);
+    await shot(join(sheetDir || outDir, `setups-${id}.png`));
+    const j = judgeFlashes(series), errs = await ev("window.__stage.errors.slice(0, 5)");
+    const lasersSeen = [...new Set(series.map((x) => x.lasers))], laserChanges = series.filter((x, i) => i && x.lasers !== series[i - 1].lasers).length;
+    const row = { setup, frames: series.length, limited: series.filter((x) => x.lim).length, worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red,
+                  bank_end: series.length ? series[series.length - 1].bank : null, lasers_seen: lasersSeen, laser_changes: laserChanges, dealt, limited_at: series.map((x, i) => (x.lim ? i : -1)).filter((i) => i >= 0), cells_at: opt["flash-debug"] ? series.map((x) => x.L.map((v) => +v.toFixed(3))) : undefined, bank_at: series.map((x, i) => (i && x.bank !== series[i - 1].bank ? i : -1)).filter((i) => i >= 0), red, errors: errs.length + phase.exceptions.length, error_text: errs };
+    phase.pages[id] = row;
+    console.log(`setups ${id.padEnd(16)} ${row.frames} frames (${setup.section}, protection ${setup.protection}, page setup ${setup.setup}): limiter ${row.limited}, worst ${row.worst} (${row.worst_window}) red ${row.worst_red}, bank ${row.bank_end}, lasers ${lasersSeen.join(" | ")}, red px ${(100 * red.red).toFixed(3)} % of ${(100 * red.lit).toFixed(1)} % lit`);
+  }
+  // the rotation, logic only
+  let rot = null;
+  if (Date.now() < deadline - 20000) {
+    await open(`demo=1&vt=1&w=${fw}&h=${fh}&quality=receipt&set=${opt.set}&setups=rotate`);
+    rot = await ev(String.raw`(() => {
+      const s = window.__stage, F = 1000 / 60, out = { first: s.state().setup.id };
+      s.skipRender = true;
+      let last = out.first, pos0 = null;
+      for (let i = 0; i < 96 * 18 && pos0 === null; i++) { window.__vt.step(F); const st = s.state(); if (st.setup.id !== last) { pos0 = st.setup.landedAt; out.second = st.setup.id; out.frame_pos = st.pos; } }
+      out.landed_at = pos0;
+      for (let i = 0; i < 30; i++) window.__vt.step(F);
+      const pressPos = s.state().pos;
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyO" }));
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyO" }));
+      const q = s.state().setup;
+      out.o = { press_pos: pressPos, queued: q.queued, at: q.at };
+      for (let i = 0; i < 120; i++) window.__vt.step(F);
+      out.o.landed = s.state().setup.id; out.o.landedAt = s.state().setup.landedAt;
+      s.skipRender = false; window.__vt.step(F);
+      for (let i = 0; i < 12; i++) window.__vt.step(F);
+      out.hud = (document.getElementById("hud-set") || {}).textContent || "";
+      out.order = s.setups(); out.anchor = s.state().grid.barAnchor; out.origin = s.state().setup.origin;
+      return out;
+    })()`, 170000);
+    phase.rotation = rot;
+    console.log(`setups rotation: ${rot.first} -> ${rot.second} landed at pos ${rot.landed_at}; O pressed at ${rot.o.press_pos.toFixed(3)} queued ${rot.o.queued} at ${rot.o.at} -> ${rot.o.landed}; HUD "${rot.hud}"`);
+  }
+  const base = phase.pages.off, rows = Object.entries(phase.pages).filter(([k]) => k !== "off" && !k.startsWith("palette:"));
+  phase.palette_pages = Object.fromEntries(Object.entries(phase.pages).filter(([k]) => k.startsWith("palette:")).map(([k, r]) => [k.slice(8), { limited: r.limited, worst: r.worst, worst_red: r.worst_red }]));
+  check(`setups S1: every setup lands (${rows.length} of ${ids.length}), protection on, no errors`, rows.length === ids.length && rows.every(([k, r]) => r.setup.setup === k && r.setup.protection && r.frames === SETUPS_FRAMES && r.errors === 0) && base && base.setup.setup === null,
+        rows.map(([k, r]) => [k, r.setup.setup, r.frames, r.errors, r.error_text]));
+  check("setups S2: at most 3 flashes a second in every window, no red flash, every page (the baseline too)", base && [["off", base], ...rows].every(([, r]) => r.worst <= 3 && r.worst_red === 0), [["off", base], ...rows].map(([k, r]) => [k, r && r.worst, r && r.worst_red]));
+  check("setups S3: the limiter's frames under each setup at or under the baseline's x 1.25 + 10", base && rows.every(([, r]) => r.limited <= base.limited * 1.25 + 10), { baseline: base && base.limited, setups: rows.map(([k, r]) => [k, r.limited]) });
+  check("setups S4: no saturated red added (the final frame's red share at or under the baseline's + 0.1 %)", base && rows.every(([, r]) => r.red.red <= base.red.red + 0.001), { baseline: base && base.red, setups: rows.map(([k, r]) => [k, +r.red.red.toFixed(5)]) });
+  check("setups S5: every kick-5 tap stepped the setup's bank (bank 3 at the end) and turned the lasers", rows.length && rows.every(([, r]) => r.bank_end === 3 && r.laser_changes === 3), rows.map(([k, r]) => [k, r.bank_end, r.laser_changes]));
+  check("setups S6: the rotation lands on the 16-bar line (the phrase origin + 64) to the next setup; O lands on the next bar line; the HUD names the setup",
+        !!rot && rot.landed_at === rot.origin + 64 && rot.second === rot.order[1] && rot.first === rot.order[0] && rot.o.at === rot.anchor + 4 * (Math.floor((rot.o.press_pos - rot.anchor) / 4 + 1e-6) + 1) && rot.o.landed === rot.o.queued && /setup /.test(rot.hud),
+        rot);
+}
+
+// THE BANK ROLL (review S2, 2026-10-29; the review's scratch roll phase, adopted). Kick 5 deals a whole-stage colour bank on
+// every press; the review found the limiter acting more under kick-5 rolls in the drop, by palette (Synthwave Dusk 162
+// limited frames against 80 before the bank; Lime Rows' kick-5 taps alone 9 against 0). The demo's drop from bar 16 at
+// 640 x 360, protection on, every frame drawn, through the page's pad door: R1 kick 5 taps 8 a second at full velocity
+// (frames 0-239); R2 kick 1 held at the top of its level (the strobe band) with kick 5 taps 6 a second (240-479); R3 both
+// held, kick 5 re-struck 4 a second, the level wobbling 0.9 to 1 (480-719). Palettes: Source Violet, Synthwave Dusk, Lime
+// Rows, Violet Hold (or the one --query palette= names).
+// PRE-REGISTERED (the fix round, before this phase's first run in the lane; the fix round's exploratory runs of the
+// review's scratch copy measured R1 0 in three of them): BR1 kick 5's taps alone (R1) never make the limiter act, in every
+// palette; BR2 at most 3 flashes a second in every window and no red, the whole roll, every palette; BR3 the limiter's
+// frames over the whole roll at or under the base before the bank (b0964df7a, the review's numbers on the same input:
+// Source Violet 168, Synthwave Dusk 80, Lime Rows 117, Violet Hold 130).
+const ROLL_BASE = { "source-violet": 168, "synthwave-dusk": 80, "lime-rows": 117, "violet-hold": 130 };
+async function phaseBankRoll({ ev, open, phase, deadline }) {
+  const fw = 640, fh = 360, bar = 16, total = 720;
+  const qp = /(?:^|&)palette=([a-z0-9-]+)/.exec(opt.query || "");
+  const pals = qp ? [qp[1]] : Object.keys(ROLL_BASE);
+  const segs = { R1_taps_8ps: [0, 240], R2_held1_taps_6ps: [240, 480], R3_both_held_4ps: [480, 720] };
+  const RUN = String.raw`((from, n) => {
+    const s = window.__stage, out = [], P = s.programmer;
+    const door = (type, detail) => window.dispatchEvent(new CustomEvent(type, { detail }));
+    const kp = (pad, vel, on) => door("arsenal:pad", { pad, vel, on }), kl = (pad, vel) => door("arsenal:padlevel", { pad, vel });
+    for (let i = 0; i < n; i++) {
+      const f = from + i;
+      if (f < 240) { for (let k = 0; k < 32; k++) { const t = Math.round(k * 7.5); if (t === f) kp(5, 1, true); if (t + 3 === f) kp(5, 0, false); } }
+      if (f === 240) { kp(1, 1, true); kl(1, 1); }
+      if (f >= 240 && f < 480) { const q = f - 240; if (q % 10 === 0) { kp(5, 1, true); kl(5, 1); } if (q % 10 === 4) kp(5, 0, false); }
+      if (f === 480) { kp(1, 0, false); kp(1, 1, true); kp(5, 1, true); kl(1, 1); kl(5, 1); }
+      if (f > 480 && f < 716) { const q = f - 480; if (q % 15 === 0) { kp(5, 0, false); kp(5, 1, true); } if (q % 30 === 7) { kl(5, 0.9); kl(1, 0.9); } if (q % 30 === 22) { kl(5, 1); kl(1, 1); } }
+      if (f === 716) { kp(1, 0, false); kp(5, 0, false); }
+      window.__vt.step(1000 / 60);
+      const c = window.__probe.cells(), g = s.renderer.info.gains;
+      out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0, bank: P.bank.count, room: P.kick.headroom });
+    }
+    return out;
+  })`;
+  phase.prereg = { BR1: "R1 (kick 5 taps alone, 8 a second) limited frames 0, every palette", BR2: "worst <= 3 flashes a second, red 0, every palette", BR3: `limited frames over the roll <= base ${JSON.stringify(ROLL_BASE)}` };
+  phase.palettes = {};
+  for (const pal of pals) {
+    if (Date.now() > deadline - 30000) break;
+    await open(`demo=1&vt=1&w=${fw}&h=${fh}&hud=0&quality=receipt&set=${opt.set}&palette=${pal}`);
+    await ev(PAGE_PROBE);
+    const setup = await ev(String.raw`(() => {
+      const s = window.__stage, F = 1000 / 60;
+      s.skipRender = true; for (let i = 0; i < 96 * ${bar} - 30; i++) window.__vt.step(F); s.skipRender = false;
+      for (let i = 0; i < 30; i++) window.__vt.step(F);
+      s.resetLimiter();
+      return { pos: s.state().pos, section: s.state().section, palette: s.state().palette.id, protection: s.flashProtection().on, look: s.renderer.look || null };
+    })()`, 170000);
+    const series = [];
+    for (let done = 0; done < total && Date.now() < deadline - 20000; done += 60) series.push(...await ev(`${RUN}(${done}, ${Math.min(60, total - done)})`, 160000));
+    const j = judgeFlashes(series), errs = await ev("window.__stage.errors.slice(0, 5)");
+    const ks = await ev("window.__stage.programmer.kick.status()");
+    const row = { setup, frames: series.length, limited: series.filter((x) => x.lim).length, worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red,
+                  bank_steps: series.length ? series[series.length - 1].bank - series[0].bank : 0, governor_held_back: ks.governor_held_back, errors: errs.length + phase.exceptions.length, segments: {} };
+    for (const [k, [a, b]] of Object.entries(segs)) {
+      const xs = series.slice(a, b);
+      if (!xs.length) continue;
+      const jj = judgeFlashes(xs);
+      row.segments[k] = { frames: xs.length, limited: xs.filter((x) => x.lim).length, worst: jj.worst, worst_red: jj.worst_red, bank_steps: xs[xs.length - 1].bank - xs[0].bank, room_min: Math.min(...xs.map((x) => x.room)) };
+    }
+    phase.palettes[pal] = row;
+    console.log(`bankroll ${pal.padEnd(15)} ${row.frames} frames (${setup.section}, protection ${setup.protection}): limiter ${row.limited} frames (base ${ROLL_BASE[pal] ?? "-"}), worst ${row.worst} (${row.worst_window}) red ${row.worst_red}, bank steps ${row.bank_steps}; ${Object.entries(row.segments).map(([k, v]) => `${k} limited ${v.limited} steps ${v.bank_steps}`).join("; ")}`);
+  }
+  const rows = Object.entries(phase.palettes);
+  check(`bankroll: every palette drawn (${rows.length} of ${pals.length}), ${total} frames each, protection on`, rows.length === pals.length && rows.every(([, r]) => r.frames === total && r.setup.protection), rows.map(([p, r]) => [p, r.frames]));
+  check("bankroll BR1: kick 5's taps alone (8 a second) never make the limiter act", rows.length && rows.every(([, r]) => r.segments.R1_taps_8ps && r.segments.R1_taps_8ps.limited === 0), rows.map(([p, r]) => [p, r.segments.R1_taps_8ps && r.segments.R1_taps_8ps.limited]));
+  check("bankroll BR2: at most 3 flashes a second in every window, no red, every palette", rows.length && rows.every(([, r]) => r.worst <= 3 && r.worst_red === 0), rows.map(([p, r]) => [p, r.worst, r.worst_red]));
+  check("bankroll BR3: the limiter's frames over the roll at or under the base before the bank", rows.length && rows.every(([p, r]) => ROLL_BASE[p] === undefined || r.limited <= ROLL_BASE[p]), rows.map(([p, r]) => [p, r.limited, ROLL_BASE[p] ?? null]));
+  check("bankroll: no exceptions or console errors", rows.every(([, r]) => r.errors === 0));
+}
+
 async function phaseKick({ ev, open, shot, phase }) {
   await open(`demo=1&vt=1&${BASE}`);
   // into the break (bar 41), where the demo presses no pads of its own (in the drop it presses pad 1 on every downbeat,
@@ -1939,6 +2460,602 @@ async function phaseSheetPhrase({ ev, open, shot, phase }) {
   check("sheet-phrase: the HUD's phrase row names the running step, its variant and its repeat", hud.step && hud.text.includes(`${hud.step} ${hud.stepName}`) && hud.text.includes(hud.variant), hud);
 }
 
+// ===================================================================================================== PALETTES --
+// 2026-10-28 (arsenal/web/palettes.js; research/in-flight/palettes-2026-10-28/DESIGN.md). Daniel: "I want us to have 30
+// color palates that are high quality and what is used for driving the colors so it always looks careful and deliberate".
+//   palettes   the contact sheet: every palette (or --pal-ids) on the Stage from one hero view (--pal-look, drop; --pal-shot,
+//              FOH_WIDE), the palette landed at once through the page's door, two seconds of logic to settle (the wheels move
+//              in black), then the frame; with --pal-kick also the same view with a colour kick lit on the rings and one on
+//              the strand. PNGs to --sheet-dir (or the receipt folder), for the eye.
+//   phonebar   the headless phone check: a phone's viewport (915 x 412, touch), ?pads=1 -- the PALETTE pad shows the palette
+//              and, pressed by touch, the one queued; the colour strip wears the palette's lift colours; the page says so
+//              only when the palette changes (never per frame), and the frames keep coming as fast with the bar as without.
+async function phasePalettes({ ev, open, shot, phase, deadline }) {
+  const dir = sheetDir || join(outDir, "palettes");
+  mkdirSync(dir, { recursive: true });
+  await open(`engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&${BASE}`);
+  await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+  const ids = await ev("window.__stage.palettes()");
+  const want = (opt["pal-ids"] ? opt["pal-ids"].split(",").map((s) => s.trim()) : ids).filter((x) => ids.includes(x));
+  phase.dir = dir; phase.planned = want.length; phase.shots = [];
+  const look = opt["pal-look"], camShot = opt["pal-shot"], kick = opt["pal-kick"];
+  const STEP = String.raw`((id, look, camShot, u) => {
+    const s = window.__stage, F = 1000 / 60;
+    const posNow = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    s.palette(id, { now: true });
+    s.programmer.setLook(look, posNow(), { fade: 0 });
+    s.setShot(camShot, u); s.resetLimiter();
+    s.skipRender = true; for (let i = 0; i < 120; i++) window.__vt.step(F); s.skipRender = false;
+    for (let i = 0; i < 2; i++) window.__vt.step(F);
+    const st = s.state();
+    return { palette: st.palette.id, name: st.palette.name, errors: st.errors.slice(), limiter: st.limiter.interventions };
+  })`;
+  const KICK = String.raw`((area) => {
+    const s = window.__stage, F = 1000 / 60, P = s.programmer;
+    const i = P.kick.cards.findIndex((c) => c.name === area);
+    P.kick.deck.forceNext = i;
+    window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0.8, on: true } }));
+    s.skipRender = true; for (let k = 0; k < 20; k++) window.__vt.step(F); s.skipRender = false;
+    for (let k = 0; k < 2; k++) window.__vt.step(F);
+    const live = P.kick.list.filter((k) => k.held).map((k) => ({ area: k.card.name, colour: P.kick._hexOf(k) }));
+    return live;
+  })`;
+  const RELEASE = String.raw`(() => { const s = window.__stage, F = 1000 / 60; window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0, on: false } })); s.skipRender = true; for (let k = 0; k < 120; k++) window.__vt.step(F); s.skipRender = false; return true; })()`;
+  for (const [n, id] of want.entries()) {
+    if (Date.now() > deadline - 12000) break;
+    const r = await ev(`${STEP}(${JSON.stringify(id)}, ${JSON.stringify(look)}, ${JSON.stringify(camShot)}, 0.5)`, 120000);
+    const tag = `${String(ids.indexOf(id) + 1).padStart(2, "0")}-${id}`;
+    const row = { id, name: r.name, landed: r.palette, errors: r.errors, file: await shot(join(dir, `${tag}.png`)) };
+    if (kick) {
+      for (const area of ["rings", "strand"]) {
+        row[`kick_${area}`] = await ev(`${KICK}(${JSON.stringify(area)})`, 120000);
+        row[`file_kick_${area}`] = await shot(join(dir, `${tag}-kick-${area}.png`));
+        await ev(RELEASE, 120000);
+      }
+    }
+    phase.shots.push(row);
+    console.log(`palettes ${tag}: ${r.name}${kick ? ` (kicks: ${JSON.stringify(row.kick_rings)} ${JSON.stringify(row.kick_strand)})` : ""}`);
+  }
+  check(`palettes: every palette asked for landed and was drawn (${phase.shots.length} of ${want.length})`, phase.shots.length === want.length && phase.shots.every((x) => x.landed === x.id), phase.shots.map((x) => `${x.id}:${x.landed}`));
+  check("palettes: no errors on the page while switching", phase.shots.every((x) => !x.errors.length) && !phase.exceptions.length, phase.shots.flatMap((x) => x.errors).slice(0, 4));
+}
+
+async function phasePhoneBar({ S, ev, open, phase, deadline }) {
+  const PW = 915, PH = 412;
+  await S("Emulation.setDeviceMetricsOverride", { width: PW, height: PH, deviceScaleFactor: 1, mobile: true });
+  await S("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  const frames = async (n, render = true) => ev(`(() => { const s = window.__stage, F = 1000 / 60, t0 = window.__realNow(); s.skipRender = ${!render}; for (let i = 0; i < ${n}; i++) window.__vt.step(F); s.skipRender = false; return (window.__realNow() - t0) / ${n}; })()`, 170000);
+  // the same page without the bar first: the frame time to beat
+  await open(`demo=1&vt=1&pads=0&w=${PW}&h=${PH}&hud=0&quality=low&set=${opt.set}`);
+  await frames(30);
+  const msBare = await frames(90);
+  await open(`demo=1&vt=1&pads=1&w=${PW}&h=${PH}&hud=0&quality=low&set=${opt.set}`);
+  await waitFor(() => ev("!!document.querySelector('.tbs.right')"), 15000, "the kick strips");
+  await ev(`(() => { window.__palEvents = 0; window.addEventListener("arsenal:palette", () => { window.__palEvents++; }); return true; })()`);
+  const read = () => ev(`(() => { const b = [...document.querySelectorAll(".tb button")].find((x) => x.dataset.code === "KeyP");
+    const st = document.querySelector(".tbs.right"), r = b.getBoundingClientRect(), rs = st.getBoundingClientRect(), s = window.__stage.state();
+    return { label: b.textContent, small: b.querySelector("small").textContent, tinted: st.classList.contains("tinted"), k0: st.style.getPropertyValue("--k0"), k1: st.style.getPropertyValue("--k1"),
+             bankTag: st.getAttribute("data-bank"),
+             rect: [r.left + r.width / 2, r.top + r.height / 2], strip: [rs.left + rs.width / 2, rs.top + rs.height / 2],
+             palette: s.palette, events: window.__palEvents, pos: s.pos, bar: s.grid.barAnchor, errors: s.errors.slice(), ladder: window.__palette && window.__palette.ladder,
+             // THE BANK (kick 5): the colours the next press deals and how many places the bank has been stepped
+             bank: window.__palette && window.__palette.bank, bankSetup: window.__palette && window.__palette.bankSetup,
+             bankCount: window.__stage.programmer.bank.count }; })()`);
+  const touch = async (type, x, y, id = 1) => S("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id }] });
+  await frames(30);
+  const msBar = await frames(90);
+  const a = await read();
+  phase.before = a; phase.ms = { bare: +msBare.toFixed(1), bar: +msBar.toFixed(1) };
+  check("phonebar: the PALETTE pad shows the palette playing", a.small === a.palette.name, { small: a.small, palette: a.palette.name });
+  // THE BANK'S SEMANTICS (re-registered 2026-10-30): kick 5 became the colour BANK, so the strip wears the colours a press
+  // DEALS (setups.js THE BANK WITHIN A SETUP: the setup's own cycle under a setup, else the palette's bank cycle) -- not the
+  // palette's kick LADDER, which is what it wore while kick 5 was a palette-lift colour kick. The check still fails the way
+  // the old one did: a strip that falls back to the ladder while the bank deals something else is exactly the stale state.
+  const wearsBank = (r) => !!(r.tinted && Array.isArray(r.bank) && r.bank.length >= 2 && r.k0.startsWith(r.bank[0]) && r.k1.startsWith(r.bank[1]));
+  const ladderOnly = (r) => !!(r.ladder && r.ladder.length === 2 && r.k0.startsWith(r.ladder[0]) && r.k1.startsWith(r.ladder[1]));
+  const bankDiffers = (r) => !!(Array.isArray(r.bank) && r.ladder && r.ladder.length === 2 && (r.bank[0] !== r.ladder[0] || r.bank[1] !== r.ladder[1]));
+  check("phonebar: the colour strip wears the bank's colours (kick 5 deals them), not the palette's lift ladder", wearsBank(a) && !(bankDiffers(a) && ladderOnly(a)),
+        { k0: a.k0, k1: a.k1, bank: a.bank, bankTag: a.bankTag, ladder: a.ladder });
+  // press the PALETTE pad with a finger: the next palette is queued for the next 16-bar line, and the pad says so
+  await touch("touchStart", a.rect[0], a.rect[1]); await frames(2); await touch("touchEnd", a.rect[0], a.rect[1]);
+  await frames(2);
+  const b = await read();
+  phase.queued = b;
+  check("phonebar: a touch on the PALETTE pad queues the next palette for the next 16-bar line", !!b.palette.queued && b.palette.at > b.pos && Math.abs(((b.palette.at - b.bar) / 64) - Math.round((b.palette.at - b.bar) / 64)) < 1e-6 && b.small === `-> ${(await ev(`window.__palette.nextName`))}`, { small: b.small, palette: b.palette, pos: b.pos });
+  // rendered frames with the bar: no event per frame, no slower than without the bar (a hang would show here)
+  const msQueued = await frames(120);
+  const c = await read();
+  phase.ms.queued = +msQueued.toFixed(1);
+  check("phonebar: the page announces the palette only when it changes (never per frame)", c.events === b.events && b.events - a.events === 1, { before: a.events, after_press: b.events, after_120_frames: c.events });
+  check("phonebar: the frames keep coming as fast with the bar (no hang)", msQueued < Math.max(2 * msBare, msBare + 40) && msBar < Math.max(2 * msBare, msBare + 40), phase.ms);
+  // a colour kick held on the right strip by a finger, slid, let go: the page keeps drawing
+  await touch("touchStart", a.strip[0], a.strip[1], 2); await frames(10);
+  await touch("touchMove", a.strip[0], a.strip[1] - 40, 2); await frames(10);
+  const k = await ev("window.__stage.state().kick.live.map((x) => [x.kind, x.colour])");
+  const kAfter = await read();
+  await touch("touchEnd", a.strip[0], a.strip[1] - 40, 2); await frames(10);
+  phase.kick = k;
+  // (re-registered 2026-10-30: the press DEALS the bank one place -- it used to be the palette's lift colours on one area)
+  check("phonebar: a finger on the colour strip deals kick 5's bank one place, and a colour kick is live", k.some(([kind]) => kind === "kick-colour") && kAfter.bankCount === a.bankCount + 1,
+        { live: k, bankBefore: a.bankCount, bankAfter: kAfter.bankCount, bank: kAfter.bank, bankSetup: kAfter.bankSetup });
+  // to the landing: the new palette shows, the pad and the strip follow it
+  const toLand = Math.ceil(((b.palette.at - c.pos) + 1) * 24) + 4;
+  if (Date.now() < deadline - 30000) {
+    await frames(toLand, false); await frames(2);
+    const d = await read();
+    phase.landed = d;
+    check("phonebar: on the 16-bar line the queued palette lands, and the pad and the strip follow it", d.palette.id === b.palette.queued && !d.palette.queued && d.small === d.palette.name && wearsBank(d) && d.events === c.events + 1,
+          { id: d.palette.id, small: d.small, k0: d.k0, k1: d.k1, bank: d.bank, ladder: d.ladder, events: d.events });
+  } else check("phonebar: the landing was reached inside the burst", false, { deadline: "short" });
+  check("phonebar: no exceptions or console errors", !phase.exceptions.length && !phase.console.some((x) => x.type === "error" || x.type === "log-error") && !(await ev("window.__stage.state().errors.length")), { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((x) => x.type === "error" || x.type === "log-error").slice(0, 3) });
+}
+
+// CAMERA DISTANCE (2026-10-29, arsenal/web/stage/distance.js). Daniel: "can we think of a control scheme for camera distance
+// so that i can trigger between closeup medium and far." Pre-registered bars, before the first run:
+//   size     the rings (the subject of both shots) as the renderer's own camera projects them: the on-screen bounding box's
+//            area (clipped to the frame) at CLOSE is at least 3x its area at FAR, and MEDIUM lies strictly between, on
+//            HALO_LOCK (the long lens) and FOH_WIDE (the hero wide). The first two runs (receipts stage-20261029-130859 and
+//            -131056) FAILED it, and the failure was the receipt's: it projected the ring cells' positions as if they were
+//            world positions, but rig.cells.pos is in each element's own frame (a ring's cells sit round (0, 0, 0)). The
+//            first run's numbers (2.87x and 3.84x) measure nothing; the second also tried the inner ring alone (a subject
+//            chosen after the first run). Fixed: the cells are placed by the element's live matrix; the bar is the one
+//            registered first, on all four rings; the inner ring's box rides along as detail;
+//   dolly    the lens (hfov), the look point and the shot's exposure (EV) identical at the three sizes, the view's direction
+//            within 0.5 degrees: a dolly, not a zoom;
+//   picture  every still neither black nor blown (the load phase's bar: mean relative luminance 0.004..0.6), the camera
+//            inside the venue and 1.5 m or more from the strand and the rings;
+//   keys     (logic, every 60 fps frame) Q moves on the next frame and arrives on its planned beat line (+-1 frame); Q again
+//            hands back to the director's pose exactly on a beat line two or more beats on; Shift+E cuts on a beat line
+//            (+-1 frame) with nothing moving before it; Esc hands back; the F8 fader (CC 112 through the engine's ctl event)
+//            does nothing until it crosses the live value, then drives the distance with no jump;
+//   high     (the review's F1, 2026-10-29) the high shots at FAR, where the lens used to rise into the rigging grid and
+//            render black: TOPDOWN_DESCEND u 0.2, HIGH_REAR_CRANE u 0.83, ORRERY_HIGH u 0.39, HALO_ORBIT u 0.73,
+//            TOPDOWN_GODVIEW, ROOF_ESTABLISH, DIVE_FROM_ROOF u 0.1 -- each still neither black nor blown and the lens inside
+//            the shot's own band of the room (1 m or more under the grid's beams);
+//   ride     (F2) a moving shot played by hand through its move at a held stop (CRANE_RISE_REVEAL at FAR, STRAND_FLYTHROUGH
+//            at CLOSE), every 60 fps frame on the live rig: the size never changes faster than e^4.5 a second nor
+//            accelerates past LOG_ACCEL_MAX (outside a cut), the 1.5 m rule every frame (the frames where the director's
+//            own camera is inside 1.5 m -- the flythrough's end -- are judged as: never nearer than his own camera);
+//   spacing  (F6) a C-key shot then Shift+E at once: the distance cut lands 2 beats or more after the C cut, and is in the
+//            director's own cut log (why "distance") on the frame it is drawn;
+//   phone    at 667 x 375, 740 x 360, 780 x 360 (narrow phones: the bar wraps to two rows there, the review's F5), 832 x 384
+//            and 915 x 412 (touch): no pad of the bar over either kick strip, the CLOSE . MID . FAR pads each at least 44 x 44
+//            CSS px; a tap on MID lights it and the camera's distance goes manual MEDIUM;
+//   no exceptions or console errors.
+async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PAGE_PROBE);
+  const renderer = await ev("window.__probe.renderer()");
+  phase.renderer = renderer;
+  check(opt.gpu ? "distance: the renderer is the GPU (--gpu)" : "distance: the renderer is SwiftShader (no hardware)", judgeFor(opt.gpu)(renderer).ok, renderer);
+  await ev(`(() => { for (let i = 0; i < 120; i++) window.__vt.step(${F}); window.__stage.show.update = () => []; return true; })()`);
+  // what the renderer's camera makes of the rings, the pose, the clearance, and the picture: read in the frame's own task
+  const READ = String.raw`(() => {
+    const s = window.__stage, R = s.renderer, cam = R.camera, rig = s.rig, C = rig.cells, gl = R.gl;
+    const v = cam.position.clone();
+    const ringEls = rig.elements.filter((e) => e.id === "ring");
+    const inner = ringEls.reduce((a, e) => (e.params.diameter < a.params.diameter ? e : a), ringEls[0]);
+    // the on-screen box of the cells passing keep(element): clipped to the frame, as a share of it
+    // cells.pos are in each element's own frame: placed in the world by the element's live matrix (the rings' formation
+    // layer when it moves them, else the home pose)
+    const Rg = window.__distModel.R, mats = new Map(), wpt = [0, 0, 0], lpt = [0, 0, 0];
+    const matOf = (ei) => { if (!mats.has(ei)) mats.set(ei, s.rings.live && s.rings.emOf ? s.rings.emOf(ei) : Rg.elementMatrix(rig.elements[ei])); return mats.get(ei); };
+    const box = (keep) => {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, n = 0, on = 0;
+      for (let i = 0; i < C.n; i++) {
+        const e = rig.elements[C.element[i]];
+        if (!e || !keep(e)) continue;
+        lpt[0] = C.pos[i * 3]; lpt[1] = C.pos[i * 3 + 1]; lpt[2] = C.pos[i * 3 + 2];
+        Rg.transformPoint(matOf(C.element[i]), lpt, wpt);
+        v.set(wpt[0], wpt[1], wpt[2]).project(cam);
+        if (v.z < -1 || v.z > 1) continue;
+        n++; if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1) on++;
+        if (v.x < x0) x0 = v.x; if (v.x > x1) x1 = v.x; if (v.y < y0) y0 = v.y; if (v.y > y1) y1 = v.y;
+      }
+      const cx0 = Math.max(-1, x0), cx1 = Math.min(1, x1), cy0 = Math.max(-1, y0), cy1 = Math.min(1, y1);
+      const area = cx1 > cx0 && cy1 > cy0 ? ((cx1 - cx0) * (cy1 - cy0)) / 4 : 0;
+      return { cells: n, on_screen: on, bbox_ndc: [x0, y0, x1, y1].map((x) => +x.toFixed(3)), area: +area.toFixed(4) };
+    };
+    const w = R.w, h = R.h, buf = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    const lin = (c) => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    const LUT = Array.from({ length: 256 }, (_, i) => lin(i));
+    let sum = 0, black = 0;
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < buf.length; i += 4) {
+      const L = 0.2126 * LUT[buf[i]] + 0.7152 * LUT[buf[i + 1]] + 0.0722 * LUT[buf[i + 2]];
+      sum += L; if (Math.max(buf[i], buf[i + 1], buf[i + 2]) <= 2) black++;
+      hist[Math.min(255, Math.round(Math.sqrt(L) * 255))]++;
+    }
+    const N = w * h; let acc = 0, p50 = 0, p95 = 0;
+    for (let k = 0; k < 256; k++) { acc += hist[k]; if (!p50 && acc >= N * 0.5) p50 = (k / 255) ** 2; if (!p95 && acc >= N * 0.95) { p95 = (k / 255) ** 2; break; } }
+    const P = s.director.pose, M = window.__distModel;
+    const clear = Math.min(M.C.clearanceToStrand(P.pos, s.strand.poses, M.m.z), M.C.clearanceToRings(P.pos, M.m.rings));
+    const st = s.camDist.status(s.director.shots[P.shot]);
+    return { shot: P.shot, pos: P.pos.slice(), look: P.look.slice(), hfov: P.hfov, ev: P.ev, clear, inside: s.camDist.room.inside(P.pos, s.camDist.last.mount),
+             inner: box((e) => e === inner), rings: box((e) => e.id === "ring"),
+             luminance: { mean: +(sum / N).toFixed(4), p50: +p50.toFixed(5), p95: +p95.toFixed(4), true_black_share: +(black / N).toFixed(4) },
+             distance: { mode: st.mode, stop: st.stop, k: st.k, clamp: st.clamp } };
+  })()`;
+  await ev(`(async () => { const C = await import("/web/stage/camera.js"), R = await import("/web/stage/rig.js"); window.__distModel = { C, R, m: C.cameraModel(window.__stage.rig) }; return true; })()`);
+  const stills = {};
+  for (const id of ["HALO_LOCK", "FOH_WIDE"]) {
+    stills[id] = {};
+    for (const stop of ["close", "medium", "far"]) {
+      // 24 frames = one beat at 150 BPM between stills: the three sizes are drawn at the same beat phase
+      await ev(`(() => { const s = window.__stage; s.setShot("${id}", 0.5); s.distance("${stop}", { now: true }); for (let i = 0; i < 23; i++) window.__vt.step(${F}); return true; })()`);
+      const r = await ev(`(() => { window.__vt.step(${F}); return ${READ}; })()`);
+      r.png = await shot(join(outDir, `distance-${id.toLowerCase()}-${stop}.png`));
+      stills[id][stop] = r;
+    }
+  }
+  phase.stills = stills;
+  const DEG = 180 / Math.PI;
+  const dirOf = (r) => { const d = r.look.map((x, i) => x - r.pos[i]), l = Math.hypot(...d); return d.map((x) => x / l); };
+  for (const id of Object.keys(stills)) {
+    const { close: c, medium: m, far: f } = stills[id];
+    check(`distance: ${id} -- the rings' on-screen box at CLOSE is at least 3x its area at FAR, MEDIUM between`,
+          c.rings.area >= 3 * f.rings.area && f.rings.area < m.rings.area && m.rings.area < c.rings.area && f.rings.area > 0,
+          { close: c.rings.area, medium: m.rings.area, far: f.rings.area, ratio: +(c.rings.area / Math.max(1e-9, f.rings.area)).toFixed(2),
+            inner_ring: { close: c.inner.area, medium: m.inner.area, far: f.inner.area, ratio: +(c.inner.area / Math.max(1e-9, f.inner.area)).toFixed(2) },
+            k: [c.distance.k, m.distance.k, f.distance.k], clamps: [c.distance.clamp, m.distance.clamp, f.distance.clamp] });
+    const ang = Math.max(...[m, f].map((r) => Math.acos(Math.min(1, dirOf(r).reduce((s, x, i) => s + x * dirOf(c)[i], 0))) * DEG));
+    check(`distance: ${id} -- a dolly, not a zoom (the same lens, look point and EV; the view's direction within 0.5 degrees)`,
+          c.hfov === m.hfov && m.hfov === f.hfov && c.ev === m.ev && m.ev === f.ev && [m, f].every((r) => r.look.every((x, i) => Math.abs(x - c.look[i]) < 0.05)) && ang <= 0.5,
+          { hfov: [c.hfov, m.hfov, f.hfov], ev: [c.ev, m.ev, f.ev], degrees: +ang.toFixed(3), metres_to_look: [c, m, f].map((r) => +Math.hypot(...r.pos.map((x, i) => x - r.look[i])).toFixed(1)) });
+    check(`distance: ${id} -- every still neither black nor blown, the lens inside the venue and 1.5 m from the strand and rings`,
+          [c, m, f].every((r) => r.luminance.mean > 0.004 && r.luminance.mean < 0.6 && r.inside && r.clear >= 1.5),
+          [c, m, f].map((r) => ({ mean: r.luminance.mean, p50: r.luminance.p50, true_black: r.luminance.true_black_share, clear_m: +r.clear.toFixed(2), inside: r.inside })));
+  }
+  // F1: the high shots at FAR (the lens used to rise into the rigging grid there and render black)
+  const high = {};
+  for (const [id, u] of [["TOPDOWN_DESCEND", 0.2], ["HIGH_REAR_CRANE", 0.83], ["ORRERY_HIGH", 0.39], ["HALO_ORBIT", 0.73], ["TOPDOWN_GODVIEW", 0.5], ["ROOF_ESTABLISH", 0.5], ["DIVE_FROM_ROOF", 0.1]]) {
+    const has = await ev(`!!window.__stage.director.shots["${id}"]`);
+    if (!has) continue;
+    await ev(`(() => { const s = window.__stage; s.setShot("${id}", ${u}); s.distance("far", { now: true }); for (let i = 0; i < 23; i++) window.__vt.step(${F}); return true; })()`);
+    const r = await ev(`(() => { window.__vt.step(${F}); return ${READ}; })()`);
+    r.png = await shot(join(outDir, `distance-high-${id.toLowerCase()}-far.png`));
+    r.mount = await ev("window.__stage.camDist.last.mount.slice()");
+    high[id] = r;
+  }
+  phase.high = high;
+  check("distance: the high shots at FAR -- neither black nor blown, the lens in the shot's own band of the room (1 m or more under the rigging grid)",
+        Object.keys(high).length >= 5 && Object.values(high).every((r) => r.luminance.mean > 0.004 && r.luminance.mean < 0.6 && r.inside && r.clear >= 1.5),
+        Object.fromEntries(Object.entries(high).map(([id, r]) => [id, { mean: r.luminance.mean, p95: r.luminance.p95, true_black: r.luminance.true_black_share, y: +r.pos[1].toFixed(2), director_y: +r.mount[1].toFixed(2), inside: r.inside, k: r.distance.k, clamp: r.distance.clamp }])));
+  // the controls, logic only (every 60 fps frame): the keys as the keyboard sends them, the fader as the engine does
+  await ev("window.__stage.skipRender = true");
+  // F2: a moving shot played by hand through its move at a held stop, every frame on the live rig
+  const RIDE = String.raw`((id, stop) => {
+    const s = window.__stage, D = s.camDist, M = window.__distModel, out = [];
+    s.playShot(id); s.distance(stop, { now: true });
+    const beats = (s.director.shots[id].bars ?? 4) * 4, n = Math.round(beats * 60 / s.grid.bpm * 60) - 3;   // (not into its loop)
+    for (let i = 0; i < n; i++) {
+      window.__vt.step(1000 / 60);
+      const P = s.director.pose, cl = (q) => Math.min(M.C.clearanceToStrand(q, s.strand.poses, M.m.z), M.C.clearanceToRings(q, M.m.rings));
+      // own: the director's own camera this frame (where it is in the rig, the rule is his guard's, never the layer's)
+      out.push({ lam: D.last.lam, cut: !!P.distCut || !!P.cut, c: cl(P.pos), own: cl(D.last.mount), u: P.u });
+    }
+    let d1 = 0, d2 = 0, cuts = 0, clear = Infinity, own_in_rig = 0, worse = 0, vsOwn = Infinity, where = null, a = null, b = null;
+    for (const r of out) {
+      // (1 cm: a camera within a hair of his pose -- k 1.001 -- is his pose for this rule)
+      if (r.own < 1.5) { own_in_rig++; if (r.c - r.own < vsOwn) { vsOwn = r.c - r.own; where = r; } if (r.c < r.own - 0.01) worse++; a = b = null; continue; }
+      if (r.lam !== 0 && r.c < clear) clear = r.c;
+      if (r.cut) { cuts++; a = b = null; continue; }
+      if (a !== null) d1 = Math.max(d1, Math.abs(r.lam - a));
+      if (b !== null) d2 = Math.max(d2, Math.abs(r.lam - 2 * a + b));
+      b = a; a = r.lam;
+    }
+    return { id, stop, frames: out.length, d1, d2, cuts, clear, own_in_rig, worse_than_own: worse, min_vs_own_m: vsOwn, vs_own_frame: where && { ...where, i: out.indexOf(where), prev: out[out.indexOf(where) - 1], next: out[out.indexOf(where) + 1] }, escapes: D.escapes, lam_range: [Math.min(...out.map((r) => r.lam)), Math.max(...out.map((r) => r.lam))] };
+  })`;
+  const rides = [];
+  for (const [id, stop] of [["CRANE_RISE_REVEAL", "far"], ["STRAND_FLYTHROUGH", "close"]]) rides.push(await ev(`${RIDE}("${id}", "${stop}")`));
+  await ev(`(() => { const s = window.__stage; s.distance("auto", { now: true }); s.clearShot(); return true; })()`);
+  phase.rides = rides;
+  check("distance: a held stop through a moving shot (60 fps, the live rig) -- no step past e^4.5 a second, no jolt, the 1.5 m rule every frame (never nearer the rig than the director's own camera where his own path enters it)",
+        rides.every((r) => r.d1 <= 4.5 / 60 + 1e-6 && r.d2 <= 25 / 3600 + 1e-6 && r.clear >= 1.5 && r.worse_than_own === 0), rides);
+  const KEYS = String.raw`((code, shift, frames) => {
+    const s = window.__stage, D = s.camDist, out = [];
+    const pos = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    const dist = () => { const p = s.director.pose; return Math.hypot(p.pos[0] - p.look[0], p.pos[1] - p.look[1], p.pos[2] - p.look[2]); };
+    const before = { pos: pos(), d: dist(), k: D.last.k };
+    if (code) { window.dispatchEvent(new KeyboardEvent("keydown", { code, key: code.slice(-1).toLowerCase(), shiftKey: shift })); window.dispatchEvent(new KeyboardEvent("keyup", { code, key: code.slice(-1).toLowerCase(), shiftKey: shift })); }
+    const move = D.moves.at(-1) || null;
+    for (let i = 0; i < frames; i++) { window.__vt.step(1000 / 60); out.push({ pos: pos(), d: dist(), k: D.last.k, w: D.w.x, cut: !!s.director.pose.distCut }); }
+    return { before, move: move && { ...move }, frames: out, status: D.status(s.director.shots[s.director.pose.shot]) };
+  })`;
+  await ev(`(() => { const s = window.__stage; s.setShot("HALO_LOCK", 0.5); s.distance("auto", { now: true }); for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`);
+  const onFrame = (p, at) => Math.abs(p - at) * 24 <= 1.01;
+  const q = await ev(`${KEYS}("KeyQ", false, 90)`);
+  const qLand = q.frames.find((r) => r.pos >= q.move.landAt - 1e-6);
+  const settled = q.frames.at(-1).d;
+  const firstAt = q.frames.findIndex((r) => Math.abs(r.d - settled) < 1e-6);
+  phase.q = { move: q.move, before: q.before, land_frame: qLand, first_settled: q.frames[firstAt] };
+  check("distance: Q moves the camera on the next frame and arrives on its planned beat line (+-1 frame)",
+        q.move && q.move.stop === "close" && q.frames[0].d < q.before.d - 1e-6 && q.move.landAt === Math.round(q.move.landAt) && firstAt >= 0 && onFrame(q.frames[firstAt].pos, q.move.landAt),
+        { press_pos: +q.before.pos.toFixed(3), land_at: q.move && q.move.landAt, settled_at: firstAt >= 0 ? +q.frames[firstAt].pos.toFixed(3) : null, d: [+q.before.d.toFixed(1), +settled.toFixed(1)] });
+  const qq = await ev(`${KEYS}("KeyQ", false, 110)`);
+  const back = qq.frames.find((r) => r.pos >= qq.move.landAt - 1e-6);
+  const backFirst = qq.frames.findIndex((r) => r.k === 1 && r.w === 0);
+  check("distance: Q again hands back to the director: his pose exactly, on a beat line two or more beats on (+-1 frame)",
+        qq.move.kind === "handback" && qq.move.landAt - qq.before.pos >= 2 - 1e-6 && back && back.k === 1 && backFirst >= 0 && onFrame(qq.frames[backFirst].pos, qq.move.landAt) && qq.status.mode === "auto",
+        { press_pos: +qq.before.pos.toFixed(3), land_at: qq.move.landAt, back_at: backFirst >= 0 ? +qq.frames[backFirst].pos.toFixed(3) : null, mode: qq.status.mode });
+  const e = await ev(`${KEYS}("KeyE", true, 72)`);
+  const cutI = e.frames.findIndex((r) => r.cut);
+  check("distance: Shift+E is a clean cut on a beat line (+-1 frame), nothing moving before it",
+        e.move.kind === "cut" && cutI >= 0 && onFrame(e.frames[cutI].pos, Math.round(e.frames[cutI].pos)) && e.frames.slice(0, cutI).every((r) => r.k === 1) && e.frames[cutI].k > 1,
+        { press_pos: +e.before.pos.toFixed(3), cut_at: cutI >= 0 ? +e.frames[cutI].pos.toFixed(3) : null, planned: e.move.landAt, k_after: cutI >= 0 ? e.frames[cutI].k : null, clamp: e.status.clamp });
+  const esc = await ev(`${KEYS}("Escape", false, 110)`);
+  check("distance: Esc hands distance back to the director (auto, his pose exactly at the end)",
+        esc.status.mode === "auto" && esc.frames.at(-1).k === 1 && esc.frames.at(-1).w === 0, { mode: esc.status.mode, k: esc.frames.at(-1).k });
+  // F6: a C-key shot is a cut: Shift+E pressed right after it lands 2 beats or more later, and the distance cut is in the
+  // director's own log on the frame it is drawn
+  const cPos = await ev(`(() => { const s = window.__stage; window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyC", key: "c" })); window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyC", key: "c" })); window.__vt.step(1000 / 60); return s.director.lastCutPos; })()`);
+  const ce = await ev(`${KEYS}("KeyE", true, 150)`);
+  const ceI = ce.frames.findIndex((r) => r.cut);
+  const ceLog = await ev(`window.__stage.director.cuts.slice(-3)`);
+  phase.c_then_shift = { c_cut_at: cPos, planned: ce.move && ce.move.landAt, cut_at: ceI >= 0 ? ce.frames[ceI].pos : null, director_log: ceLog };
+  check("distance: Shift+E right after a C-key shot lands 2 beats or more after it, on a beat line, and is in the director's cut log",
+        ce.move && ce.move.kind === "cut" && ce.move.landAt - cPos >= 2 - 1e-6 && ceI >= 0 && onFrame(ce.frames[ceI].pos, ce.move.landAt) && ceLog.some((c) => c.why === "distance" && Math.abs(c.pos - ce.move.landAt) < 0.05),
+        phase.c_then_shift);
+  await ev(`(() => { const s = window.__stage; window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape" })); window.dispatchEvent(new KeyboardEvent("keyup", { code: "Escape", key: "Escape" })); s.distance("auto", { now: true }); for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()`);
+  // the fader through the engine's ctl event: soft takeover
+  const FAD = String.raw`((value, frames) => { const s = window.__stage, D = s.camDist, out = [];
+    s.inject({ t: "ctl", id: "cc112", kind: "abs", value });
+    for (let i = 0; i < frames; i++) { window.__vt.step(1000 / 60); out.push({ k: D.last.k, v: D.v.x }); }
+    return { status: D.status(s.director.shots[s.director.pose.shot]), frames: out }; })`;
+  await ev(`(() => { const s = window.__stage; s.setShot("HALO_LOCK", 0.5); for (let i = 0; i < 12; i++) window.__vt.step(${F}); return true; })()`);
+  const f0 = await ev(`${FAD}(0.02, 6)`);
+  const f1 = await ev(`${FAD}(${Math.min(0.99, (f0.status.vAuto ?? 0.6) + 0.05)}, 6)`);
+  const f2 = await ev(`${FAD}(0.0, 60)`);
+  const steps = f2.frames.map((r, i) => (i ? Math.abs(Math.log(r.k / f2.frames[i - 1].k)) : 0));
+  phase.fader = { before: f0.status, caught: f1.status, end: f2.status, max_step_ln: +Math.max(...steps).toFixed(4) };
+  check("distance: F8 (CC 112) does nothing until it crosses the live distance, then drives it toward CLOSE with no jump",
+        f0.status.mode === "auto" && f0.frames.every((r) => r.k === 1) && f1.status.fader.caught && f1.status.source === "fader" && Math.abs(Math.log(f1.frames[0].k)) < 0.05
+        && f2.frames.at(-1).k < 0.6 && Math.max(...steps) <= 4.5 / 60 + 1e-3, phase.fader);
+  await ev(`(() => { const s = window.__stage; s.distance("auto", { now: true }); s.clearShot(); s.skipRender = false; return true; })()`);
+  const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (await ev("window.__stage.errors.length"));
+  // the phone: the segment in the pad bar
+  const phone = [];
+  for (const [PW, PH] of [[667, 375], [740, 360], [780, 360], [832, 384], [915, 412]]) {
+    await S("Emulation.setDeviceMetricsOverride", { width: PW, height: PH, deviceScaleFactor: 1, mobile: true });
+    await S("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    await open(`demo=1&vt=1&pads=1&w=${PW}&h=${PH}&hud=0&quality=low&set=${opt.set}`);
+    await waitFor(() => ev("!!document.querySelector('.tbs.right') && !!document.querySelector('.tb .seg')"), 15000, "the strips and the segment");
+    await ev(`(() => { for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`);
+    const g = await ev(`(() => { const r = (el) => { const b = el.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; };
+      const bar = document.querySelector(".tb"), seg = [...document.querySelectorAll(".tb .seg button")];
+      const vis = [...bar.querySelectorAll("button")].filter((b) => b.offsetParent !== null);
+      const tops = [...new Set(vis.map((b) => Math.round(b.getBoundingClientRect().top)))];
+      return { bar: r(bar), rows: tops.length, seg: seg.map((b) => ({ label: b.textContent, rect: r(b) })), strips: [...document.querySelectorAll(".tbs")].map(r),
+               pads: vis.map((b) => ({ label: b.textContent, rect: r(b) })) }; })()`);
+    const ov = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+    const mid = g.seg.find((x) => x.label === "mid");
+    const cx = (mid.rect[0] + mid.rect[2]) / 2, cy = (mid.rect[1] + mid.rect[3]) / 2;
+    const under = await ev(`(() => { const el = document.elementFromPoint(${cx}, ${cy}); return el ? el.textContent : null; })()`);
+    await S("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: cx, y: cy, id: 1 }] });
+    await ev(`(() => { for (let i = 0; i < 2; i++) window.__vt.step(${F}); return true; })()`);
+    await S("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await ev(`(() => { for (let i = 0; i < 4; i++) window.__vt.step(${F}); return true; })()`);
+    const after = await ev(`(() => ({ status: window.__stage.camDist.status(), lit: [...document.querySelectorAll(".tb .seg button.lit")].map((b) => b.textContent) }))()`);
+    await shot(join(outDir, `distance-phone-${PW}x${PH}.png`));
+    phone.push({ viewport: [PW, PH], ...g, under, after });
+    const over = g.pads.filter((x) => g.strips.some((st) => ov(x.rect, st))).map((x) => x.label);
+    check(`distance: phone ${PW} x ${PH} -- no pad of the bar over a kick strip (${g.rows} row${g.rows > 1 ? "s" : ""}), CLOSE . MID . FAR 44 x 44 px or more; a tap on MID lights it and goes manual MEDIUM`,
+          over.length === 0 && g.seg.length === 3 && g.seg.every((x) => x.rect[2] - x.rect[0] >= 44 - 0.5 && x.rect[3] - x.rect[1] >= 44 - 0.5)
+          && under === "mid" && after.status.mode === "manual" && after.status.stop === "medium" && after.lit.length === 1 && after.lit[0] === "mid",
+          { rows: g.rows, over, seg: g.seg.map((x) => [x.label, Math.round(x.rect[2] - x.rect[0]), Math.round(x.rect[3] - x.rect[1])]), strips: g.strips.map((x) => x.map(Math.round)), under, status: { mode: after.status.mode, stop: after.status.stop }, lit: after.lit });
+  }
+  phase.phone = phone;
+  const errs2 = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (await ev("window.__stage.errors.length"));
+  check("distance: no exceptions or console errors", errs === 0 && errs2 === 0, { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((c) => /error/.test(c.type)).slice(0, 3) });
+}
+
+// ------------------------------------------------------------------------------------------- the chord phrasing --
+// Daniel, 2026-10-29: "lets also land the chord phrasing."; 2026-10-28: "i mean like 8 7 6 5 4 then 456789".
+async function phaseChords({ S, ev, open, shot, phase }) {
+  const VK = (k) => (/^[0-9]$/.test(k) ? 48 + Number(k) : k.charCodeAt(0));
+  const key = (k, down) => S("Input.dispatchKeyEvent", { type: down ? "rawKeyDown" : "keyUp", code: /^[0-9]$/.test(k) ? `Digit${k}` : `Key${k}`,
+                                                         key: k.toLowerCase(), windowsVirtualKeyCode: VK(k), nativeVirtualKeyCode: VK(k) });
+  // n frames drawn; per frame the cells (the verifier's 4 x 4), whether the limiter acted, the fade's level
+  const rec = (n) => ev(`(() => { const s = window.__stage, out = [];
+    for (let i = 0; i < ${n}; i++) { window.__vt.step(${F}); const c = window.__probe.cells(), g = s.renderer.info.gains, b = s.breath ? s.breath() : null;
+      let l = 0, nn = 0; for (let q = 0; q < 16; q++) { l += c.L[q] * c.N[q]; nn += c.N[q]; }
+      out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, mean: +(l / nn).toFixed(5), lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0,
+                 level: b ? +b.level.toFixed(4) : 1 }); }
+    return out; })()`, 170000);
+  const punches = () => ev("window.__stage.programmer.kick.list.map((k) => k.punchFrom).filter((x) => Number.isFinite(x)).map((x) => +x.toFixed(4))");
+  const kickPresses = () => ev("window.__stage.programmer.kick.presses");
+  const segment = async (name, script) => {
+    const lim0 = await ev("window.__stage.limiter.stats().interventions"), p0 = await punches();
+    const frames = [], seen = new Set();
+    for (const step of script) {
+      if (typeof step === "number") frames.push(...(await rec(step)));
+      else if (step.shot) await shot(join(outDir, `chords-${step.shot}.png`));
+      else { await key(step.k, step.down); for (const x of await punches()) seen.add(x); }   // (a faded kick leaves the list)
+    }
+    const lim1 = await ev("window.__stage.limiter.stats().interventions");
+    const fresh = [...seen].filter((x) => !p0.includes(x));
+    const j = judgeFlashes(frames);
+    return { name, frames: frames.length, limiter_interventions: lim1 - lim0, limited_frames: frames.reduce((s, f) => s + f.lim, 0),
+             flashes_per_s: j.worst, red_flashes_per_s: j.worst_red, attacks: fresh.length, punch_from: fresh,
+             mean: frames.map((f) => f.mean), level: frames.map((f) => f.level) };
+  };
+  const down = (k) => ({ k, down: true }), up = (k) => ({ k, down: false });
+  // the chord: 1, then 5 two frames (33 ms) later, held half a second; the strum: 6 5 4 two frames apart
+  const CHORD = [down("1"), 2, down("5"), 28, { shot: null }, up("1"), up("5"), 90];
+  const STRUM = [down("6"), 2, down("5"), 2, down("4"), 26, { shot: null }, up("6"), up("5"), up("4"), 90];
+  const runs = {};
+  for (const g of ["0", "1"]) {
+    await open(`demo=1&vt=1&${BASE}&grammar=${g}`);
+    await ev(PAGE_PROBE);
+    await S("Page.bringToFront");
+    // into the break (bar 41: the demo presses no pads of its own there), logic only; then FOH_WIDE held still, drawn
+    await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 96 * 41 + 6; i++) window.__vt.step(${F}); s.setShot("FOH_WIDE", 0.5); s.skipRender = false; for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`, 170000);
+    const tag = g === "1" ? "grammar" : "singles";
+    if (g === "0") await shot(join(outDir, "chords-0-before.png"));
+    // a single is instant: key 1's kick exists on the key's own call, before any frame
+    const k0 = await kickPresses();
+    await key("1", true);
+    const k1 = await kickPresses();
+    await key("1", false);
+    await rec(90);
+    const chord = await segment("chord", CHORD.map((x) => (x && x.shot === null ? { shot: `1-chord-${tag}` } : x)));
+    const strum = await segment("strum", STRUM.map((x) => (x && x.shot === null ? { shot: `2-strum-${tag}` } : x)));
+    const st = await ev("window.__stage.state()");
+    runs[tag] = { instant: k1 - k0, chord, strum, grammar: st.grammar };
+    if (g === "1") {
+      // Daniel's sweep: 6 5 4 3 2 1 (the third key takes over: a fade out), then back 2 3 4 5 6 inside its gap (a fade in)
+      const SW = [];
+      // (the bottom's still is taken inside the gap: a pause over 450 ms would end the sweep, and 2 would fire LASER)
+      for (const k of ["6", "5", "4", "3", "2", "1"]) SW.push(down(k), 3, up(k), 8);
+      SW.push({ shot: "3-sweep-bottom" });
+      for (const k of ["2", "3", "4", "5", "6"]) SW.push(down(k), 3, up(k), 8);
+      SW.push(60, { shot: "4-sweep-back" });
+      // the explicit B: held, 9 down to 1 (no single fires), then 1 up to 9, let go
+      const BB = [down("B"), 4];
+      for (const k of ["9", "8", "7", "6", "5", "4", "3", "2", "1"]) BB.push(down(k), 3, up(k), 5);
+      BB.push(40, { shot: "5-breath-bottom" });
+      for (const k of ["2", "3", "4", "5", "6", "7", "8", "9"]) BB.push(down(k), 3, up(k), 5);
+      BB.push(up("B"), 60, { shot: "6-breath-back" });
+      const kp0 = await kickPresses(), hero0 = await ev("window.__stage.state().rings.hero.armed");
+      runs.grammar.sweep = await segment("sweep", SW);
+      const kp1 = await kickPresses();
+      runs.grammar.breath = await segment("breath", BB);
+      const kp2 = await kickPresses(), st2 = await ev("window.__stage.state()");
+      runs.grammar.sweep_kicks = kp1 - kp0; runs.grammar.breath_kicks = kp2 - kp1;
+      runs.grammar.hero_armed = { before: hero0, after: st2.rings.hero.armed, fired: st2.rings.hero.fired, morph: st2.rings.move, key: st2.rings.key };
+      runs.grammar.final = st2.grammar;
+      runs.grammar.errors = st2.errors;
+    }
+  }
+  // the receipt keeps the paths short: the level per frame, the mean luminance per frame for the fades
+  const A = runs.singles, B = runs.grammar;
+  phase.runs = { singles: { instant: A.instant, chord: { ...A.chord, mean: undefined, level: undefined }, strum: { ...A.strum, mean: undefined, level: undefined } },
+                 grammar: { instant: B.instant, chord: { ...B.chord, mean: undefined, level: undefined }, strum: { ...B.strum, mean: undefined, level: undefined },
+                            sweep: B.sweep, breath: B.breath, sweep_kicks: B.sweep_kicks, breath_kicks: B.breath_kicks, hero: B.hero_armed,
+                            counts: B.final.counts, ensemble: B.final.ensemble, gestures: B.final.gestures } };
+  check("chords: a single is instant (key 1's kick is pressed on the key's own call, before any frame), with and without the grammar",
+        A.instant === 1 && B.instant === 1, { singles: A.instant, grammar: B.instant });
+  check("chords: the page heard real keystrokes as the keyboard source (key), and recognised a chord and a strum",
+        !!(B.final.sources && B.final.sources.key) && B.final.gestures.some((x) => x.type === "reclassify" && x.kind === "chord") && B.final.gestures.some((x) => x.type === "reclassify" && x.kind === "strum"),
+        { sources: Object.keys(B.final.sources || {}), reclassified: B.final.gestures.filter((x) => x.type === "reclassify").map((x) => x.kind) });
+  check("chords: one attack per chord with the grammar (1 + 5: one punch shared), two as singles", B.chord.attacks === 1 && A.chord.attacks === 2,
+        { grammar: B.chord.punch_from, singles: A.chord.punch_from });
+  for (const seg of ["chord", "strum"]) {
+    check(`chords: the ${seg} adds no flash -- the limiter's interventions and the verifier's flash count with protection on are no more than the same keys as singles`,
+          B[seg].limiter_interventions <= A[seg].limiter_interventions && B[seg].flashes_per_s <= A[seg].flashes_per_s && B[seg].red_flashes_per_s <= A[seg].red_flashes_per_s,
+          { grammar: { lim: B[seg].limiter_interventions, limited_frames: B[seg].limited_frames, flashes: B[seg].flashes_per_s, red: B[seg].red_flashes_per_s },
+            singles: { lim: A[seg].limiter_interventions, limited_frames: A[seg].limited_frames, flashes: A[seg].flashes_per_s, red: A[seg].red_flashes_per_s } });
+  }
+  const lv = B.sweep.level, lo = Math.min(...lv);
+  check("chords: the sweep fades out to 4/9 (6 and 5 fire their singles, 4 takes over; 3, 2, 1 step) and back to 1 (2 up to 6)",
+        Math.abs(lo - 4 / 9) < 0.01 && lv[lv.length - 1] === 1 && B.sweep_kicks === 1, { min: lo, end: lv[lv.length - 1], kick_presses: B.sweep_kicks });
+  const bl = B.breath.level, blo = Math.min(...bl);
+  check("chords: B held is a fader from the first key: 9 to 1 is 1/9 (no single fires: no kick, no HERO), 1 to 9 is back to 1",
+        Math.abs(blo - 1 / 9) < 0.01 && bl[bl.length - 1] === 1 && B.breath_kicks === 0 && B.hero_armed.after === B.hero_armed.before,
+        { min: blo, end: bl[bl.length - 1], kick_presses: B.breath_kicks, hero: B.hero_armed });
+  // the level ramps (never faster than a 1/9 step per 120 ms) and the frame follows it down
+  let fastest = 0;
+  for (const p of [lv, bl]) for (let i = 1; i < p.length; i++) fastest = Math.max(fastest, Math.abs(p[i] - p[i - 1]));
+  check("chords: the fade is a ramp (at most a 1/9 step per 120 ms: 0.0154 a frame)", fastest <= (1 / 9) * (F / 120) + 1e-3, { fastest_per_frame: +fastest.toFixed(4) });
+  const meanAt = (seg, i) => seg.mean[Math.max(0, Math.min(seg.mean.length - 1, i))];
+  const iLo = bl.indexOf(blo);
+  phase.fade_frame_mean = { breath_top: meanAt(B.breath, 0), breath_bottom: meanAt(B.breath, iLo + 20), breath_back: meanAt(B.breath, B.breath.mean.length - 1),
+                            sweep_top: meanAt(B.sweep, 0), sweep_bottom: meanAt(B.sweep, lv.indexOf(lo) + 1) };
+  check("chords: the picture follows the fade (B: the frame's mean luminance at the bottom under half of the top; the sweep, whose first two keys fired their singles: under 0.8 of the top once their kicks are let go)",
+        phase.fade_frame_mean.breath_bottom < 0.5 * phase.fade_frame_mean.breath_top && phase.fade_frame_mean.sweep_bottom < 0.8 * phase.fade_frame_mean.sweep_top, phase.fade_frame_mean);
+  phase.sweep_cancels = B.final.gestures.filter((x) => x.did.some((d) => /^\d: /.test(d))).map((x) => x.did.filter((d) => /^\d: /.test(d)));
+  for (const seg of ["sweep", "breath"]) check(`chords: the ${seg} adds no flash (the verifier's count stays under 3 a second; red 0)`,
+                                               B[seg].flashes_per_s < 3 && B[seg].red_flashes_per_s === 0, { flashes: B[seg].flashes_per_s, red: B[seg].red_flashes_per_s, lim: B[seg].limiter_interventions });
+  // ---- the review's cases (2026-10-29): a chord never ADDS a punch (a refused one, a re-strike), a mash and a key inside
+  // W is one attack, a lost key-up does not eat the next press. Each on a fresh page in the break, both modes, every kick
+  // record read straight from kick.js (punchFrom: the beat position its punch counts from; -Infinity: none)
+  const kickRecs = () => ev("window.__stage.programmer.kick.list.filter((k) => !k.dead).map((k) => ({ kind: k.kind, from: k.from, pf: Number.isFinite(k.punchFrom) ? k.punchFrom : null, presses: k.presses }))");
+  const colourPf = async () => { const r = (await kickRecs()).filter((k) => k.kind === "kick-colour"); return r.length ? r[r.length - 1].pf : undefined; };
+  const settleKicks = () => ev(`(() => { const s = window.__stage; s.skipRender = true; let i = 0;
+    for (; i < 900 && s.programmer.kick.list.some((k) => !k.dead); i++) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return i; })()`, 170000);
+  const review = {};
+  for (const g of ["0", "1"]) {
+    await open(`demo=1&vt=1&${BASE}&grammar=${g}`);
+    await ev(PAGE_PROBE);
+    await S("Page.bringToFront");
+    await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 96 * 41 + 6; i++) window.__vt.step(${F}); s.setShot("FOH_WIDE", 0.5); s.skipRender = false; for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`, 170000);
+    const R = {}, newer = [];
+    const watch = async () => { for (const k of await kickRecs()) if (k.pf !== null && k.pf > k.from + 1e-6) newer.push(k); };
+    // 1. refused: 1 (granted), the governor's budget spent, 5 on the same call (a chord): 5's punch must stay refused
+    await settleKicks();
+    await key("1", true); await watch();
+    await ev("(window.__stage.programmer.kick.headroom = 0, true)");
+    const pfBefore = await colourPf();
+    await key("5", true); await watch();
+    R.refused = { colour_before: pfBefore ?? "none", colour_after: await colourPf() };
+    await rec(20); await key("1", false); await key("5", false); await rec(10);
+    // 2. re-strike: tap 5, then a third of a second later the chord 1 + 5 (5 still lit): 5 keeps its tap's punch
+    await settleKicks();
+    await key("5", true); await rec(3); await key("5", false); await rec(20);
+    const pfTap = await colourPf();
+    await key("1", true); await watch(); await rec(2); await key("5", true); await watch();
+    R.restrike = { colour_tap: pfTap, colour_after_chord: await colourPf() };
+    await rec(20); await key("1", false); await key("5", false); await rec(10);
+    // 3. the mash 4 5 6 (one call each: a strum) and 1 a frame later: one attack with the grammar
+    await settleKicks();
+    const m0 = await ev("window.__stage.programmer.kick.list.filter((k) => !k.dead).length");
+    const seen = new Set();
+    for (const k of ["4", "5", "6"]) await key(k, true);
+    await rec(1); await key("1", true); await watch();
+    for (const k of await kickRecs()) if (k.pf !== null) seen.add(+k.pf.toFixed(4));
+    R.mash = { kicks_alive_before: m0, attacks: seen.size, punch_from: [...seen] };
+    await rec(20); for (const k of ["4", "5", "6", "1"]) await key(k, false); await rec(10);
+    // 4. a lost key-up: 1 down, and down again with no up between (not the OS's auto-repeat): two presses, not one
+    await settleKicks();
+    const p0 = await kickPresses();
+    await key("1", true); await rec(3); await key("1", true);
+    R.lost_keyup = { presses: (await kickPresses()) - p0 };
+    await rec(5); await key("1", false); await rec(10);
+    // 5. eighths up the row at full level (1 2 3 4 5, 12 frames = 200 ms apart): nothing to fade in, so every key fires
+    await settleKicks();
+    const e0 = await kickPresses();
+    for (const k of ["1", "2", "3", "4", "5"]) { await key(k, true); await rec(3); await key(k, false); await rec(9); }
+    R.eighths_up = { kick_presses: (await kickPresses()) - e0, breath: g === "1" ? await ev("window.__stage.breath().target") : 1 };
+    await rec(10);
+    // 6. the fade's chip: B held, 9 down to 5 -- with the HUD hidden the corner says so; Esc hands it back and it goes
+    if (g === "1") {
+      const chip = () => ev("(() => { const c = document.getElementById('breath-chip'); return c ? { shown: !c.hidden, text: c.textContent } : null; })()");
+      await key("B", true); await rec(2);
+      for (const k of ["9", "8", "7", "6", "5"]) { await key(k, true); await rec(2); await key(k, false); await rec(4); }
+      await key("B", false); await rec(60);
+      R.chip_low = await chip();
+      await S("Input.dispatchKeyEvent", { type: "rawKeyDown", code: "Escape", key: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+      await S("Input.dispatchKeyEvent", { type: "keyUp", code: "Escape", key: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+      await ev(`(() => { for (let i = 0; i < 120; i++) window.__vt.step(${F}); return true; })()`, 170000);
+      R.chip_back = await chip();
+      R.hud_hidden = await ev("document.getElementById('hud').classList.contains('hidden') || getComputedStyle(document.getElementById('hud')).display === 'none'");
+    }
+    R.newer_than_press = newer.slice(0, 4); R.newer_count = newer.length;
+    review[g === "1" ? "grammar" : "singles"] = R;
+  }
+  phase.review = review;
+  const Ag = review.singles, Bg = review.grammar;
+  const expectRefused = (r) => r.colour_after === (r.colour_before === "none" ? null : r.colour_before);
+  check("chords (review F1): a punch the flash governor refused stays refused inside a chord (5 after 1, budget spent)",
+        expectRefused(Bg.refused) && expectRefused(Ag.refused), { grammar: Bg.refused, singles: Ag.refused });
+  check("chords (review F1): a re-strike inside a chord keeps its tap's punch (never a fresh one)",
+        Bg.restrike.colour_after_chord === Bg.restrike.colour_tap && Ag.restrike.colour_after_chord === Ag.restrike.colour_tap, { grammar: Bg.restrike, singles: Ag.restrike });
+  check("chords (review F1/F5): no kick's punch is ever newer than its own first press (kick.js grants it only at the press)",
+        Bg.newer_count === 0 && Ag.newer_count === 0, { grammar: Bg.newer_than_press, singles: Ag.newer_than_press });
+  check("chords (review F2): the mash 4 5 6 and 1 a frame later is one attack with the grammar (two as singles)",
+        Bg.mash.attacks === 1 && Ag.mash.attacks === 2, { grammar: Bg.mash, singles: Ag.mash });
+  check("chords (review F7): a key-down whose key-up was lost is a new press (two presses), with and without the grammar",
+        Bg.lost_keyup.presses === 2 && Ag.lost_keyup.presses === 2, { grammar: Bg.lost_keyup, singles: Ag.lost_keyup });
+  check("chords (review F4): eighths up the row at full level fire every key (kicks 1 and 5 both press; nothing to fade in)",
+        Bg.eighths_up.kick_presses === 2 && Ag.eighths_up.kick_presses === 2 && Bg.eighths_up.breath === 1, { grammar: Bg.eighths_up, singles: Ag.eighths_up });
+  check("chords (review F3): a latched fade shows in the corner with the HUD hidden, and the chip goes when Esc hands it back",
+        !!(Bg.chip_low && Bg.chip_low.shown && /breath \d+ %/.test(Bg.chip_low.text)) && !!(Bg.chip_back && !Bg.chip_back.shown), { low: Bg.chip_low, back: Bg.chip_back, hud_hidden: Bg.hud_hidden });
+  const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (B.errors || []).length;
+  check("chords: no exceptions or console errors", errs === 0, { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((c) => /error/.test(c.type)).slice(0, 3), page: (B.errors || []).slice(0, 3) });
+}
+
 // ------------------------------------------------------------------------------------------------------ main --
 if (opt.stitch) {
   // no browser, no lock: judge stored chunks
@@ -1957,7 +3074,8 @@ try {
   report.ports = { web: PORT, engine: ENGINE_PORT };
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
-                  orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat };
+                  orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat, bank: phaseBank, haze: phaseHaze, bankroll: phaseBankRoll,
+                  palettes: phasePalettes, phonebar: phasePhoneBar, distance: phaseDistance, chords: phaseChords, setups: phaseSetups };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }

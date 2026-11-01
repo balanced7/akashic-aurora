@@ -108,14 +108,21 @@ export function hexToLinear(hex) {
   const lin = (c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
   return [lin((v >> 16) & 255), lin((v >> 8) & 255), lin(v & 255)];
 }
-// the theme's laser colours with any saturated red replaced (the next safe colour, else a warm white)
-export function laserPalette(colours) {
+// the theme's laser colours with any saturated red replaced (the next safe colour, else the palette's white: PALETTES,
+// 2026-10-28 -- the old fallback was a warm white, one of the amber paths). white: linear rgb (default a neutral white)
+export const LASER_WHITE = Object.freeze([1, 1, 1]);
+export function laserPalette(colours, white = LASER_WHITE) {
   const lin = (colours && colours.length ? colours : ["#19ff4a", "#4a3cff", "#e6ffe9"]).map((c) => (Array.isArray(c) ? c.slice() : hexToLinear(c)));
   const safe = lin.filter((c) => !isSaturatedRed(c));
-  const fallback = safe.length ? safe : [[1, 0.85, 0.6]];
+  const fallback = safe.length ? safe : [white.slice()];
   return lin.map((c, i) => (isSaturatedRed(c) ? fallback[i % fallback.length] : c));
 }
 
+// a gradient table (r, g, b triples) at u in 0..1
+function rampAt(t, u) {
+  const n = t.length / 3, x = Math.max(0, Math.min(1, u)) * (n - 1), i = Math.min(n - 2, Math.floor(x)), f = x - i;
+  return [t[i * 3] + (t[i * 3 + 3] - t[i * 3]) * f, t[i * 3 + 1] + (t[i * 3 + 4] - t[i * 3 + 1]) * f, t[i * 3 + 2] + (t[i * 3 + 5] - t[i * 3 + 2]) * f];
+}
 function rngOf(seed) {
   let a = seed >>> 0;
   return () => {
@@ -136,6 +143,7 @@ export class LaserEngine {
     this.clock = clock;
     this.fallbackBpm = fallbackBpm;
     this.palette = laserPalette(colours);
+    this.fanRamp = null;         // PALETTES: a fan of the first two colours takes a colour per beam along this table
     this.rng = rngOf(seed);
     this.deck = [];
     this.hits = [];
@@ -149,7 +157,10 @@ export class LaserEngine {
                  aim: new Float32Array(this.heads.length * 4), events: [], pattern: "", gate: "", look: "off", reach: 1, hits: 0, groups: 0 };
   }
   setClock(c) { this.clock = c; }
-  setColours(colours) { this.palette = laserPalette(colours); }
+  // the colours by index; white: the red fallback (linear); fanRamp: a gradient table (Float32Array of r, g, b triples,
+  // palettes.js tableOf) from colour 0 to colour 1 -- a fan in either colour then takes a colour per beam along it, colour 0
+  // at the fan's first beam and colour 1 at its last (colour 1 runs it the other way)
+  setColours(colours, { white = LASER_WHITE, fanRamp = null } = {}) { this.palette = laserPalette(colours, white); this.fanRamp = fanRamp || null; }
   setLook(name, level = 1, reach = 1) {
     this.look = { name: LOOKS.includes(name) ? name : "off", level: clamp01(level), reach: reach > 0 ? reach : 1 };
   }
@@ -289,11 +300,11 @@ export class LaserEngine {
       this._emit(head, h.sx + e * Math.cos(a), h.y + e * Math.sin(a), col, level);
     }
   }
-  _emit(head, x1, y1, col, intensity, width = 1.6) {
+  _emit(head, x1, y1, col, intensity, width = 1.6, rgb = null) {
     const o = this.out;
     if (o.n >= MAX_SEGMENTS || intensity <= 0) return;
     const h = this.heads[head];
-    const s = o.n * SEG_FLOATS, c = this.palette[((col % this.palette.length) + this.palette.length) % this.palette.length];
+    const s = o.n * SEG_FLOATS, c = rgb || this.palette[((col % this.palette.length) + this.palette.length) % this.palette.length];
     o.seg[s + SEG.X0] = h.sx; o.seg[s + SEG.Y0] = h.y; o.seg[s + SEG.X1] = x1; o.seg[s + SEG.Y1] = y1;
     o.seg[s + SEG.R] = c[0]; o.seg[s + SEG.G] = c[1]; o.seg[s + SEG.B] = c[2]; o.seg[s + SEG.I] = intensity;
     o.seg[s + SEG.WIDTH] = width; o.seg[s + SEG.GLOW] = intensity; o.seg[s + SEG.BLUR] = 0; o.seg[s + SEG.HEAT] = 0;
@@ -302,7 +313,7 @@ export class LaserEngine {
     o.heads[head] = Math.max(o.heads[head], intensity);
   }
   // a beam from head h at angle a (radians, 0 = +x, pi/2 = up) of length L
-  _ray(head, a, L, col, lv) { const h = this.heads[head]; this._emit(head, h.sx + L * Math.cos(a), h.y + L * Math.sin(a), col, lv); }
+  _ray(head, a, L, col, lv, rgb = null) { const h = this.heads[head]; this._emit(head, h.sx + L * Math.cos(a), h.y + L * Math.sin(a), col, lv, 1.6, rgb); }
   _toHero(hd) { const h = this.heads[hd]; return Math.atan2(HERO.y - h.y, HERO.x - h.sx); }
   _dirOf(hd, dir) {
     if (dir === "up") return Math.PI / 2;
@@ -312,7 +323,12 @@ export class LaserEngine {
   }
   _fan(hd, centre, spread, nB, col, lv, L = 2.2) {
     if (nB <= 1) { this._ray(hd, centre, L, col, lv); return; }
-    for (let b = 0; b < nB; b++) this._ray(hd, centre + spread * (b / (nB - 1) - 0.5), L, col, lv);
+    // a gradient fan: colour 0 or 1 of a palette with a fan ramp, a colour per beam across the fan (vj-lasers.js gradient)
+    const n = this.palette.length, ci = ((col % n) + n) % n, ramp = this.fanRamp && ci < 2 ? this.fanRamp : null;
+    for (let b = 0; b < nB; b++) {
+      const u = b / (nB - 1);
+      this._ray(hd, centre + spread * (u - 0.5), L, col, lv, ramp ? rampAt(ramp, ci === 0 ? u : 1 - u) : null);
+    }
   }
   // the phrase's laser group lines
   _groups(pos) {

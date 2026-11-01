@@ -12,8 +12,10 @@
 //   3. composite: scene + beams (bilinear upsample; the depth-aware upsample is v1) + the haze veil (aerial perspective);
 //   4. bloom (6 levels, Karis first) and the finish (house display-out: exposure, display curve, saturation, vignette,
 //      sRGB, static dither) into an 8-bit frame;
-//   5. the meter (4 x 4 cell sums of relative luminance and the WCAG red quantity, exact box sums over every pixel), read
-//      back, judged by the stage's FrameLimiter (flash.js), and the apply pass onto the canvas.
+//   5. the meter (4 x 4 cells: per cell the corner-hat moments of relative luminance and of the WCAG red quantity and the
+//      mean linear RGB, exact box sums over every pixel), read back, judged by the stage's FrameLimiter (flash.js), and
+//      the apply pass onto the canvas. With flash protection off (the viewer's choice, lib/flash-consent.js) the page
+//      asks no limiter: the meter does not run and the apply pass is the identity, the frame reaches the canvas as drawn.
 // Units: scene light is in "units" of 30 nits (UNIT_NITS), so a half-float target holds a blinding lens (clamped at 6e4).
 //
 // v1 (2026-10-25): the crowd near the lens is culled (within 4 m) and its raised arms hold still (within 10 m) in the
@@ -35,6 +37,8 @@ import { H, HEAD_FLOATS } from "./programmer.js";
 import { hazeNoise3D, airTint } from "./atmos.js";
 import { vfovOf } from "./camera.js";
 import { MAX_FORMATION_EMIT, MAX_FORMATION_BEAMS } from "./formations.js";
+import { meterBounds, finishCells } from "./flash.js";
+import { HAL, cubeColours, cubeKickOf, tumbleAngles } from "./cubes.js";
 
 export const UNIT_NITS = 30;
 const U = 1 / UNIT_NITS;
@@ -50,6 +54,25 @@ export const QUALITY = Object.freeze({
   receipt: { msaa: 4, beamScale: 0.5, beamSamples: 6, bloomLevels: 6, crowd: 1 },
   low:     { msaa: 0, beamScale: 0.34, beamSamples: 4, bloomLevels: 4, crowd: 1 },
 });
+
+// The finish's looks (Daniel, 2026-10-29: "How do we let the background get darker for enhanced hdr? how do we make the
+// colors more vibrant too, can you make a few presets?" ... "I want there to be areas of true black on the screen, so that
+// we truly get the full range of hdr"). classic is the house finish unchanged (every lane's numbers were measured on it);
+// the others crush the haze's grey wash to true black, keep a laser's hue as it brightens, and lift colour and contrast.
+export const LOOKS = Object.freeze({
+  // veil: the haze's uniform room glow (aerial perspective: far walls fade toward it); ambient: the fill on every surface.
+  // Daniel, 2026-10-29: "i dont want blacks to be crushed, i just want black to be black for us to truly have an hdr
+  // fidelity light setup that has pure black as something that is just in the scene without crushing other things". So
+  // black comes from the SCENE (no room glow, no fill: what no fixture lights stays black) and the curve never clips a dim
+  // value to zero: black stays 0 in every look (the finish keeps the floor only as an option).
+  // core: the hue-keeping curve hands over to the natural one between core[0] and core[1] (exposed light), and core[2] is
+  // the path to white for the hottest cores ("rich but not ... painted ... a really vibrant light")
+  classic: { name: "Classic",      sat: 1.08, vig: 0.22, hueKeep: 0,    black: 0, vibrance: 0,    contrast: 0,    bloom: 1,    veil: 1,    ambient: 1,    core: [0, 0, 0] },
+  hdr:     { name: "HDR Night",    sat: 1.10, vig: 0.24, hueKeep: 0.8,  black: 0, vibrance: 0.22, contrast: 0,    bloom: 1.35, veil: 0.15, ambient: 0.2,  core: [0.6, 2.4, 0.4] },
+  punch:   { name: "Laser Punch",  sat: 1.18, vig: 0.26, hueKeep: 0.9,  black: 0, vibrance: 0.32, contrast: 0.06, bloom: 1.6,  veil: 0.08, ambient: 0.1,  core: [0.8, 3.2, 0.3] },
+  velvet:  { name: "Velvet Black", sat: 1.06, vig: 0.28, hueKeep: 0.7,  black: 0, vibrance: 0.18, contrast: 0,    bloom: 1.2,  veil: 0.04, ambient: 0.05, core: [0.5, 2.0, 0.45] },
+});
+export const LOOK_ORDER = Object.freeze(["hdr", "punch", "velvet", "classic"]);
 
 function rngOf(seed) {
   let a = seed >>> 0;
@@ -145,6 +168,7 @@ export class StageRenderer {
     this.rig = rig;
     this.q = { ...(QUALITY[quality] || QUALITY.high) };
     this.qualityName = QUALITY[quality] ? quality : "high";
+    this.look = "classic";
     this.features = { venue: true, crowd: true, strand: true, rings: true, beams: true, lasers: true, emitters: true, bloom: true, veil: true };
     this.veilNow = [0, 0, 0];   // the haze veil this frame (linear rgb), reused
     this.profile = false;
@@ -154,6 +178,12 @@ export class StageRenderer {
     // source for one program's compile, nothing per frame (unused functions are not compiled in)
     this.preludeBeam = lib.compose(["volume-phase", "colour-transfer", "atmos-haze"], "webgl2");
     this.preludeFinish = lib.compose(["display-out", "colour-transfer"], "webgl2");
+    // the HAL 4000 cubes (cubes.js): the house neon line and the exact rounded box. If the library cannot compose them
+    // the cubes stay solid (the page never dies for a look)
+    try { this.preludeNeon = lib.compose(["neon-line", "draw2-sdf2"], "webgl2"); } catch (e) { this.preludeNeon = null; console.error(`cubes: the HAL look is off (${e.message})`); }
+    // the cubes' style (cubes.js cubeStyleOf; stage.js sets it from ?cubes= and key U), their tumble (0..1) and the frame's
+    // tint (fs.cubeTint, cubes.js cubeTintOf: the hook a setup drives)
+    this.cubes = { style: "solid", tumble: HAL.tumble };
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: true, stencil: false,
                                                         powerPreference: "high-performance", preserveDrawingBuffer: false });
     r.autoClear = false;
@@ -176,7 +206,7 @@ export class StageRenderer {
     this._materials();
     this._build();
     this.w = 0; this.h = 0;
-    this.cells = { L: new Float64Array(16), R: new Float64Array(16) };
+    this.cells = { L: new Float64Array(16), R: new Float64Array(16), LM: new Float64Array(64), RM: new Float64Array(64), rgb: new Float64Array(48) };
     this.info = {};
   }
 
@@ -223,6 +253,20 @@ export class StageRenderer {
       ring: lit([0.12, 0.12, 0.13]),
       chain: lit([0.18, 0.18, 0.2], [0, 0, 0], { instanced: true }),
       cube: this._raw(S.CUBE_VERTEX, S.CUBE_FRAGMENT(this.preludeMain), {}),
+      // the HAL cubes blend by MAX (the HAL 4000 rule): a cube's faces, its inner bloom and its neighbours never sum
+      // to cream; drawn first of the light (render.js sets renderOrder -1 while they show), so the max is taken against
+      // the lit room and every beam and laser still adds on top
+      cubeHal: this.preludeNeon ? this._raw(S.CUBE_HAL_VERTEX, S.CUBE_HAL_FRAGMENT(this.preludeNeon), {
+        uRingHalf: { value: new THREE.Vector3(...HAL.rings.map((r) => r.half)) }, uRingRad: { value: new THREE.Vector3(...HAL.rings.map((r) => r.radius)) },
+        uRingGain: { value: new THREE.Vector3(...HAL.rings.map((r) => r.gain)) }, uRingGlow: { value: new THREE.Vector3(...HAL.rings.map((r) => r.glow)) },
+        uRingPen: { value: new THREE.Vector3(...HAL.rings.map((r) => r.pen)) }, uHalf: { value: HAL.half },
+        uWidthPx: { value: HAL.widthPx }, uHaloPx: { value: HAL.haloPx }, uHaloMaxM: { value: HAL.haloMaxM }, uRingStep: { value: HAL.ringStep },
+        uHotFloor: { value: HAL.hotFloor }, uHotFacing: { value: new THREE.Vector2(...HAL.hotFacing) }, uGrazeFacing: { value: new THREE.Vector2(...HAL.grazeFacing) },
+        uHeat: { value: HAL.heat }, uFull: { value: 1 },
+        uLineGain: { value: HAL.lineGain }, uHaloGain: { value: HAL.haloGain }, uInnerGain: { value: HAL.innerGain }, uInnerSigma: { value: HAL.innerSigma },
+        uBackDim: { value: HAL.backDim }, uDefocus: { value: HAL.defocus } },
+        { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.MaxEquation, blendEquationAlpha: THREE.MaxEquation,
+          blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor, side: THREE.DoubleSide }) : null,
       orb: this._raw(S.ORB_VERTEX, S.ORB_FRAGMENT, { uCol: { value: new THREE.Vector3(0.3, 0.05, 1) }, uHot: { value: new THREE.Vector3(1, 0.9, 1) },
         uScale: { value: 0 }, uHotK: { value: 0.35 }, uTime: { value: 0 }, uSpin: { value: new THREE.Matrix3() } }),
       emit: this._raw(S.EMIT_VERTEX, S.EMIT_FRAGMENT, { ...this.view }, add),
@@ -244,11 +288,15 @@ export class StageRenderer {
                       blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor }),
       finish: fs(S.FINISH_FRAGMENT(this.preludeFinish), { uHdr: { value: null }, uBloom: { value: null }, uRes: { value: new THREE.Vector2() },
                                                          uBloomMix: { value: 0.06 }, uExposure: { value: 1 }, uEv: { value: 0 }, uCurve: { value: 0 },
-                                                         uSat: { value: 1.08 }, uVig: { value: 0.22 } }),
-      meter1: fs(S.METER1_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() } }),
+                                                         uSat: { value: 1.08 }, uVig: { value: 0.22 }, uHueKeep: { value: 0 },
+                                                         uBlack: { value: 0 }, uVibrance: { value: 0 }, uContrast: { value: 0 },
+                                                         uCoreStart: { value: 0 }, uCoreEnd: { value: 1 }, uCoreWhite: { value: 0 } }),
+      meter1: fs(S.METER1_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() },
+                                                       uBX: { value: new Float32Array(5) }, uBY: { value: new Float32Array(5) } }),
       meter2: fs(S.METER2_FRAGMENT, { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() } }),
-      present: fs(S.PRESENT_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uPrev: { value: null }, uA: { value: new Float32Array(16).fill(1) },
-                                                         uB: { value: new Float32Array(16) }, uM2: { value: new THREE.Vector2(1, 1) }, uIdentity: { value: 1 } }),
+      present: fs(S.PRESENT_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uPrev: { value: null }, uA: { value: new Float32Array(25).fill(1) },
+                                                         uL: { value: new Float32Array(75) }, uBeta: { value: 0 }, uIdentity: { value: 1 },
+                                                         uBX: { value: new Float32Array(5) }, uBY: { value: new Float32Array(5) } }),
     };
     // int uniforms: three infers the GL type from the program, a Vector2 value for an ivec2 is fine
   }
@@ -262,10 +310,14 @@ export class StageRenderer {
     const fl = new THREE.PlaneGeometry(fx[1] - fx[0], fz[1] - fz[0]); fl.rotateX(-Math.PI / 2); fl.translate(0, 0, (fz[0] + fz[1]) / 2);
     add(fl, this.mat.floor, "floor");
     const rake = (V.stands && V.stands.rake_deg || 30) * DEG, top = V.stands && V.stands.top_y || 30, run = top / Math.tan(rake), slope = Math.hypot(top, run);
-    const standL = new THREE.PlaneGeometry(slope, fz[1] - fz[0] + 2 * run); standL.rotateY(Math.PI / 2); standL.rotateZ(-(Math.PI / 2 - rake));
-    const sl = add(standL, this.mat.stand, "stand-l"); sl.position.set(fx[0] - run / 2, top / 2, (fz[0] + fz[1]) / 2 + run / 2);
-    const standR = standL.clone(); const sr = add(standR, this.mat.stand, "stand-r"); sr.scale.x = -1; sr.position.set(fx[1] + run / 2, top / 2, (fz[0] + fz[1]) / 2 + run / 2);
-    const standB = new THREE.PlaneGeometry(fx[1] - fx[0] + 2 * run, slope); standB.rotateX(-(Math.PI / 2 - rake));
+    // each stand rises from the floor's edge up and AWAY from the floor at the rake (2026-10-29: the side stands were built
+    // with their slope along the hall's length -- a tilted 60 m strip over z 32-92 that cut the beams in the side wides --
+    // and the back stand rose toward the stage; found by the spectacle-shots lane, stage_stills.mjs)
+    const sideLen = fz[1] - fz[0] + run;            // the length of the hall, on to the back stand's corner
+    const standL = new THREE.PlaneGeometry(slope, sideLen); standL.rotateX(-Math.PI / 2); standL.rotateZ(-rake);
+    const sl = add(standL, this.mat.stand, "stand-l"); sl.position.set(fx[0] - run / 2, top / 2, (fz[0] + fz[1] + run) / 2);
+    const standR = standL.clone(); const sr = add(standR, this.mat.stand, "stand-r"); sr.scale.x = -1; sr.position.set(fx[1] + run / 2, top / 2, (fz[0] + fz[1] + run) / 2);
+    const standB = new THREE.PlaneGeometry(fx[1] - fx[0] + 2 * run, slope); standB.rotateX(1.5 * Math.PI - rake);   // the same plane as PI/2 - rake, its face (normal) toward the hall
     const sb = add(standB, this.mat.stand, "stand-b"); sb.position.set(0, top / 2, fz[1] + run / 2);
     const rf = new THREE.PlaneGeometry(fx[1] - fx[0] + 2 * run, fz[1] - fz[0] + 2 * run); rf.rotateX(Math.PI / 2);
     const rm = add(rf, this.mat.roof, "roof"); rm.position.set(0, roof, (fz[0] + fz[1]) / 2);
@@ -312,7 +364,13 @@ export class StageRenderer {
     this.cubeFix = rig.fixtures.map((f, i) => (f.type === "cube-6" ? i : -1)).filter((i) => i >= 0);
     const cubeGeo = new THREE.BoxGeometry(1.1, 1.1, 1.1);
     this.cubeEmit = new Float32Array(this.cubeFix.length * 3);
+    this.cubeGlow = new Float32Array(this.cubeFix.length * 3);     // the HAL cube's glow hue (cubes.js cubeColours)
     cubeGeo.setAttribute("iEmit", new THREE.InstancedBufferAttribute(this.cubeEmit, 3));
+    cubeGeo.setAttribute("iGlow", new THREE.InstancedBufferAttribute(this.cubeGlow, 3));
+    // each cube's place along the strand (0 at the first rung, 1 at the last): the glow's gradient
+    const rungOrder = new Map(this.rungEls.map((ei, k) => [ei, k]));
+    this.cubeAlong = Float32Array.from(this.cubeFix, (fi) => (rungOrder.get(rig.fixtures[fi].element) ?? 0) / Math.max(1, this.rungEls.length - 1));
+    this.cubeTmp = { core: [0, 0, 0], glow: [0, 0, 0], emit: [0, 0, 0], ang: [0, 0, 0], m: new THREE.Matrix4(), r: new THREE.Matrix4(), e: new THREE.Euler() };
     this.cubeMesh = new THREE.InstancedMesh(cubeGeo, this.mat.cube, this.cubeFix.length);
     this.cubeMesh.frustumCulled = false; this.cubeMesh.userData.group = "strand"; world.add(this.cubeMesh);
     const chainGeo = new THREE.BoxGeometry(0.035, 1, 0.035); chainGeo.translate(0, 0.5, 0);
@@ -368,6 +426,10 @@ export class StageRenderer {
       const f = rig.fixtures[cells.fixture[c]];
       this.cellNits[c] = (rig.types[f.type].nits || 10000) * U;
     }
+    // the brightest any HAL cube can be (scene units: every cube's own, not the first's): the core's heat runs toward white
+    // only near it
+    this.cubeFull = this.cubeFix.reduce((m, fi) => Math.max(m, this.cellNits[rig.fixtures[fi].cell0]), 1e-6);
+    if (this.mat.cubeHal) this.mat.cubeHal.uniforms.uFull.value = this.cubeFull;
     // the lasers: instanced ribbons
     const lq = new THREE.BufferGeometry();
     lq.setAttribute("position", new THREE.Float32BufferAttribute([0, -1, 0, 1, -1, 0, 1, 1, 0, 0, 1, 0], 3));
@@ -439,9 +501,12 @@ export class StageRenderer {
     this.shownIdx = 0;
     const fl = { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false, depthBuffer: false };
     this.m1w = Math.ceil(w / 4); this.m1h = Math.ceil(h / 4); this.m2w = Math.ceil(this.m1w / 4); this.m2h = Math.ceil(this.m1h / 4);
-    this.meter1RT = new THREE.WebGLRenderTarget(this.m1w, this.m1h, fl);
-    this.meter2RT = new THREE.WebGLRenderTarget(this.m2w, this.m2h, fl);
-    this.meterBuf = new Float32Array(this.m2w * this.m2h * 4);
+    // three texels a block (flash.js v2: luminance moments, red moments, RGB and count), the cells' pixel bounds
+    this.meter1RT = new THREE.WebGLRenderTarget(this.m1w * 3, this.m1h, fl);
+    this.meter2RT = new THREE.WebGLRenderTarget(this.m2w * 3, this.m2h, fl);
+    this.meterBuf = new Float32Array(this.m2w * 3 * this.m2h * 4);
+    this.bx = meterBounds(w); this.by = meterBounds(h);
+    for (const m of [this.post.meter1, this.post.present]) { m.uniforms.uBX.value.set(this.bx); m.uniforms.uBY.value.set(this.by); }
     this.targets = [this.sceneRT, this.beamRT, this.hdrRT, ...this.bloom, this.ldrRT, ...this.shownRT, this.meter1RT, this.meter2RT];
     this.camera.aspect = w / h;
   }
@@ -481,7 +546,8 @@ export class StageRenderer {
   // fs: {camera {pos, look, hfov, roll, ev}, poses [{y, roll}] per rung, heads (programmer), pixels (programmer),
   //      lasers {seg, n} (lasers3d), medium (atmos uniform), veil [r, g, b], ambient [r, g, b], airTint (0..1: how much of
   //      the ambient's hue the veil takes, atmos.js airTint), beatPhase, energy}
-  // limiter: (cells, t) -> {a, k, beta}; t: seconds
+  // limiter: (cells, t) -> gains (flash.js FrameLimiter.step: cornerA, cornerL, beta, identity), or null: no limiter
+  // asked (flash protection off), no meter, the identity; t: seconds
   render(fs, limiter, tSec) {
     const rig = this.rig, cam = this.camera, F = this.features;
     const w = this.w, h = this.h;
@@ -544,19 +610,31 @@ export class StageRenderer {
       }
     }
     this.rungMesh.instanceMatrix.needsUpdate = true; this.chainMesh.instanceMatrix.needsUpdate = true;
-    // the cubes: pose, and the mean of their six cells as their light
+    // the cubes: pose, and the mean of their six cells as their light. HAL (cubes.js): the core light and the glow hue
+    // from the frame's tint (a kick on the cube's cells takes the glow with it), and the slow spin on the rung's axle
+    const hal = this.cubes.style === "hal" && this.mat.cubeHal, ct = this.cubeTmp;
+    this.cubeMesh.material = hal ? this.mat.cubeHal : this.mat.cube;
+    this.cubeMesh.renderOrder = hal ? -1 : 0;
+    const tumble = hal ? (Number.isFinite(this.cubes.tumble) ? Math.min(1, Math.max(0, this.cubes.tumble)) : 0) : 0;
     for (let k = 0; k < this.cubeFix.length; k++) {
       const f = rig.fixtures[this.cubeFix[k]];
       const em = this.elM[f.element];
       const p = transformPoint(em, f.local);
-      const m4 = new THREE.Matrix4().set(em[0], em[1], em[2], p[0], em[3], em[4], em[5], p[1], em[6], em[7], em[8], p[2], 0, 0, 0, 1);
+      const m4 = ct.m.set(em[0], em[1], em[2], p[0], em[3], em[4], em[5], p[1], em[6], em[7], em[8], p[2], 0, 0, 0, 1);
+      if (tumble) { const a = tumbleAngles(k, tSec || 0, tumble, ct.ang); m4.multiply(ct.r.makeRotationFromEuler(ct.e.set(a[0], a[1], a[2]))); }
       this.cubeMesh.setMatrixAt(k, m4);
       let r = 0, g = 0, b = 0;
       for (let cI = f.cell0; cI < f.cell0 + f.ncell; cI++) { r += fs.pixels[cI * 4]; g += fs.pixels[cI * 4 + 1]; b += fs.pixels[cI * 4 + 2]; }
       const kk = this.cellNits[f.cell0] / f.ncell;
-      this.cubeEmit[k * 3] = r * kk; this.cubeEmit[k * 3 + 1] = g * kk; this.cubeEmit[k * 3 + 2] = b * kk;
+      if (hal) {
+        ct.emit[0] = r * kk; ct.emit[1] = g * kk; ct.emit[2] = b * kk;
+        cubeColours(ct.emit, this.cubeAlong[k], fs.cubeTint || null, ct.core, ct.glow, cubeKickOf(fs.cubeKick || null, f.cell0, f.ncell));
+        this.cubeEmit[k * 3] = ct.core[0]; this.cubeEmit[k * 3 + 1] = ct.core[1]; this.cubeEmit[k * 3 + 2] = ct.core[2];
+        this.cubeGlow[k * 3] = ct.glow[0]; this.cubeGlow[k * 3 + 1] = ct.glow[1]; this.cubeGlow[k * 3 + 2] = ct.glow[2];
+      } else { this.cubeEmit[k * 3] = r * kk; this.cubeEmit[k * 3 + 1] = g * kk; this.cubeEmit[k * 3 + 2] = b * kk; }
     }
     this.cubeMesh.instanceMatrix.needsUpdate = true; this.cubeMesh.geometry.attributes.iEmit.needsUpdate = true;
+    if (hal) this.cubeMesh.geometry.attributes.iGlow.needsUpdate = true;
     // the heads: lens and direction, beams, spot lights, bodies, lens glints
     const nH = rig.heads.length;
     let nb = 0, ns = 0;
@@ -702,12 +780,14 @@ export class StageRenderer {
     // the veil: the room's light scattered back by the haze (the beams' flux and the LEDs, tinted), in the air's own
     // colour where the theme gives it one (atmos.js airTint: the hue moves, the luminance does not)
     const amb = fs.ambient || [0.23, 0.1, 0.55];
+    const lookNow = LOOKS[this.look] || LOOKS.classic;   // the look's room glow and fill (classic: 1 and 1, as before)
     const vk = 0.5e-6 * U, pk = 0.0006 * U, vl = this.veilNow;
-    for (let i = 0; i < 3; i++) vl[i] = F.veil ? (veil[i] * vk + pixPower[i] * pk) * 0.6 + amb[i] * 0.02 : 0;
+    for (let i = 0; i < 3; i++) vl[i] = F.veil ? ((veil[i] * vk + pixPower[i] * pk) * 0.6 + amb[i] * 0.02) * lookNow.veil : 0;
     airTint(vl, amb, fs.airTint || 0, vl);
     this.post.composite.uniforms.uVeil.value.set(vl[0], vl[1], vl[2]);
     this.post.composite.uniforms.uSigma0.value = md.sigma0;
-    sp.uAmbient.value.set(0.004 + amb[0] * 0.01, 0.004 + amb[1] * 0.01, 0.006 + amb[2] * 0.01);
+    const ak = lookNow.ambient;
+    sp.uAmbient.value.set((0.004 + amb[0] * 0.01) * ak, (0.004 + amb[1] * 0.01) * ak, (0.006 + amb[2] * 0.01) * ak);
     this.mat.arms.uniforms.uBeatPhase.value = fs.beatPhase || 0;
     this.mat.arms.uniforms.uEnergy.value = fs.energy ?? 0.6;
     // visibility of the groups
@@ -767,37 +847,41 @@ export class StageRenderer {
       u.uHdr.value = this.hdrRT.texture; u.uBloom.value = this.bloom[0].texture; u.uRes.value.set(w, h);
       u.uBloomMix.value = F.bloom ? (fs.bloomMix ?? 0.05) / Math.max(1, this.bloom.length) * this.bloom.length / 6 : 0;
       u.uEv.value = (c.ev || 0) + (fs.ev || 0);
+      const lk = LOOKS[this.look] || LOOKS.classic;
+      u.uSat.value = lk.sat; u.uVig.value = lk.vig; u.uHueKeep.value = lk.hueKeep; u.uBlack.value = lk.black;
+      u.uVibrance.value = lk.vibrance; u.uContrast.value = lk.contrast;
+      u.uCoreStart.value = lk.core[0]; u.uCoreEnd.value = Math.max(lk.core[1], lk.core[0] + 1e-3); u.uCoreWhite.value = lk.core[2];
+      u.uBloomMix.value *= lk.bloom;
       this._fs(this.post.finish, this.ldrRT);
     }, () => this.ldrRT.texture);
-    // 5. the meter, the limiter, the apply pass
-    let gains = { a: 1, b: 0, cellA: new Float64Array(16).fill(1), cellB: new Float64Array(16) };
-    this._t("meter", () => {
+    // 5. the meter, the limiter, the apply pass (with no limiter asked: no meter, and the identity)
+    let gains = null;
+    if (limiter) this._t("meter", () => {
       const m1 = this.post.meter1.uniforms, m2 = this.post.meter2.uniforms;
       m1.uSrc.value = this.ldrRT.texture; m1.uSrcSize.value.set(w, h);
       this._fs(this.post.meter1, this.meter1RT);
       m2.uSrc.value = this.meter1RT.texture; m2.uSrcSize.value.set(this.m1w, this.m1h);
       this._fs(this.post.meter2, this.meter2RT);
-      R.readRenderTargetPixels(this.meter2RT, 0, 0, this.m2w, this.m2h, this.meterBuf);
-      const Lc = this.cells.L, Rc = this.cells.R, cnt = new Float64Array(16);
-      Lc.fill(0); Rc.fill(0);
+      R.readRenderTargetPixels(this.meter2RT, 0, 0, this.m2w * 3, this.m2h, this.meterBuf);
       // the cells are the meter's own: 16-pixel blocks shared out four ways (the apply pass maps pixels the same way)
+      const C = this.cells, buf = this.meterBuf, row = this.m2w * 12, cnt = new Float64Array(16);
+      C.LM.fill(0); C.RM.fill(0); C.rgb.fill(0);
       for (let y = 0; y < this.m2h; y++) {
         const cy = Math.min(3, Math.floor((y * 4) / this.m2h));
         for (let x = 0; x < this.m2w; x++) {
-          const cx = Math.min(3, Math.floor((x * 4) / this.m2w));
-          const i = (y * this.m2w + x) * 4, ci = cy * 4 + cx;
-          Lc[ci] += this.meterBuf[i]; Rc[ci] += this.meterBuf[i + 1]; cnt[ci] += this.meterBuf[i + 2];
+          const cx = Math.min(3, Math.floor((x * 4) / this.m2w)), ci = cy * 4 + cx, i = y * row + x * 12;
+          for (let j = 0; j < 4; j++) { C.LM[ci * 4 + j] += buf[i + j]; C.RM[ci * 4 + j] += buf[i + 4 + j]; }
+          C.rgb[ci * 3] += buf[i + 8]; C.rgb[ci * 3 + 1] += buf[i + 9]; C.rgb[ci * 3 + 2] += buf[i + 10]; cnt[ci] += buf[i + 11];
         }
       }
-      for (let i = 0; i < 16; i++) { Lc[i] /= Math.max(1, cnt[i]); Rc[i] /= Math.max(1, cnt[i]); }
-      if (limiter) gains = limiter(this.cells, tSec);
+      finishCells(C, cnt);
+      gains = limiter(C, tSec);
     });
     this._t("present", () => {
       const p = this.post.present.uniforms;
-      let identity = true;
-      for (let i = 0; i < 16 && identity; i++) if (gains.cellA[i] !== 1 || gains.cellB[i] !== 0) identity = false;
+      const identity = !gains || gains.identity;
       p.uSrc.value = this.ldrRT.texture; p.uPrev.value = this.shownRT[this.shownIdx].texture;
-      p.uA.value.set(gains.cellA); p.uB.value.set(gains.cellB); p.uM2.value.set(this.m2w, this.m2h);
+      if (!identity) { p.uA.value.set(gains.cornerA); p.uL.value.set(gains.cornerL); p.uBeta.value = gains.beta || 0; }
       p.uIdentity.value = identity ? 1 : 0;
       const next = 1 - this.shownIdx;
       this._fs(this.post.present, this.shownRT[next]);
@@ -805,7 +889,7 @@ export class StageRenderer {
       this.shownIdx = next;
     }, () => this.shownRT[this.shownIdx].texture);
     this.info = { beams: nb, spots: ns, lasers: nl, emitters: ePtr, crowd: this.crowdCount, drawCalls: R.info.render.calls,
-                  triangles: R.info.render.triangles, beamPowerLm: Math.round(beamPower), gains: { a: gains.a, b: gains.b } };
+                  triangles: R.info.render.triangles, beamPowerLm: Math.round(beamPower), gains: { a: gains ? gains.a : 1, b: gains ? gains.b : 0 } };
     return this.info;
   }
 

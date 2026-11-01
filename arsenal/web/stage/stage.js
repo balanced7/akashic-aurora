@@ -32,23 +32,70 @@
 // override the look's from the press on); a held pad keeps it lit (the kick is a gate) at a live level that padLevel()
 // moves while it is held. What a kick pad does is its kind in the set's kick.kinds. The page-level pad door for touch and velocity sources: the window events
 // "arsenal:pad" {pad, vel, on} and "arsenal:padlevel" {pad, vel}; window.__padDoor = 1 says the page listens.
+//
+// FLASH PROTECTION, THE VIEWER'S CHOICE (2026-10-28, lib/flash-consent.js). Daniel: "have it be a toggle, as it should
+// be, you get a siezure warning and its up to you what you do with it, default is on". On a first visit the page shows
+// the photosensitivity warning with one "Flash protection" box (checked) and Start; the show starts on Start; the choice
+// is remembered in this browser; the HUD has a quiet "Flash protection" checkbox; ?flash=on|off decides from the URL
+// (tests, kiosks); automation (every receipt) gets protection on and no screen. ON: the final-frame limiter (flash.js v2,
+// the smooth fields) judges every frame exactly as before. OFF: the page asks no limiter, the meter does not run and the
+// apply pass is the identity -- the frame reaches the canvas as drawn -- and the kick's flash governor, which exists only
+// so the limiter never has to act, sees a full budget.
+//
+// PALETTES (2026-10-28, ../palettes.js): one active palette of thirty drives every colour (the roles, the kicks, the wheel
+// plan, the splits and pins, the strand's gradient and tempo, the lasers, the air). ?palette=source-violet picks one at
+// load (?theme= is read the same way; a set theme that is not a palette still loads as before); the show's own is
+// show.palette. Live: key P steps to the next palette, Shift+P the previous one, and the set's pad map can name
+// "palette-next" and "palette-prev" (the phone bar's PALETTE pad, a KeyLab pad); the change lands on the next 16-bar line --
+// a neighbour crossfades over 4 bars, anything else cuts on the line through a one-beat dip. Every press before the
+// landing steps the palette that will land. The page says what is showing and what is coming with the window event
+// "arsenal:palette" {id, name, next, nextName, at} (only when it changes) and keeps the latest in window.__palette.
+//
+// CAMERA DISTANCE (2026-10-29, distance.js). Daniel: "can we think of a control scheme for camera distance so that i can
+// trigger between closeup medium and far." Shot size is its own control on top of whatever shot is running: Q CLOSE,
+// W MEDIUM, E FAR (left hand, near to far, left to right). A press starts a dolly at once and lands on a beat line;
+// the active key again hands distance back to the director over two beats; Shift + key cuts on the next beat instead;
+// Esc gives both the shot and the distance back. The KeyLab's F8 (CC 112, unless the set's show.faders names another
+// control "distance") is a continuous distance with soft takeover; the HUD has its slider; the phone bar a CLOSE . MID .
+// FAR segment. The pad map may name "distance-close", "distance-medium", "distance-far" and "distance-auto". The page
+// says what the distance is with the window event "arsenal:camdist" {mode, stop, v, ...} (only when it changes) and keeps
+// the latest in window.__camdist.
+//
+// THE CHORD PHRASING (2026-10-29, grammar.js + ensemble.js; the round-3 design, docs/library/design/
+// 20261028_kick-vocabulary-round3-codex-2026-10-28_4a3a13.md). Daniel: "lets also land the chord phrasing."; "i mean like
+// 8 7 6 5 4 then 456789". Every number key, C, the phone's pads and the KeyLab's pads 1-10 go through ONE input door: the
+// recogniser decides each down on its own call (a single still fires on the frame it is pressed), and a chord, a strum or
+// a slow sweep changes only what follows -- a chord's members light the union of their areas under ONE attack (a later
+// kick joins the first one's punch at its age), a strum lights them in order inside that attack, C asks for at most one
+// shot, transport collapses STOP > NEXT > GO, and a slow sweep (or B held) is BREATH: a fade of the look's own light
+// (descending out, ascending in; latched; Esc hands it back over four beats). Source-local: the keyboard ("key", trusted
+// events), the phone ("phone": its pad bar's synthetic keys and its strips' pad door) and the KeyLab ("midi") never make
+// one chord; strums and sweeps only on the keyboard's number row. ?grammar=0 is today's direct routing, unchanged.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
-import { validateScene, expandScene } from "./rig.js";
+import { validateScene, expandScene, hallStructure } from "./rig.js";
 import { BeatGrid, DemoBeats, beatExtras } from "./grid.js";
-import { Programmer } from "./programmer.js";
+import { Programmer, ROLE } from "./programmer.js";
+import { CUBE_STYLES, cubeStyleOf, cubeTintOf } from "./cubes.js";
 import { Strand } from "./kinetics.js";
 import { LaserEngine } from "./lasers.js";
 import { Lasers3D } from "./lasers3d.js";
 import { Atmosphere } from "./atmos.js";
 import { Director, cameraModel, formationPoseSets } from "./camera.js";
+import { CameraDistance, makeRoom, KEY_STOPS } from "./distance.js";
 import { RingFormations, validateRingFormations } from "./formations.js";
-import { Show, speedFromFader } from "./show.js";
+import { Show, speedFromFader, faderValue } from "./show.js";
 import { FrameLimiter, LIMIT } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
+import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
+import { Grammar } from "./grammar.js";
+import { Ensembles, chainLayers } from "./ensemble.js";
+import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf, bankLasers, bankLaserExtras } from "../palettes.js";
+import { fetchSetups, stepSetup, nextAutoLine, nextBarLine } from "./setups.js";
+import { withExtraShots, askedShot } from "./stills.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -63,7 +110,14 @@ const SET = /^[a-z0-9][a-z0-9-]{0,40}$/.test(QS.get("set") || "") ? QS.get("set"
 // looks wave-1 themes and phrases (Dreaming City, Single Thread, Pillars...) are reached by name
 const asName = (v) => (/^[a-z0-9][a-z0-9-]{0,40}$/.test(v || "") ? v : null);
 const THEME_ASKED = asName(QS.get("theme")), PHRASE_ASKED = asName(QS.get("phrase")), RING_ASKED = asName(QS.get("ring"));
+const PALETTE_ASKED = asName(QS.get("palette")) || THEME_ASKED;
 const STRAND_ASKED = asName(QS.get("strand"));
+// SETUPS (setups.js): ?setup=<id> starts on that setup and holds it (add &setups=rotate to rotate from it); ?setups=hold
+// holds the first; ?setups=off is the palettes' own looks; ?setups=rotate turns them on (automation gets none unless asked)
+const SETUP_ASKED = asName(QS.get("setup"));
+const SETUPS_MODE = ["hold", "off", "rotate"].includes(QS.get("setups")) ? QS.get("setups") : null;
+// the chord phrasing (grammar.js): on unless ?grammar=0 (today's direct routing)
+const GRAMMAR = QS.get("grammar") !== "0";
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
 const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
 // The bloom mix the finish pass uses. render.js reads it off the frame state as `fs.bloomMix ?? 0.05` and then divides
@@ -86,6 +140,8 @@ window.addEventListener("error", (e) => recordError("page", e.error || e.message
 window.addEventListener("unhandledrejection", (e) => recordError("promise", e.reason));
 
 const api = window.__stage = { ready: false, errors, version: "stage-v1" };
+// the viewer's flash protection (the warning on a first visit: the show waits for Start)
+const flash = flashProtection({ page: "stage" });
 
 async function boot() {
   // the scene
@@ -101,6 +157,20 @@ async function boot() {
   if (ringProblems.length) throw new Error(`the scene ${SET}'s ring formations are not valid:\n${ringProblems.join("\n")}`);
   const kickProblems = validateKick(rig);
   if (kickProblems.length) throw new Error(`the scene ${SET}'s kick block is not valid:\n${kickProblems.join("\n")}`);
+  // the palettes (checked against this rig's beam wheel; a palette that fails is refused with its reasons and the rest load;
+  // without the library the set's own themes still run)
+  let palettes = null;
+  try {
+    const beam = Object.values(scene.types || {}).find((t) => t.attrs && t.attrs.Color1 && t.attrs.Color1.colours);
+    palettes = await fetchPalettes(new URL("../palettes.json", import.meta.url), fetch, { wheel: beam ? beam.attrs.Color1.colours : null });
+    for (const r of palettes.refused) recordError("palette", `${r.id} refused: ${r.problems.join("; ")}`);
+  } catch (e) { recordError("palettes", e); }
+  // the setups (a setup that fails is refused with its reasons and the rest load; without them the palettes' looks run)
+  let setups = null;
+  try {
+    setups = await fetchSetups(new URL("./sets/setups.json", import.meta.url), fetch);
+    for (const r of setups.refused) recordError("setup", `${r.id} refused: ${r.problems.join("; ")}`);
+  } catch (e) { recordError("setups", e); }
   // the house GLSL library and the renderer (three.js from the pinned CDN build, as the piano loads it)
   const lib = await loadLibrary(new URL("../glsl/index.json", import.meta.url).href);
   let renderMod;
@@ -108,13 +178,33 @@ async function boot() {
   catch (e) { throw new Error(`three.js r186 did not load from cdn.jsdelivr.net (${e.message}). Check the network, then reload.`); }
   const canvas = $("gl");
   const R = new renderMod.StageRenderer(canvas, rig, lib, { quality: QUALITY });
-  return { scene, rig, lib, R, renderMod };
+  return { scene, rig, lib, R, renderMod, palettes, setups };
 }
 
-function start({ rig, R, renderMod }) {
+function start({ rig, R, renderMod, palettes, setups }) {
+  // the finish's look (render.js LOOKS): ?look=hdr|punch|velvet|classic, then this browser's last choice, then HDR Night;
+  // automation (every house lane) stays on classic, the finish its numbers were measured on. L cycles it.
+  const LOOKS = renderMod.LOOKS, LOOK_ORDER = renderMod.LOOK_ORDER;
+  const lookStore = (v) => { try { if (v === undefined) return localStorage.getItem("arsenal.stage.look"); localStorage.setItem("arsenal.stage.look", v); } catch { return null; } return null; };
+  const qLook = QS.get("look");
+  R.look = LOOKS[qLook] ? qLook : navigator.webdriver ? "classic" : (LOOKS[lookStore()] ? lookStore() : "hdr");
+  // the strand's cubes (cubes.js): ?cubes=hal|solid, else HAL 4000 neon for a viewer and the solid cubes for automation
+  // (the lanes' numbers were measured on them); key U toggles; ?cubetumble=0 holds them square to their rungs
+  R.cubes.style = cubeStyleOf(QS.get("cubes"), navigator.webdriver);
+  if (QS.get("cubetumble") !== null && Number.isFinite(Number(QS.get("cubetumble")))) R.cubes.tumble = Math.min(1, Math.max(0, Number(QS.get("cubetumble"))));
+  // a setup's cube colours (api.cubeTint): null fields keep the palette's. As a URL A/B: ?cubeglow=<hex>[,<hex>] (the
+  // glow at the strand's first and last rung) and ?cubecore=<hex>[,<hex>] (the core's hue), e.g. cubeglow=0040ff,ff2000
+  const hexPair = (v) => { const h = (v || "").split(",").filter((x) => /^#?[0-9a-f]{6}$/i.test(x)).map((x) => hexToLinear(x.startsWith("#") ? x : `#${x}`)); return h.length ? [h[0], h[1] || h[0]] : null; };
+  const qGlow = hexPair(QS.get("cubeglow")), qCore = hexPair(QS.get("cubecore"));
+  let cubeTintOverride = qGlow || qCore ? { glowTop: qGlow && qGlow[0], glowBottom: qGlow && qGlow[1], coreTop: qCore && qCore[0], coreBottom: qCore && qCore[1] } : null;
+  const cubeTintNow = {};                 // cubeTintOf's own object, kept: its gradient is rebuilt only when an end moves
   const show0 = rig.show;
-  const themeName = THEME_ASKED && rig.themes[THEME_ASKED] ? THEME_ASKED : show0.theme || Object.keys(rig.themes)[0];
-  const theme = { name: themeName, ...rig.themes[themeName] };
+  // the palette asked for (or a set theme by that name that is not a palette), else the show's palette, else its theme
+  const palAsked = palettes && PALETTE_ASKED && palettes.byId[PALETTE_ASKED] ? PALETTE_ASKED : null;
+  const legacyAsked = !palAsked && THEME_ASKED && rig.themes[THEME_ASKED] ? THEME_ASKED : null;
+  const palId = palAsked || (!legacyAsked && palettes && palettes.ids.length ? (palettes.byId[show0.palette] ? show0.palette : palettes.ids[0]) : null);
+  const themeName = legacyAsked || show0.theme || Object.keys(rig.themes)[0];
+  let theme = palId ? stageTheme(palettes.byId[palId]) : { name: themeName, ...rig.themes[themeName] };
   const demoBpm = (show0.demo && show0.demo.bpm) || 150;
   const now0 = performance.now();
   const grid = new BeatGrid({ bpm: demoBpm, t0: now0 });
@@ -127,12 +217,14 @@ function start({ rig, R, renderMod }) {
   const lasers3d = new Lasers3D(rig.projectors, rig.venue, { heads: lasers.heads });
   const runner = Object.keys(rig.phrases || {}).length ? new PhraseRunner(rig) : null;
   const firstPhrase = runner ? (PHRASE_ASKED && rig.phrases[PHRASE_ASKED] ? PHRASE_ASKED : Object.keys(rig.phrases)[0]) : null;
-  const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 30, preHaze: rig.atmos.pre_haze ?? 0.12,
+  const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 1.5, preHaze: rig.atmos.pre_haze ?? 0.12,
                                  wind: rig.atmos.wind || [0.25, 0, -0.1], noiseAmp: rig.atmos.noise_amp ?? 0.6 });
   // v2: the ring formations (their light is a programmer layer over the look and the phrases)
   const rings = new RingFormations(rig);
   rings.roles = programmer.roleRGB;
-  programmer.setLayer(rings);
+  // the chord phrasing's ensembles: BREATH is one more layer after the rings (the look's own light, before the kicks)
+  const ens = GRAMMAR ? new Ensembles() : null;
+  programmer.setLayer(ens ? chainLayers(rings, ens) : rings);
   if (RING_ASKED && rings.def(RING_ASKED)) rings.set(RING_ASKED, 0, demoBpm);
   // v2: the director knows the strand (it never deals a shot within 1.5 m of a rung) and each formation's hero views; a
   // ring formation's shots are judged against the rings it sweeps and against every strand formation of the set, and
@@ -140,13 +232,40 @@ function start({ rig, R, renderMod }) {
   const camModel = cameraModel(rig);
   const ringKeys = rings.formations.filter((k) => k !== "home");
   const strandSets = [].concat(...Object.values(rig.formations).map((f) => formationPoseSets(f, camModel.z.length) || []));
-  const director = new Director(rig.cameras.shots, rig.cameras.sequences,
+  // STILLS (2026-10-29, stills.js): candidate shots from window.__extraShots join the set's (checked first; a bad one is
+  // reported and left out), and ?shot= forces one by hand below
+  const extra = withExtraShots(rig.cameras.shots, window.__extraShots);
+  for (const p of extra.problems) recordError("extra shot", p);
+  api.extraShots = { added: extra.added, replaced: extra.replaced, problems: extra.problems };
+  const director = new Director(extra.shots, rig.cameras.sequences,
                                 { model: camModel, formations: { ...rig.formations, ...Object.fromEntries(ringKeys.map((k) => [k, rings.def(k)])) },
                                   views: rig.cameras.formation_views, safe: rig.cameras.safe,
                                   posesOf: (key, def) => (ringKeys.includes(key) ? strandSets : formationPoseSets(def, camModel.z.length)),
                                   ringsOf: (key) => (ringKeys.includes(key) ? rings.annuliSets(key) : null),
                                   sightOf: (key) => (ringKeys.includes(key) ? rings.sight(key) : null) });
   director.start(Object.keys(rig.cameras.sequences)[0], 0);      // until the first section starts its own sequence
+  // camera DISTANCE (distance.js): shot size on top of the director's shots, clamped inside the venue, clear of the
+  // hall's structure and 1.5 m from the strand and the rings
+  const hall = hallStructure(rig.venue);
+  const camDist = new CameraDistance({ room: makeRoom(rig.venue, [...hall.solid, ...hall.truss]), z: camModel.z, rings: camModel.rings });
+  // the cuts a Shift cut must keep 2 beats from: the last one (the director's, a C-key shot or a distance cut: all land in
+  // director.lastCutPos) and the director's next (his next entry, or a guard or swap override he has scheduled)
+  const distCtx = (tMs, extra = {}) => {
+    const pos = grid.posAt(tMs + grid.presentLagMs);
+    const o = director.override, next = Math.min(!director.manual && director.entry && director.entry.p1 > pos ? director.entry.p1 : Infinity,
+                                                 !director.manual && o && !o.started && o.at > pos ? o.at : Infinity);
+    return { t: tMs / 1000, pos, spb: 60 / grid.bpm, shot: director.shots[director.pose.shot] || null, lastCutPos: director.lastCutPos,
+             nextCutPos: next, ...extra };
+  };
+  function announceDistance() {
+    const d = camDist.status(director.shots[director.pose.shot] || null);
+    window.__camdist = d;
+    window.dispatchEvent(new CustomEvent("arsenal:camdist", { detail: { ...d } }));
+  }
+  function distance(what, { cut = false } = {}) {
+    const ctx = distCtx(performance.now(), { cut });
+    return what === "auto" ? camDist.auto(ctx) : camDist.press(what, ctx);
+  }
   // what the camera reads of the rig each frame: the formation key (a change with a landing gets the glide and the hero
   // view), its landing bar line, the live rung poses. A ring formation that lands elsewhere sets formation and posLand too,
   // and rings (live annuli, camera.js ringAnnulus) while the rings are off their home pose, so the guard sees them.
@@ -155,13 +274,146 @@ function start({ rig, R, renderMod }) {
   const limiter = new FrameLimiter();
   const link = new EngineLink();
   const demoBeats = show.demo ? new DemoBeats({ bpm: demoBpm, startMs: now0 + 300 }) : null;
-  const ambient = hexToLinear(theme.ambient || "#3a1a8a");
-  const airTint = Number.isFinite(theme.air_tint) ? theme.air_tint : 0;   // the haze veil in the air's own hue (atmos.js airTint)
+  // the air: the active palette's deep colour and air tint (programmer.ambient, airTint: they crossfade with the palette)
+  // PALETTES: the lasers' red fallback is the palette's white, and a fan of its first two colours is a gradient per beam
+  const laserOpts = (th) => { const pl = th.palette, g = pl && pl.gradients.find((x) => x.name === "lasers");
+                              return { white: hexToLinear(th.W || "#ffffff"), fanRamp: g ? tableOf(g) : null }; };
+  lasers.setColours(theme.laser, laserOpts(theme));
+  lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+  // KICK 5's colour bank reaches the lasers (Daniel, 2026-10-29: "I also want kick 5 to also adjust all lasers"): every
+  // laser group takes the bank's laser colours on the frame the bank changes; bank 0 is the palette's own
+  let laserBankSerial = -1, laserSetupSerial = -1;
+  function lasersFollowBank() {
+    // a SETUP's lasers (its own colours, turned by kick 5 through its laser bank) change on its landing line and its presses
+    const X = programmer.sx;
+    if (programmer.setupOn && X.lasers) {
+      if (X.laserSerial === laserSetupSerial) return;
+      laserSetupSerial = X.laserSerial; laserBankSerial = -1;
+      lasers.setColours(X.lasers.colours, { white: hexToLinear(theme.W || "#ffffff"), fanRamp: X.lasers.fanRamp });
+      return;
+    }
+    laserSetupSerial = -1;
+    const B = programmer.bank;
+    if (B.serial === laserBankSerial) return;
+    laserBankSerial = B.serial;
+    if (!B.count) { lasers.setColours(theme.laser, laserOpts(theme)); return; }
+    const lb = bankLasers(theme.laser, B.count, bankLaserExtras(theme.palette));
+    lasers.setColours(lb.colours, { white: hexToLinear(theme.W || "#ffffff"), fanRamp: lb.fanRamp });
+  }
+  // the live palette: what shows, what is queued and the 16-bar line it lands on
+  const pal = { id: palId, queued: null, at: null, dip: false, landings: [] };
+  function announcePalette() {
+    const cur = pal.id && palettes.byId[pal.id], nxt = pal.queued && palettes.byId[pal.queued];
+    const d = { id: pal.id, name: cur ? cur.name : theme.name, next: pal.queued, nextName: nxt ? nxt.name : null, at: pal.at,
+                ladder: cur ? cur.kick.ladder.slice() : null, nextLadder: nxt ? nxt.kick.ladder.slice() : null,
+                // THE BANK'S COLOURS (kick 5): what a press deals now -- the strip on the phone bar wears these
+                bank: programmer.bankHex(), bankSetup: programmer.setupOn && programmer.sx.def ? programmer.sx.def.id : null };
+    window.__palette = d;
+    window.dispatchEvent(new CustomEvent("arsenal:palette", { detail: { ...d } }));
+  }
+  // step to the next (+1) or previous (-1) palette (or to id), landing on the next 16-bar line (a press before the landing
+  // steps the queued one); now: true lands it on this frame, no transition (the receipts' door)
+  function stepPal(delta, tEval, { id = null, now = false } = {}) {
+    if (!palettes || !palettes.ids.length) return null;
+    const from = pal.queued || pal.id || palettes.ids[0];
+    const want = id && palettes.byId[id] ? id : stepPalette(palettes, from, delta);
+    const pos = grid.posAt(tEval);
+    if (now) {
+      pal.id = want; pal.queued = null; pal.at = null;
+      theme = stageTheme(palettes.byId[want]);
+      programmer.palX = null; programmer.setTheme(theme);
+      lasers.setColours(theme.laser, laserOpts(theme)); lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+      $("hud-set").textContent = hudSetText();
+      announcePalette();
+      return { id: want, at: pos, dip: false };
+    }
+    const at = landingPos(pos, grid.barAnchor || 0, 16);
+    const cur = palettes.byId[pal.id], nxt = palettes.byId[want];
+    const dip = needsDip(cur, nxt, palettes.wheel);
+    pal.queued = want; pal.at = at; pal.dip = dip;
+    programmer.beginPalette(stageTheme(nxt), at, { beats: 16, dip });
+    announcePalette();
+    return { id: want, at, dip };
+  }
+  // SETUPS (2026-10-29, setups.js; Daniel: "i want the lights to cycle different color palates and setups"): a palette x a
+  // placement. They rotate on the 16-bar phrase lines (a setup landed by hand keeps at least min_bars before the next
+  // rotation), O steps to the next one by hand (Shift+O the previous) landing on the next bar line, and the pad map may name
+  // "setup-next" / "setup-prev". Each crossfades in over fade_beats from its landing line (programmer.js THE SETUP LAYER).
+  // The page says what shows and what is coming with the window event "arsenal:setup" {id, name, next, nextName, at, hold}
+  // (only on a change) and keeps the latest in window.__setup.
+  const suCfg = { rotate_bars: 16, min_bars: 8, fade_beats: 4, ...(setups ? setups.cfg : {}), ...(show0.setups || {}) };
+  const su = { on: false, id: null, queued: null, at: null, hold: SETUPS_MODE === "hold" || (!!SETUP_ASKED && SETUPS_MODE !== "rotate"),
+               landedAt: grid.posAt(now0), manual: false, landings: [] };
+  if (setups && setups.ids.length && SETUPS_MODE !== "off" && (SETUPS_MODE || SETUP_ASKED || (!navigator.webdriver && suCfg.enabled !== false))) {
+    const first = SETUP_ASKED && setups.byId[SETUP_ASKED] ? SETUP_ASKED : suCfg.first && setups.byId[suCfg.first] ? suCfg.first : setups.ids[0];
+    programmer.setSetupNow(setups.byId[first]);
+    programmer.takeSetupEvents();
+    su.on = true; su.id = first;
+  }
+  function announceSetup() {
+    const cur = su.id && setups ? setups.byId[su.id] : null, nxt = su.queued && setups ? setups.byId[su.queued] : null;
+    const d = { on: su.on, id: su.id, name: cur ? cur.name : null, next: su.queued, nextName: nxt ? nxt.name : null, at: su.at, hold: su.hold,
+                // THE BANK'S COLOURS: under a setup these are the SETUP's own cycle (what kick 5 deals now), so the phone bar's
+                // colour strip follows a setup landing, not the palette's ladder (it kept wearing the ladder after kick 5 changed)
+                bank: programmer.bankHex(), bankSetup: programmer.setupOn && programmer.sx.def ? programmer.sx.def.id : null };
+    window.__setup = d;
+    window.dispatchEvent(new CustomEvent("arsenal:setup", { detail: { ...d } }));
+  }
+  // the next (+1) or previous (-1) setup (or id; "off": the palettes' own looks), landing on the next bar line; now: on
+  // this frame, no crossfade (the receipts' door)
+  function setupGo(delta, tEval, { id = null, now = false } = {}) {
+    if (!setups || !setups.ids.length) return null;
+    const pos = grid.posAt(tEval);
+    const off = id === "off";
+    const want = off ? null : id && setups.byId[id] ? id : stepSetup(setups, su.queued || su.id || setups.ids[0], delta);
+    const S = want ? setups.byId[want] : null;
+    if (now) {
+      programmer.setSetupNow(S); programmer.takeSetupEvents();
+      su.on = !!S; su.id = want; su.queued = null; su.at = null; su.landedAt = pos;
+      announceSetup();
+      return { id: want, at: pos };
+    }
+    const at = nextBarLine(pos, grid.barAnchor || 0);
+    su.on = true; su.queued = want; su.at = at; su.manual = true;
+    programmer.beginSetup(S, at, { beats: suCfg.fade_beats });
+    announceSetup();
+    return { id: want, at };
+  }
+  // the 16-bar lines count from the phrase anchor (DROP NOW's ONE) moved onto the bar grid (the grid's barAnchor is the
+  // latest ONE, which moves every bar: counting from it, a 16-bar line would always be 16 bars away)
+  const phraseOrigin = () => { const pa = grid.phraseAnchor || 0, ba = grid.barAnchor || 0; return pa + ((((ba - pa) % 4) + 4) % 4); };
+  // the rotation: the next setup queued for the next 16-bar line (at least min_bars after the last landing)
+  function setupAuto(pos) {
+    if (!setups || !su.on || !su.id || su.hold || su.queued !== null) return;
+    const at = nextAutoLine(pos, phraseOrigin(), su.landedAt, { bars: suCfg.rotate_bars, minBars: suCfg.min_bars });
+    const want = stepSetup(setups, su.id, 1);
+    su.queued = want; su.at = at; su.manual = false; su.anchor = phraseOrigin();
+    programmer.beginSetup(setups.byId[want], at, { beats: suCfg.fade_beats });
+    announceSetup();
+  }
+  // the phrase origin moved (the engine's first beat, a re-lock, DROP NOW) before a queued rotation landed: it goes to the
+  // new line
+  function setupReanchor(pos) {
+    if (su.queued === null || su.manual || phraseOrigin() === su.anchor || !(pos < su.at)) return;
+    su.queued = null; su.at = null;
+    setupAuto(pos);
+  }
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
-  const faders = { ...{ strand: 1, lasers: 1, haze: 0.55, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
-  const faderMap = show0.faders || {};
+  // (F5's default 0.85: the density 0.55 gave before the fader's curve, atmos.js hazeCurve)
+  const faders = { ...{ strand: 1, lasers: 1, haze: 0.85, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
+  const faderMap = { ...(show0.faders || {}) };
+  // KeyLab F8 (CC 112) is the camera's distance unless the set names its own control for it
+  if (!Object.values(faderMap).includes("distance") && !faderMap.cc112) faderMap.cc112 = "distance";
   const padMap = show0.pads || {};
   let sectionSpeed = 1, energy = 0.6, lastFrame = null, manualShot = null;
+  // STILLS: ?shot=ID played by hand as C does (looping over its bars), or held at ?shot_u=
+  {
+    const asked = askedShot(QS, director.shots);
+    if (asked) {
+      manualShot = asked.id;
+      director.manual = asked.u === null ? { shot: asked.id, p0: 0, beats: (director.shots[asked.id].bars ?? 4) * 4 } : { shot: asked.id, u: asked.u };
+    }
+  }
   // the room's ambient (the veil and the fill light) x the phrase step's own (a laser step darkens the room)
   const ambientNow = { scale: 1, target: 1, lastPos: null };
   const kicks = [];
@@ -262,6 +514,7 @@ function start({ rig, R, renderMod }) {
         const k = programmer.pad(action, vel, pos, { hold: true });
         if (kicks.length >= 256) kicks.shift();
         kicks.push({ pressPos: pos, onset: Math.round(pos), kind: k ? k.kind : action, row: k ? k.card.name : null, band: k ? k.band : null });
+        return k;
       } else programmer.padRelease(action, pos);
     }
     else if (action === "flyout" && on) programmer.pad("flyout", vel, pos);
@@ -270,8 +523,93 @@ function start({ rig, R, renderMod }) {
     else if (runner && action === "phrase-go" && on) { prepare(firstPhrase); runner.go(firstPhrase, grid, pos, { section: state.section || "any" }); }
     else if (runner && action === "phrase-next" && on) runner.next(grid, pos);
     else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
+    else if (action === "palette-next" && on) stepPal(1, tEval);
+    else if (action === "palette-prev" && on) stepPal(-1, tEval);
+    else if (action === "setup-next" && on) setupGo(1, tEval);
+    else if (action === "setup-prev" && on) setupGo(-1, tEval);
     else if (action === "morph" && on) rings.morph(grid, tEval);
+    else if (on && /^distance-(close|medium|far|auto)$/.test(action)) distance(action.slice(9));
     else if (action === "hero" && on) rings.hero(grid, tEval);
+  }
+  // ---------------------------------------------------------------------------------- the chord phrasing's door --
+  // One door for the number keys, C and B (the keyboard and the phone bar), the phone strips' pads and the KeyLab's pads
+  // 1-10. Each down is decided on its own call; the intents run at once (grammar.js, ensemble.js).
+  const grammar = GRAMMAR ? new Grammar({ beatMs: () => (grid.locked ? grid.period : null), positional: (src) => src === "key",
+                                           canFade: (dir) => ens.canFade(dir) }) : null;
+  const gestures = [];                       // the receipts' record: every decision, its time and what it did
+  const controlOf = (n) => String(n % 10);
+  const padOfControl = (c) => (c === "0" ? 10 : Number(c));
+  // the source's own timestamp when it is on this clock (a real event), else now (a virtual-clock receipt)
+  const evTime = (e) => {
+    const now = performance.now(), ts = e && e.timeStamp;
+    if (globalThis.__realNow) return now;                 // the receipts' virtual clock: event stamps are on the real one
+    return Number.isFinite(ts) && ts > 0 && Math.abs(now - ts) < 1000 ? ts : now;
+  };
+  // a pending command the fade takes over: HERO still armed for its ONE, a phrase still armed for its bar line, and a
+  // kick's future envelope (a tapped kick lingers a second after its press: the fade lets it go now, through its normal
+  // release). MORPH's travel, a fly-out under way and anything already shown stay: the honest 8/9 tradeoff of the design.
+  function cancelPending(control, tEval) {
+    const pos = grid.posAt(tEval);
+    const action = padMap[String(padOfControl(control))];
+    if (isKick(action)) {
+      const K = programmer.kick, kind = K.kindOf(action);
+      let n = 0;
+      // (kick.js's record: a released kick stays lit to holdEnd, then fades over release_beats)
+      for (const k of K.list) if (k.kind === kind && !k.held && !k.dead && k.holdEnd !== null && k.holdEnd > pos) { k.holdEnd = Math.max(pos, k.from + K.cfg.tap_hold_beats); n++; }
+      return n ? "kick let go" : "already under way";
+    }
+    if (control === "9" && rings.heroState.at !== null && rings.heroState.at > pos) { rings.heroState.at = null; return "hero withdrawn"; }
+    if (control === "3" && runner && runner.state === "armed") { runner.stop(grid, pos); return "go withdrawn"; }
+    return "already under way";
+  }
+  function runDecisions(ds) {
+    if (!ds.length) return;
+    const now = performance.now(), tEval = now + grid.presentLagMs;
+    for (const d of ds) {
+      const did = [];
+      for (const it of ens.plan(d)) {
+        if (it.do === "press") {
+          if (it.control === "C") { nextShot(tEval); did.push("shot"); continue; }
+          const rec = pad(padOfControl(it.control), it.velocity, true, tEval);
+          const a = rec ? ens.attack(it.lineage, rec) : null;
+          did.push(a ? (a.own ? "attack" : a.restrike ? "restrike" : "joined") : "press");
+        } else if (it.do === "release") { if (it.control !== "C") pad(padOfControl(it.control), 0, false, tEval); did.push("release"); }
+        else if (it.do === "cancel") did.push(`${it.control}: ${cancelPending(it.control, tEval)}`);
+        else did.push(it.do);
+      }
+      if (d.type !== "settle" || d.kind !== "single") {
+        if (gestures.length >= 512) gestures.shift();
+        gestures.push({ at: +now.toFixed(1), pos: +grid.posAt(tEval).toFixed(4), type: d.type, phase: d.phase, control: d.control, kind: d.kind || d.to,
+                        lineage: d.lineage, delta: d.delta, did });
+      }
+    }
+  }
+  function input(source, control, down, vel, t, id) {
+    if (!grammar) return false;
+    runDecisions(grammar.input({ source, control, down, t, velocity: vel, id }));
+    return true;
+  }
+  // a pad 1-10 from the phone strips or the KeyLab: its press id is the pad's current press (pads 11+ go direct)
+  const padIds = { phone: new Map(), midi: new Map() };
+  const keyIds = new Map();                   // key code -> its press {id, src, control}
+  let inSeq = 0;
+  function inputPad(source, n, vel, on, t) {
+    if (!grammar || !(n >= 1 && n <= 10)) return false;
+    const ids = padIds[source];
+    if (on) { const id = `${source}:pad${n}:${++inSeq}`; ids.set(n, id); return input(source, controlOf(n), true, vel, t, id); }
+    const id = ids.get(n); ids.delete(n);
+    return input(source, controlOf(n), false, 0, t, id ?? null);
+  }
+  function cancelSource(source) {
+    if (!grammar) return;
+    runDecisions(grammar.cancel(source, performance.now()));
+    if (padIds[source]) padIds[source].clear();
+    for (const [code, k] of keyIds) if (k.src === source) keyIds.delete(code);
+  }
+  if (grammar) {
+    // focus or visibility lost: the keyboard and the phone let go of everything (a key-up never comes)
+    window.addEventListener("blur", () => { cancelSource("key"); cancelSource("phone"); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelSource("key"); cancelSource("phone"); } });
   }
   // a held pad's live level (0..1: the phone pad's finger height; later the KeyLab's aftertouch): the held kick's brightness
   function padLevel(n, vel) {
@@ -284,11 +622,13 @@ function start({ rig, R, renderMod }) {
     link.event(ev);
     const tEval = nowMs + grid.presentLagMs;
     if (ev.t === "beat") grid.beat({ ...ev, ...beatExtras(obj) }, nowMs);
-    else if (ev.t === "pad") pad(ev.pad, ev.vel, ev.on, tEval);
+    else if (ev.t === "pad") { if (!(GRAMMAR && inputPad("midi", ev.pad, ev.vel, ev.on, nowMs))) pad(ev.pad, ev.vel, ev.on, tEval); }
     else if (ev.t === "energy") energy = ev.level;
     else if (ev.t === "ctl") {
-      const target = faderMap[ev.id];
-      if (target && ev.kind === "abs") { faders[target] = ev.value; applyFaders(tEval); syncFaderUI(); }
+      // a mapped fader's position, whichever kind the hub filed it as (show.js faderValue)
+      const target = faderMap[ev.id], v = target ? faderValue(ev) : null;
+      if (target === "distance" && v !== null) camDist.fader(v, distCtx(nowMs));
+      else if (target && v !== null) { faders[target] = v; applyFaders(tEval); syncFaderUI(); }
     }
   }
   // the engine link: Server-Sent Events, reconnecting with a backoff
@@ -297,7 +637,7 @@ function start({ rig, R, renderMod }) {
     if (!ENGINE_URL) return;
     try { es = new EventSource(`${ENGINE_URL}/api/events`); } catch (e) { recordError("engine", e); return; }
     es.onopen = () => { link.connected(); backoff = 1000; };
-    es.onerror = () => { es.close(); link.disconnected(); setTimeout(connect, backoff); backoff = Math.min(10000, backoff * 1.6); };
+    es.onerror = () => { es.close(); link.disconnected(); if (GRAMMAR) cancelSource("midi"); setTimeout(connect, backoff); backoff = Math.min(10000, backoff * 1.6); };
     es.onmessage = (m) => { let o; try { o = JSON.parse(m.data); } catch { return; } handle(o, performance.now()); };
   }
   connect();
@@ -314,6 +654,8 @@ function start({ rig, R, renderMod }) {
     last = now;
     try {
       if (demoBeats) demoBeats.tick(now, (o) => handle(o, now));
+      // the chord phrasing: lineages that can no longer grow settle, a sweep past its gap ends; the fade's level ramps
+      if (grammar) { runDecisions(grammar.settle(now)); ens.tick(now); }
       const tEval = now + grid.presentLagMs;
       const pos = grid.posAt(tEval);
       if (grid.locked || !show.demo) {
@@ -339,15 +681,37 @@ function start({ rig, R, renderMod }) {
       }
       // KICK round 2's flash governor: how many more counted transitions the final limiter's most loaded window can take
       // now (read from its counters, never changing them: flash.js decides on its own, as before)
+      // (with flash protection off no limiter acts, so the governor holds nothing back)
       {
         let room = LIMIT.N_MAX;
-        for (const pair of limiter.trackers) for (const tr of pair) room = Math.min(room, LIMIT.N_MAX - tr.count(now / 1000));
+        if (flash.on) for (const pair of limiter.trackers) for (const tr of pair) room = Math.min(room, LIMIT.N_MAX - tr.count(now / 1000));
         programmer.kick.headroom = room;
       }
       // the rings first (the programmer's formation layer, the camera and the lasers read their live pose)
       rings.update(grid, tEval, dt, programmer.flashGate);
       programmer.setLiveElements(rings.live ? rings.emOf : null);
       programmer.tick(grid, tEval, dt);
+      // the palette's landing: the lasers and the HUD take the new palette at its swap (the dip's bottom, or a crossfade's start)
+      for (const e of programmer.takePaletteEvents()) {
+        if (e.type !== "swap") { if (e.type === "landed" && pal.landings.length < 64) pal.landings.push({ id: e.id, pos: e.pos }); continue; }
+        theme = programmer.theme;
+        lasers.setColours(theme.laser, laserOpts(theme)); lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+        if (pal.queued === e.id) { pal.id = e.id; pal.queued = null; pal.at = null; }
+        $("hud-set").textContent = hudSetText();
+        announcePalette();
+      }
+      // a setup's landing: what shows, what is queued (the swap is the landing line; the crossfade runs on from there)
+      for (const e of programmer.takeSetupEvents()) {
+        if (e.type === "swap") {
+          su.id = e.id; su.on = !!e.id;
+          if (su.queued === e.id) { su.landedAt = su.at ?? e.pos ?? pos; su.queued = null; su.at = null; }
+          else su.landedAt = e.pos ?? pos;
+          announceSetup();
+        } else if (e.type === "landed" && su.landings.length < 64) su.landings.push({ id: e.id, pos: e.pos });
+      }
+      setupReanchor(pos);
+      setupAuto(pos);
+      lasersFollowBank();
       strand.update(grid, tEval, dt);
       // the camera follows the ring formation while one stands (its landing, its hero view, the live rings for the guard)
       const ringKey = rings.key !== "home" ? rings.key : null;
@@ -355,6 +719,11 @@ function start({ rig, R, renderMod }) {
       camScene.posLand = ringKey && rings.move ? rings.move.posLand : strand.move ? strand.move.posLand : null;
       camScene.rings = rings.liveAnnuli(); camScene.dt = dt;
       const pose = director.update(pos, camScene);
+      // the distance layer moves the camera along the shot's own line to its subject (auto: the director's pose exactly)
+      camDist.apply(pose, director.shots[pose.shot], { t: now / 1000, pos, cut: pose.cut, poses: strand.poses, rings: camScene.rings });
+      // a distance cut is a cut: in the director's log and his last-cut line (so neither layer cuts within 2 beats of it)
+      if (pose.distCut && !pose.cut) { director._cut(pos, pos, pose.shot, "distance"); pose.cut = true; }
+      if (camDist.takeChange()) announceDistance();
       const pl = Math.hypot(pose.look[0] - pose.pos[0], pose.look[1] - pose.pos[1], pose.look[2] - pose.pos[2]) || 1;
       fwd[0] = (pose.look[0] - pose.pos[0]) / pl; fwd[1] = (pose.look[1] - pose.pos[1]) / pl; fwd[2] = (pose.look[2] - pose.pos[2]) / pl;
       if (rings.live) rings.updateMounts(lasers3d, lasers.heads);
@@ -362,19 +731,28 @@ function start({ rig, R, renderMod }) {
       rings.drawLasers(lasers, pos);
       const rf = rings.frame(pose.pos);
       lasers3d.hitOpts = rf.hitOpts;
-      const l3 = lasers3d.map(l2, { reachScale: 1, master: faders.lasers, camera: { pos: pose.pos, fwd, near: 0.1 } });
+      const breathL = ens ? ens.level : 1;
+      const l3 = lasers3d.map(l2, { reachScale: 1, master: faders.lasers * breathL, camera: { pos: pose.pos, fwd, near: 0.1 } });
       const medium = atmos.update(dt);
       const W = FIXED_W || Math.round(Math.min(window.devicePixelRatio || 1, DPR_CAP) * canvasCss().w);
       const Hh = FIXED_H || Math.round(Math.min(window.devicePixelRatio || 1, DPR_CAP) * canvasCss().h);
       R.resize(W, Hh);
       const shot = director.shots[pose.shot];
-      const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
+      const ambient = programmer.ambient, airTint = programmer.airTint;
+      const ambS = ambientNow.scale * breathL;
+      const amb = ambS === 1 ? ambient : ambient.map((c) => c * ambS);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
                    pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
-                   bloomMix: BLOOM_MIX, rings: rf };
+                   bloomMix: BLOOM_MIX, rings: rf,
+                   // the HAL cubes' glow: the palette's deep (crossfading with it) along to its B, unless a setup names its own;
+                   // and the kicks on their cells (a kicked cube's glow follows the hit: cubes.js cubeKickOf)
+                   // (a SETUP names its own: programmer.sx.cube, crossfading with it; the URL's A/B wins over both)
+                   cubeTint: cubeTintOf({ deep: programmer.ambient, B: programmer.roleRGB[ROLE.B] }, cubeTintOverride || (programmer.setupOn ? programmer.sx.cube : null), cubeTintNow),
+                   cubeKick: { kickC: programmer.kickC, tC: programmer.tC, whiteRole: programmer.kick ? programmer.kick.whiteRole : -1 } };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
-      const info = api.skipRender ? state.info : R.render(fs, (cells, t) => limiter.step(cells, t, dt), now / 1000);
-      state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2;
+      // flash protection off: no limiter asked (no meter, the identity: the frame as drawn)
+      const info = api.skipRender ? state.info : R.render(fs, flash.on ? (cells, t) => limiter.step(cells, t, dt) : null, now / 1000);
+      state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2; state.breath = breathL;
       const ft = (globalThis.__realNow ? globalThis.__realNow() - realStart : performance.now() - now);
       timing.n++; if (timing.list.length >= 240) timing.list.shift(); timing.list.push(ft);
       lastFrame = now;
@@ -383,23 +761,49 @@ function start({ rig, R, renderMod }) {
       if (errors.length === 1) banner(`The stage stopped: ${e.message}`);
     }
     hud(now);
+    breathChip(now);
   }
 
   // --------------------------------------------------------------------------------------------------- the HUD --
   let hudAt = 0;
   const hudEl = $("hud");
+  // the fade's chip: a latched BREATH stays where the hands leave it, so the room says so even with the HUD hidden (H):
+  // a quiet corner label, DOM over the canvas (never in the picture's pixels), only while the level is below the look's
+  // (review F3, 2026-10-29)
+  let chipAt = 0, chipTxt = "";
+  const chipEl = ens ? document.createElement("div") : null;
+  if (chipEl) { chipEl.className = "breath-chip"; chipEl.id = "breath-chip"; chipEl.hidden = true; chipEl.setAttribute("aria-live", "off"); $("stage").append(chipEl); }
+  function breathChip(now) {
+    if (!chipEl || now - chipAt < 100) return;
+    chipAt = now;
+    const b = ens.breath, low = b.level < 0.995 || b.target < 0.995;
+    const txt = !low ? "" : `breath ${Math.round(b.level * 100)} %${b.hand ? " · back" : " · Esc back"}`;
+    if (txt === chipTxt) return;
+    chipTxt = txt; chipEl.textContent = txt; chipEl.hidden = !low;
+  }
   if (QS.get("hud") === "0") hudEl.classList.add("hidden");
-  $("hud-set").textContent = `${rig.name} · ${theme.name} · ${show.demo ? "demo show" : "engine"} · ${rig.mode} motion`;
+  function hudSetText() {
+    const q = pal.queued && palettes ? palettes.byId[pal.queued] : null;
+    const bar = (at) => Math.round((at - (grid.barAnchor || 0)) / 4);
+    const cs = su.id && setups ? setups.byId[su.id] : null, qs = su.queued && setups ? setups.byId[su.queued] : null;
+    const setupTxt = !su.on && !su.queued ? "" : ` · setup ${cs ? cs.name : "palette's own"}${su.queued !== null ? ` → ${qs ? qs.name : "palette's own"} (bar ${bar(su.at)})` : su.hold ? " (held)" : ""}`;
+    return `${rig.name} · ${theme.name}${q ? ` → ${q.name} (bar ${bar(pal.at)})` : ""}${setupTxt} · ${show.demo ? "demo show" : "engine"} · ${rig.mode} motion`;
+  }
+  $("hud-set").textContent = hudSetText();
   function hud(now) {
     if (now - hudAt < 100 || hudEl.classList.contains("hidden")) return;
     hudAt = now;
+    $("hud-set").textContent = hudSetText();
     const tEval = now + grid.presentLagMs;
     const b = grid.barAt(tEval);
     $("hud-beatdot").classList.toggle("on", grid.phaseAt(tEval) < 0.2);
     const eng = !ENGINE_URL ? "demo clock" : link.open ? (link.hello ? `engine ${link.hello.src || "on"}` : "engine connected") : "engine offline (free-running)";
     $("hud-clock").textContent = `${grid.bpm.toFixed(1)} BPM · bar ${b.bar} beat ${b.beat} · ${eng}`;
     const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind.replace(/^kick-/, "")} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
-    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}`;
+    const gl = ens ? ens.log[ens.log.length - 1] : null;
+    const gTxt = !ens ? "" : `${ens.breath.level < 0.999 || ens.breath.active ? ` · breath ${Math.round(ens.breath.level * 100)} %` : ""}${gl ? ` · ${gl.gesture}${gl.controls ? ` ${gl.controls.join("+")}` : ""}` : ""}`;
+    const bk = programmer.bank;
+    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)}) · bank ${bk.on ? bk.count : "0 (the palette's own)"}${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}${gTxt}`;
     const ph = $("hud-phrase");
     if (ph) {
       const st = runner ? runner.status() : null;
@@ -408,17 +812,22 @@ function start({ rig, R, renderMod }) {
         : st.state === "armed" ? `armed: starts on the next bar line` : "idle (pad 3 / key 3: go)";
     }
     const forShot = director.pose.forShot ? ` (for ${director.pose.forShot})` : "";
-    $("hud-shot").textContent = `${state.shot || "-"}${forShot} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""}`;
+    $("hud-shot").textContent = `${state.shot || "-"}${forShot} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""} · ${camDist.hudText(director.shots[state.shot] || null)}`;
+    const ds = $("fader-distance");
+    if (ds && document.activeElement !== ds) ds.value = String(Math.max(0, Math.min(1, camDist.mode === "auto" ? (camDist.status(director.shots[state.shot] || null).vAuto ?? 0.5) : camDist.v.x)));
     const p0 = strand.poses[0], p11 = strand.poses[strand.poses.length - 1];
     const rk = rings.def(rings.key), rpos = grid.posAt(tEval), charge = rings.heroCharge(rpos);
     const ringTxt = `rings: ${rk ? rk.name : rings.key}${rk && rk.dream ? " (dream)" : ""}${rings.move ? ` · landing bar ${Math.round((rings.move.posLand - grid.barAnchor) / 4)}` : ""} · hero ${charge >= 1 ? "charged" : `${Math.round(charge * 100)} %`} (pads 8 / 9)`;
     $("hud-strand").textContent = `${strand.formation.name} · rung 1 ${p0.y.toFixed(2)} m ${p0.roll.toFixed(0)}° · rung ${strand.n} ${p11.y.toFixed(2)} m${strand.move ? " · landing" : ""} · ${ringTxt}`;
     $("hud-lasers").textContent = `${state.l2 ? state.l2.look : "-"} · ${state.l3 ? state.l3.n : 0} beams · ${state.l2 && state.l2.hits ? `${state.l2.hits} hits` : "no hits"}`;
-    $("hud-haze").textContent = `${Math.round(atmos.H * 100)} % → ${Math.round(atmos.target * 100)} % · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers`;
+    // the haze in the room now (what the renderer draws), and the F5 fader it is following
+    const hz = Math.round(atmos.H * 100), f5 = Math.round(atmos.target * 100);
+    $("hud-haze").textContent = `${hz} %${hz === f5 ? " (F5)" : ` → F5 ${f5} %`} · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers at ${hz} %`;
     const st = limiter.stats();
-    $("hud-flash").innerHTML = st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
+    $("hud-flash").innerHTML = !flash.on ? "protection off (frames as drawn)"
+      : st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
     const avg = timing.list.length ? timing.list.reduce((s, x) => s + x, 0) / timing.list.length : 0;
-    $("hud-render").textContent = `${R.w}x${R.h} · ${avg.toFixed(1)} ms CPU+GPU · ${state.info ? `${state.info.beams} beams, ${state.info.emitters} emitters, ${state.info.drawCalls} draws` : ""}`;
+    $("hud-render").textContent = `${(LOOKS[R.look] || LOOKS.classic).name} (L) · ${R.w}x${R.h} · ${avg.toFixed(1)} ms CPU+GPU · ${state.info ? `${state.info.beams} beams, ${state.info.emitters} emitters, ${state.info.drawCalls} draws` : ""}`;
   }
   // the fader strip (also the KeyLab's F1, F4, F5, F6, F9 through the engine)
   const FADERS = [["strand", "F1 strand"], ["lasers", "F4 lasers"], ["haze", "F5 haze"], ["speed", "F6 speed"], ["grand", "F9 master"]];
@@ -432,25 +841,67 @@ function start({ rig, R, renderMod }) {
     fwrap.append(d);
   }
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
+  // F8 distance: the slider shows the live distance (in auto, the shot's own size) and takes over at once when dragged
+  {
+    const d = document.createElement("label"); d.className = "fader";
+    const inp = document.createElement("input"); inp.type = "range"; inp.min = "0"; inp.max = "1"; inp.step = "0.01"; inp.value = "0.5";
+    inp.id = "fader-distance"; inp.setAttribute("aria-label", "F8 distance (close to far)");
+    inp.addEventListener("input", () => camDist.fader(Number(inp.value), distCtx(performance.now()), { takeover: false }));
+    d.append(inp, document.createTextNode("F8 distance"));
+    fwrap.append(d);
+  }
+  // the quiet flash protection setting, in the HUD's header row (on a phone the pad bar's HUD button shows it, and the
+  // header sits above the kick strips, which start at 30 % of the height, and the pad bar at the bottom)
+  document.querySelector("#hud .hud-head").append(protectionCheckbox(document, flash, { id: "opt-flash", className: "hud-opt" }));
+  // back on: the limiter starts fresh, as at load (what played while it was off is not its history)
+  flash.onChange((on) => { if (on) Object.assign(limiter, new FrameLimiter()); });
   // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot (played in motion, looping over its own bars), H HUD,
-  // F fullscreen, Esc back to the director
+  // F fullscreen, U the cubes (HAL 4000 neon / solid), Esc back to the director
   const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9, Digit0: 10 };
   const held = new Set();
+  // C: the next camera shot, played in motion, looping over its own bars
+  function nextShot(tEval) {
+    const ids = Object.keys(director.shots);
+    const cur = ids.indexOf(manualShot ? manualShot : state.shot);
+    manualShot = ids[(cur + 1) % ids.length];
+    director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
+    director.lastCutPos = director.manual.p0;     // a shot by hand is a cut too (a Shift distance cut keeps 2 beats from it)
+  }
   window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
     const n = KEYPAD[e.code];
     const tEval = performance.now() + grid.presentLagMs;
+    if (grammar && (n || e.code === "KeyC" || e.code === "KeyB")) {
+      // a down for a key already held that is not the OS's auto-repeat (e.repeat returned above): its key-up was lost
+      // (a modifier or the OS swallowed it). Let the old press go, then this is a new press (review F7, 2026-10-29)
+      const lost = keyIds.get(e.code);
+      if (lost) { keyIds.delete(e.code); input(lost.src, lost.control, false, 0, evTime(e), lost.id); }
+      // a trusted event is the keyboard; the phone's pad bar presses the page's keys with synthetic events
+      const src = e.isTrusted ? "key" : "phone", control = n ? controlOf(n) : e.code === "KeyC" ? "C" : "B";
+      const id = `${src}:${e.code}:${++inSeq}`;
+      keyIds.set(e.code, { id, src, control });
+      input(src, control, true, e.shiftKey ? 1 : 0.8, evTime(e), id);
+      if (n) e.preventDefault();
+      return;
+    }
     if (n) { held.add(e.code); pad(n, e.shiftKey ? 1 : 0.8, true, tEval); e.preventDefault(); return; }
-    if (e.code === "KeyH") hudEl.classList.toggle("hidden");
+    if (KEY_STOPS[e.code]) { distance(KEY_STOPS[e.code], { cut: e.shiftKey }); e.preventDefault(); return; }
+    if (e.code === "KeyP") stepPal(e.shiftKey ? -1 : 1, tEval);
+    else if (e.code === "KeyO") setupGo(e.shiftKey ? -1 : 1, tEval);
+    else if (e.code === "KeyH") hudEl.classList.toggle("hidden");
+    else if (e.code === "KeyU") R.cubes.style = CUBE_STYLES[(CUBE_STYLES.indexOf(R.cubes.style) + 1) % CUBE_STYLES.length];
+    else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
     else if (e.code === "KeyF") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
-    else if (e.code === "KeyC") {
-      const ids = Object.keys(director.shots);
-      const cur = ids.indexOf(manualShot ? manualShot : state.shot);
-      manualShot = ids[(cur + 1) % ids.length];
-      director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
-    } else if (e.code === "Escape") { manualShot = null; director.manual = null; }
+    else if (e.code === "KeyC") nextShot(tEval);
+    else if (e.code === "Escape") {
+      manualShot = null; director.manual = null; distance("auto");
+      // and the fade goes back to the look over four beats
+      if (ens) ens.handBack(performance.now(), grid.period);
+    }
   });
   window.addEventListener("keyup", (e) => {
+    const k = keyIds.get(e.code);
+    if (k) { keyIds.delete(e.code); input(k.src, k.control, false, 0, evTime(e), k.id); return; }
     const n = KEYPAD[e.code];
     if (n && held.has(e.code)) { held.delete(e.code); pad(n, 0, false, performance.now() + grid.presentLagMs); }
   });
@@ -463,6 +914,7 @@ function start({ rig, R, renderMod }) {
   window.addEventListener("arsenal:pad", (e) => {
     const d = e.detail || {}, n = padNo(d);
     if (n === null) return;
+    if (inputPad("phone", n, vel01(d.vel, 0.8), d.on !== false, evTime(e))) return;
     pad(n, vel01(d.vel, 0.8), d.on !== false, performance.now() + grid.presentLagMs);
   });
   window.addEventListener("arsenal:padlevel", (e) => {
@@ -480,12 +932,18 @@ function start({ rig, R, renderMod }) {
     state: () => ({ pos: state.pos, bpm: grid.bpm, bar: grid.barAt(performance.now() + grid.presentLagMs), section: state.section, look: state.look,
                     shot: state.shot, u: state.u, formation: strand.formation.name, info: state.info, counts: rig.counts,
                     limiter: limiter.stats(), grid: { ...grid.stats, ver: grid.ver, locked: grid.locked, barAnchor: grid.barAnchor },
-                    haze: { H: atmos.H, target: atmos.target, sigma0: atmos.uniform.sigma0 }, engine: { open: link.open, hello: link.hello },
+                    haze: { H: atmos.H, target: atmos.target, fader: faders.haze, sigma0: atmos.uniform.sigma0, hazerSigma: Array.from(atmos.uniform.hazerSigma), tau: atmos.tau }, engine: { open: link.open, hello: link.hello },
                     lands: strand.lands.slice(-8), cuts: director.cuts.slice(-16), kicks: kicks.slice(-64), errors: errors.slice(),
                     quality: R.qualityName, renderer: { three: renderMod.QUALITY ? "r186" : "", w: R.w, h: R.h },
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
                     flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) },
                     kick: programmer.kick.status(),
+                    distance: { ...camDist.status(director.shots[state.shot] || null), cuts: camDist.cuts.slice(-16), moves: camDist.moves.slice(-16), escapes: camDist.escapes },
+                    grammar: grammar ? { ...grammar.status(), ensemble: ens.status(), gestures: gestures.slice(-128) } : { off: true },
+                    setup: { on: su.on, id: su.id, queued: su.queued, at: su.at, hold: su.hold, landedAt: su.landedAt, origin: phraseOrigin(), landings: su.landings.slice(-8),
+                             library: setups ? setups.ids.slice() : [], refused: setups ? setups.refused.map((r) => r.id) : [], layer: programmer.setupStatus() },
+                    palette: { id: pal.id, name: theme.name, queued: pal.queued, at: pal.at, dip: pal.dip, landings: pal.landings.slice(-8),
+                               library: palettes ? palettes.ids.length : 0, refused: palettes ? palettes.refused.map((r) => r.id) : [] },
                     rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
                              poses: rings.rr.poses.map((p) => ({ ...p })), lands: rings.rr.lands.slice(-8), clamped: rings.rr.clamped.slice(-8),
                              hero: { fired: rings.heroState.fired.slice(-8), refused: rings.heroState.refused.slice(-8), armed: rings.heroState.at } } }),
@@ -503,21 +961,62 @@ function start({ rig, R, renderMod }) {
       return r;
     },
     clearShot: () => { manualShot = null; director.manual = null; },
+    // camera DISTANCE: a stop ("close" | "medium" | "far" | "auto") as the keys do it (cut: Shift), or at once (now: the
+    // receipts' stills); the fader (soft takeover unless takeover: false); the layer's status
+    distance: (what, { cut = false, now = false } = {}) => { if (now) { camDist.setNow(what); return camDist.status(); } return distance(what, { cut }); },
+    distanceFader: (v, { takeover = true } = {}) => camDist.fader(v, distCtx(performance.now()), { takeover }),
+    camDist,
+    // PALETTES: the library's ids, and a palette by id (or a step) -- landing on the next 16-bar line, or now
+    palettes: () => (palettes ? palettes.ids.slice() : []),
+    palette: (id, { now = false } = {}) => stepPal(1, performance.now() + grid.presentLagMs, { id, now }),
+    paletteStep: (delta = 1) => stepPal(delta, performance.now() + grid.presentLagMs),
+    // SETUPS: the library's ids in rotation order, a setup by id ("off": the palettes' own looks) landing on the next bar
+    // line (now: this frame), a step, and the hold (true: no rotation)
+    setups: () => (setups ? setups.ids.slice() : []),
+    setup: (id, { now = false } = {}) => setupGo(1, performance.now() + grid.presentLagMs, { id, now }),
+    setupStep: (delta = 1) => setupGo(delta, performance.now() + grid.presentLagMs),
+    setupHold: (on = true) => { su.hold = !!on; announceSetup(); return su.hold; },
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
+    // the chord phrasing's door, for scripts: a down or an up of a control ("1".."0", "C", "B") from a source
+    door: (source, control, down, vel = 0.8, id = null) => input(source, String(control), !!down, vel, performance.now(), id),
+    breath: () => (ens ? ens.status().breath : null),
     release: (n) => pad(n, 0, false, performance.now() + grid.presentLagMs),
     level: (n, v) => padLevel(n, v),
     fader: (id, v) => { faders[id] = v; applyFaders(performance.now() + grid.presentLagMs); syncFaderUI(); },
     inject: (obj) => handle(obj, performance.now()),
     features: (f) => Object.assign(R.features, f),
+    // the cubes: style (hal|solid), tumble (0..1); cubeTint(t) is the setups' door (cubes.js THE HOOK: glowTop, glowBottom,
+    // coreTop, coreBottom as linear RGB, glowMix; null clears it back to the palette's)
+    cubes: (o = {}) => { if (CUBE_STYLES.includes(o.style)) R.cubes.style = o.style; if (Number.isFinite(o.tumble)) R.cubes.tumble = Math.min(1, Math.max(0, o.tumble)); return { ...R.cubes, tint: cubeTintOverride }; },
+    cubeTint: (t) => { cubeTintOverride = t && typeof t === "object" ? { ...t } : null; return cubeTintOverride; },
     profile: (on) => { R.profile = !!on; if (on) R.timings = {}; return R.timings; },
     timings: () => R.timings,
     overdraw: () => R.overdraw(),
     debugTargets: () => R.debugTargets(),
     resetLimiter: () => { const L = new FrameLimiter(); Object.assign(limiter, L); },
+    // flash protection: its state, a setter for tests (not remembered), and the identity probe -- called in the same task
+    // as a drawn frame, it compares the frame as drawn (the finish pass's target) with the canvas, pixel for pixel
+    flashProtection: () => ({ on: flash.on, source: flash.source, shown: flash.shown }),
+    setFlashProtection: (on) => flash.set(on, { remember: false }),
+    identityProbe: () => {
+      const w = R.w, h = R.h, a = new Uint8Array(w * h * 4), b = new Uint8Array(w * h * 4), gl = R.renderer.getContext();
+      R.renderer.readRenderTargetPixels(R.ldrRT, 0, 0, w, h, a);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, b);
+      let diff = 0, max = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.max(Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]));
+        if (d) { diff++; if (d > max) max = d; }
+      }
+      return { w, h, pixels: w * h, differing: diff, max_diff: max, protection: flash.on };
+    },
     frameTimes: () => timing.list.slice(),
   });
   applyFaders(performance.now() + grid.presentLagMs);
+  if (palettes) announcePalette();
+  if (setups) announceSetup();
   requestAnimationFrame(frame);
 }
 
-boot().then(start).catch((e) => { recordError("boot", e); banner(e.message); api.bootError = e.message; });
+// the scene loads behind the warning; the show starts once the viewer has made the choice
+Promise.all([boot(), flash.ready]).then(([b]) => start(b)).catch((e) => { recordError("boot", e); banner(e.message); api.bootError = e.message; });

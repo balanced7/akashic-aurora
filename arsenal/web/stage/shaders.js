@@ -168,6 +168,123 @@ void main() {
   fragColor = vec4(fEmit * glow * (1.0 - 0.85 * frame), 1.0);
 }`;
 
+// ------------------------------------------------------------------------------------- cubes, HAL 4000 (neon) --
+// 2026-10-29 (Daniel: "the hal 4000 shader"): the cube drawn as light, not paint. Each face carries rounded-square loops
+// (cubes.js HAL.rings: round 2, two a face, corners at half the loop), each drawn with the house neonLine
+// (groups/neon-line.glsl): a core pen of fixed screen width that never breaks below a pixel (its width read from the
+// distance's own screen gradient), a Lorentzian halo in pixels, the outer core whitening toward the cube's full level, and
+// the loops of one face combined by MAX. The faces are otherwise black and the cube is drawn from both sides, so the far
+// faces' outer loops show through, dimmer and spread by neonLine's defocus. One hot loop: the face that looks at the viewer
+// runs at full, the others dim (HAL.hotFloor). The cube BLENDS by MAX too (render.js), so its faces, its neighbours and
+// its own inner bloom never sum to cream: the HAL 4000 rule, a tangle stays crisp. A soft inner bloom sits at the heart
+// (front faces only): a Gaussian of the view ray's miss distance from the centre. Two colours per cube (cubes.js
+// cubeColours): fEmit the core light (scene units), fGlow the glow's hue (unit brightness); the outer loop's core is the
+// core colour and the inner loop leans to the glow, so one cube is a gradient from its edge inward.
+export const CUBE_HAL_VERTEX = `${HEAD}
+uniform mat4 projectionMatrix;
+uniform mat4 viewMatrix;
+in vec3 position;
+in vec3 normal;
+in mat4 instanceMatrix;
+in vec3 iEmit;
+in vec3 iGlow;
+out vec3 vLocal;
+out vec3 vWorld;
+flat out vec3 fNormalL;
+flat out vec3 fNormalW;
+flat out vec3 fEmit;
+flat out vec3 fGlow;
+flat out vec3 fCentre;
+void main() {
+  vec4 wp = instanceMatrix * vec4(position, 1.0);
+  vLocal = position;
+  vWorld = wp.xyz;
+  fNormalL = normal;
+  fNormalW = normalize(mat3(instanceMatrix) * normal);
+  fEmit = iEmit;
+  fGlow = iGlow;
+  fCentre = instanceMatrix[3].xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+export const CUBE_HAL_FRAGMENT = (prelude) => `${HEAD}
+${prelude}
+uniform vec3 cameraPosition;
+uniform vec3 uRingHalf;
+uniform vec3 uRingRad;
+uniform vec3 uRingGain;
+uniform vec3 uRingGlow;
+uniform vec3 uRingPen;
+uniform float uHalf;
+uniform float uWidthPx;
+uniform float uHaloPx;
+uniform float uHaloMaxM;
+uniform float uRingStep;
+uniform float uHotFloor;
+uniform vec2 uHotFacing;
+uniform vec2 uGrazeFacing;
+uniform float uHeat;
+uniform float uFull;
+uniform float uLineGain;
+uniform float uHaloGain;
+uniform float uInnerGain;
+uniform float uInnerSigma;
+uniform float uBackDim;
+uniform float uDefocus;
+in vec3 vLocal;
+in vec3 vWorld;
+flat in vec3 fNormalL;
+flat in vec3 fNormalW;
+flat in vec3 fEmit;
+flat in vec3 fGlow;
+flat in vec3 fCentre;
+out vec4 fragColor;
+vec3 unitHue(vec3 c) { return c / max(max(c.r, max(c.g, c.b)), 1e-6); }
+void main() {
+  // the face's own plane: the two local axes across the face's normal
+  vec3 an = abs(fNormalL);
+  vec2 uv = an.x > 0.5 ? vLocal.yz : (an.y > 0.5 ? vLocal.xz : vLocal.xy);
+  float level = max(fEmit.r, max(fEmit.g, fEmit.b));          // scene units
+  float full = clamp(level / max(uFull, 1e-6), 0.0, 1.0);       // 0..1 of the cube's full light
+  vec3 coreHue = unitHue(fEmit);
+  vec3 glowHue = unitHue(fGlow);
+  bool front = gl_FrontFacing;
+  float depth = front ? 0.0 : 1.0;                              // the far faces, seen through the cube
+  vec3 rd = normalize(vWorld - cameraPosition);
+  float facing = abs(dot(fNormalW, rd));
+  // ONE hot loop: the outer loop of the face that looks at the viewer runs at full, the faces turned away at uHotFloor,
+  // the far faces' at uBackDim (and only their outer loop): a hot line among dim ones, as in the study
+  float face = front ? mix(uHotFloor, 1.0, smoothstep(uHotFacing.x, uHotFacing.y, facing)) : uBackDim;
+  vec3 core = vec3(0.0);
+  vec3 halo = vec3(0.0);
+  for (int i = 0; i < 3; i++) {
+    float d = sd2RoundBox(uv, vec2(uRingHalf[i]), uRingRad[i]);
+    float px = length(vec2(dFdx(d), dFdy(d)));                  // one screen pixel across this line, in face metres
+    vec3 tint = unitHue(mix(coreHue, glowHue, uRingGlow[i]));
+    // the inner loop: a hairline in the glow's colour, front faces only, fading out as the cube gets small on screen
+    // (under ~8 px between the loops it would fill the face): a far cube is its outer outline, a near one the nest
+    float gain = i == 0 ? face : (front ? uRingGain[i] * smoothstep(3.0, 8.0, uRingStep / max(px, 1e-6)) : 0.0);
+    float heat = i == 0 ? uHeat * full : 0.0;                   // only the outer core runs toward white
+    core = neonLine(core, d, px, tint, gain, depth, uWidthPx * uRingPen[i], 0.0, 3, heat, 0, uDefocus, 0);
+    float haloPx = min(uHaloPx, uHaloMaxM / max(px, 1e-6));   // a far cube: the halo stays on the face, the bloom does the rest
+    halo = neonLine(halo, d, px, glowHue, gain, depth, uWidthPx, haloPx, 1, 0.0, 0, uDefocus, 2);
+  }
+  // a face seen edge-on squeezes its loops into a sliver along the cube's edge, aliased stair-steps with no antialiasing
+  // to soften them: those faces fade out entirely, and every face fades over its last pixel to its own border (the halo
+  // never ends in a hard polygon edge)
+  float graze = smoothstep(uGrazeFacing.x, uGrazeFacing.y, facing);
+  float edgeM = uHalf - max(abs(uv.x), abs(uv.y));
+  float border = clamp(edgeM / max(fwidth(edgeM), 1e-6), 0.0, 1.0);
+  vec3 light = (uLineGain * core + uHaloGain * halo) * graze;
+  // the soft inner bloom: a Gaussian of the view ray's miss distance from the cube's centre
+  vec3 oc = fCentre - cameraPosition;
+  float along = dot(oc, rd);
+  float miss2 = max(dot(oc, oc) - along * along, 0.0);
+  float inner = front ? exp(-miss2 / max(uInnerSigma * uInnerSigma, 1e-6)) : 0.0;
+  light += glowHue * (uInnerGain * inner);
+  // alpha 0: the cubes blend by MAX (render.js), so the target's alpha stays its own
+  fragColor = vec4(min(level * light * border, vec3(3.0e4)), 0.0);
+}`;
+
 // ------------------------------------------------------------------------------------------------- the core --
 // v2 (2026-10-27): the orrery's core, an LED sphere lit from inside. A saturated body whose light swirls like a nebula
 // (two octaves of value noise in the sphere's turning frame), brighter toward its centre as seen (the volume the view
@@ -523,71 +640,151 @@ uniform float uEv;
 uniform int uCurve;
 uniform float uSat;
 uniform float uVig;
+// the look (render.js LOOKS; Daniel 2026-10-29: "I want there to be areas of true black on the screen ... the lasers look a
+// bit muted"). With uHueKeep, uBlack, uVibrance and uContrast all 0 this is exactly displayOut (the classic look).
+uniform float uHueKeep;   // 0 per-channel curve .. 1 the curve on the brightest channel, colour carried: lasers keep hue
+uniform float uBlack;     // display-linear luminance floor: below half of it TRUE black, above 1.6x it untouched
+uniform float uVibrance;  // extra saturation, most on the least saturated colours
+uniform float uContrast;  // the display S-curve
+// the hot core (Daniel, 2026-10-29: "now the lasers look oversaturated, I want them to be rich but not look painted, i want
+// them to look like a really vibrant light"): the hue-keeping curve holds colour through the mids (beams, haze glow, a
+// laser's edge) and hands over to the natural per-channel curve between uCoreStart and uCoreEnd (exposed light, brightest
+// channel); past that a path to white (uCoreWhite) lets the hottest core burn toward white at its own peak, as light does.
+uniform float uCoreStart;
+uniform float uCoreEnd;
+uniform float uCoreWhite;
 out vec4 fragColor;
+vec3 curveOf(vec3 x) {
+  if (uCurve == 1) return tmExp(x);
+  if (uCurve == 2) return tmAcesFit(x);
+  if (uCurve == 3) return tmPbrNeutral(x);
+  return tmTanh(x);
+}
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
   vec3 c = texture(uHdr, uv).rgb;
   vec3 b = texture(uBloom, uv).rgb;
   vec3 lin = mix(c, b, uBloomMix) * uExposure;
-  fragColor = vec4(displayOut(lin, gl_FragCoord.xy, uRes, uEv, uCurve, uSat, uVig, 0.0, 256.0), 1.0);
+  if (uHueKeep <= 0.0 && uBlack <= 0.0 && uVibrance <= 0.0 && uContrast <= 0.0 && uCoreWhite <= 0.0) {
+    fragColor = vec4(displayOut(lin, gl_FragCoord.xy, uRes, uEv, uCurve, uSat, uVig, 0.0, 256.0), 1.0);
+    return;
+  }
+  vec3 light = expose(max(lin, vec3(0.0)), uEv);
+  vec3 shown = curveOf(light);
+  float m = max(max(light.r, light.g), light.b);
+  if (uHueKeep > 0.0) {
+    vec3 kept = m > 1e-6 ? light * (curveOf(vec3(m)).r / m) : vec3(0.0);
+    shown = mix(shown, kept, uHueKeep * (1.0 - smoothstep(uCoreStart, uCoreEnd, m)));
+  }
+  if (uCoreWhite > 0.0) {
+    float peak = max(max(shown.r, shown.g), shown.b);
+    shown = mix(shown, vec3(peak), uCoreWhite * smoothstep(uCoreEnd * 0.6, uCoreEnd * 3.0, m));
+  }
+  if (uBlack > 0.0) {
+    float y = dot(shown, vec3(0.2126, 0.7152, 0.0722));
+    shown *= smoothstep(uBlack * 0.5, uBlack * 1.6, y);
+  }
+  shown = grdSaturation(shown, uSat);
+  if (uVibrance > 0.0) {
+    float mx = max(max(shown.r, shown.g), shown.b), mn = min(min(shown.r, shown.g), shown.b);
+    float sat = mx > 1e-5 ? (mx - mn) / mx : 0.0;
+    shown = max(grdSaturation(shown, 1.0 + uVibrance * (1.0 - sat)), vec3(0.0));
+  }
+  shown *= vigCorner(uv, uRes.x / uRes.y, uVig);
+  vec3 enc = srgbEncode(clamp(shown, 0.0, 1.0));
+  enc = clamp(grdSCurveDisp(enc, uContrast), 0.0, 1.0);
+  fragColor = vec4(ditherOut(enc, gl_FragCoord.xy, 256.0), 1.0);
 }`;
 
-// the meter: per 4 x 4 block of the finished frame, the sums of relative luminance and of the WCAG red quantity, and
-// the pixel count (exact box sums: the limiter's cells are means of every pixel)
+// the meter (flash.js v2): per 4 x 4 block of the finished frame, THREE texels side by side (slot = x % 3): the block's
+// sums of the relative luminance times each of its cell's four corner hats, of the WCAG red quantity times them, and of
+// the linear RGB with the pixel count. The hats are flash.js hats() (smoothstep-bilinear in the pixel's cell, the cells'
+// pixel bounds in uBX / uBY: flash.js meterBounds, 16-pixel blocks shared out four ways), so a window's shown value is an
+// exact linear function of the apply pass's corner fields. (Exact box sums: every pixel counted once.)
+const METER_CELL = `
+uniform float uBX[5];
+uniform float uBY[5];
+float hatSmooth(float q) { q = clamp(q, 0.0, 1.0); return q * q * (3.0 - 2.0 * q); }
+// a pixel centre's cell (cx, cy) and its hats for the cell's corners (cx, cy), (cx + 1, cy), (cx, cy + 1), (cx + 1, cy + 1)
+vec4 cellHats(vec2 pc, out ivec2 cell) {
+  int cx = pc.x >= uBX[3] ? 3 : pc.x >= uBX[2] ? 2 : pc.x >= uBX[1] ? 1 : 0;
+  int cy = pc.y >= uBY[3] ? 3 : pc.y >= uBY[2] ? 2 : pc.y >= uBY[1] ? 1 : 0;
+  cell = ivec2(cx, cy);
+  float fx = hatSmooth((pc.x - uBX[cx]) / max(1.0, uBX[cx + 1] - uBX[cx]));
+  float fy = hatSmooth((pc.y - uBY[cy]) / max(1.0, uBY[cy + 1] - uBY[cy]));
+  return vec4((1.0 - fx) * (1.0 - fy), fx * (1.0 - fy), (1.0 - fx) * fy, fx * fy);
+}
+`;
 export const METER1_FRAGMENT = (prelude) => `${HEAD}
 ${prelude}
 uniform sampler2D uSrc;
 uniform ivec2 uSrcSize;
+${METER_CELL}
 out vec4 fragColor;
 void main() {
-  ivec2 base = ivec2(gl_FragCoord.xy) * 4;
-  vec3 sums = vec3(0.0);
+  ivec2 f = ivec2(gl_FragCoord.xy);
+  int slot = f.x % 3;
+  ivec2 base = ivec2((f.x / 3) * 4, f.y * 4);
+  vec4 acc = vec4(0.0);
   for (int k = 0; k < 16; k++) {
     ivec2 p = base + ivec2(k % 4, k / 4);
     if (p.x >= uSrcSize.x || p.y >= uSrcSize.y) continue;
     vec3 e = texelFetch(uSrc, p, 0).rgb;
     vec3 l = srgbDecode(e);
-    float s = e.r + e.g + e.b;
-    float red = (s > 0.0 && e.r / s >= 0.8) ? max(0.0, (l.r - l.g - l.b) * 320.0) : 0.0;
-    sums += vec3(dot(l, vec3(0.2126, 0.7152, 0.0722)), red, 1.0);
+    if (slot == 2) { acc += vec4(l, 1.0); continue; }
+    ivec2 cell;
+    vec4 h = cellHats(vec2(p) + 0.5, cell);
+    if (slot == 0) acc += h * dot(l, vec3(0.2126, 0.7152, 0.0722));
+    else {
+      float s = e.r + e.g + e.b;
+      acc += h * ((s > 0.0 && e.r / s >= 0.8) ? max(0.0, (l.r - l.g - l.b) * 320.0) : 0.0);
+    }
   }
-  fragColor = vec4(sums, 1.0);
+  fragColor = acc;
 }`;
+// the second level: 4 x 4 first-level blocks (16 x 16 pixels, all in one cell) summed slot by slot
 export const METER2_FRAGMENT = `${HEAD}
 uniform sampler2D uSrc;
 uniform ivec2 uSrcSize;
 out vec4 fragColor;
 void main() {
-  ivec2 base = ivec2(gl_FragCoord.xy) * 4;
-  vec3 sums = vec3(0.0);
+  ivec2 f = ivec2(gl_FragCoord.xy);
+  int slot = f.x % 3;
+  ivec2 base = ivec2((f.x / 3) * 4, f.y * 4);
+  vec4 acc = vec4(0.0);
   for (int k = 0; k < 16; k++) {
-    ivec2 p = base + ivec2(k % 4, k / 4);
-    if (p.x >= uSrcSize.x || p.y >= uSrcSize.y) continue;
-    sums += texelFetch(uSrc, p, 0).rgb;
+    ivec2 b = base + ivec2(k % 4, k / 4);
+    if (b.x >= uSrcSize.x || b.y >= uSrcSize.y) continue;
+    acc += texelFetch(uSrc, ivec2(b.x * 3 + slot, b.y), 0);
   }
-  fragColor = vec4(sums, 1.0);
+  fragColor = acc;
 }`;
 
-// the limiter's apply pass: identity copies the frame untouched; otherwise, in cell c (the meter's cells: 16-pixel blocks
-// shared out four ways), x' = (1 - b_c) a_c x + b_c prev, per channel in linear light (prev: the last shown frame)
+// the limiter's apply pass (flash.js v2, applyRGBA8 is its CPU twin): identity copies the frame untouched; otherwise, in
+// linear light, x' = (1 - beta) (a(p) x + l(p)) + beta prev, the gain a(p) and the lift l(p) interpolated from the 5 x 5
+// corner fields with the meter's own hats (continuous and flat across every cell border: no seam), prev the last shown
+// frame (beta is the rare fallback, one number for the whole frame)
 export const PRESENT_FRAGMENT = (prelude) => `${HEAD}
 ${prelude}
 uniform sampler2D uSrc;
 uniform sampler2D uPrev;
-uniform float uA[16];
-uniform float uB[16];
-uniform ivec2 uM2;
+uniform float uA[25];
+uniform vec3 uL[25];
+uniform float uBeta;
 uniform int uIdentity;
+${METER_CELL}
 out vec4 fragColor;
 void main() {
   ivec2 p = ivec2(gl_FragCoord.xy);
   vec4 e = texelFetch(uSrc, p, 0);
   if (uIdentity == 1) { fragColor = vec4(e.rgb, 1.0); return; }
-  ivec2 bl = p / 16;
-  int c = min(3, (bl.y * 4) / uM2.y) * 4 + min(3, (bl.x * 4) / uM2.x);
-  vec3 l = uA[c] * srgbDecode(e.rgb);
-  vec3 prev = srgbDecode(texelFetch(uPrev, p, 0).rgb);
-  l = mix(l, prev, uB[c]);
+  ivec2 cell;
+  vec4 h = cellHats(gl_FragCoord.xy, cell);
+  int k0 = cell.y * 5 + cell.x;
+  float a = h.x * uA[k0] + h.y * uA[k0 + 1] + h.z * uA[k0 + 5] + h.w * uA[k0 + 6];
+  vec3 lift = h.x * uL[k0] + h.y * uL[k0 + 1] + h.z * uL[k0 + 5] + h.w * uL[k0 + 6];
+  vec3 l = a * srgbDecode(e.rgb) + lift;
+  if (uBeta > 0.0) l = mix(l, srgbDecode(texelFetch(uPrev, p, 0).rgb), uBeta);
   fragColor = vec4(srgbEncode(clamp(l, 0.0, 1.0)), 1.0);
 }`;
 

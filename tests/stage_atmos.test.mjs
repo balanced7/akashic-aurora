@@ -129,3 +129,91 @@ test("the air's colour: a theme's air_tint moves the haze veil's hue toward its 
   const v = veil.slice(); assert.equal(airTint(v, amb, 0.5, v), v);
   for (const [id, t] of Object.entries(scene.themes)) if (t.air_tint !== undefined) assert.ok(t.air_tint >= 0 && t.air_tint <= 1, id);
 });
+
+// THE HAZE FADER (2026-10-29, atmos.js header). Daniel: "It looks like the haze knob doesn't quite fully control the haze"
+// (his HUD: haze "96 % -> 100 % ... 8 hazers", F5 not at the top). The room had a floor (0.003 /m at F5 = 0), the hazers'
+// plumes ran at 40 % whatever the fader, the room followed the fader over a 30 s lag, and a fader event the hub filed as
+// relative was dropped by the page. F5 at 0 is now no haze anywhere, the top is full, smoothly, and any fader event moves it.
+test("the haze fader is ALL the haze: F5 at 0 leaves no haze anywhere (room, noise, the eight hazers' plumes), the top is full, in between it is the fader's curve, and it follows smoothly in seconds", async () => {
+  const { expandScene } = await import("../arsenal/web/stage/rig.js");
+  const { SIGMA_MAX, hazeCurve } = await import("../arsenal/web/stage/atmos.js");
+  const scene = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
+  const rig = expandScene(scene);
+  assert.equal(rig.hazers.length, 8);
+  const a = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s, preHaze: rig.atmos.pre_haze });
+  const run = (s) => { for (let i = 0; i < s * 60; i++) a.update(1 / 60); };
+  const probes = [...rig.hazers.map((h) => [h.pos[0], h.pos[1] + 1.5, h.pos[2]]), [0, 10, 20], [0, 2, 40], [-12, 20, 10]];
+  const densest = () => Math.max(...probes.map((p) => Math.max(a.densityAt(p, 1), a.densityAt(p, 0), a.densityAt(p, -1))));
+  // F5 at 0: none
+  a.setTarget(0); run(15);
+  assert.equal(a.H, 0); assert.equal(a.uniform.sigma0, 0);
+  assert.ok(Array.from(a.uniform.hazerSigma).every((x) => x === 0), `the hazers at F5 = 0: ${Array.from(a.uniform.hazerSigma)}`);
+  assert.equal(densest(), 0, "no haze at any probe, the hazers' nozzles included");
+  // the top: full
+  a.setTarget(1); run(15);
+  assert.equal(a.H, 1); assert.equal(a.uniform.sigma0, SIGMA_MAX);
+  assert.ok(Array.from(a.uniform.hazerSigma).slice(0, 8).every((x) => Math.abs(x - 0.012) < 1e-8));   // (Float32)
+  // in between: the fader through its curve (review V4), the room and the plumes alike
+  for (const f of [0.25, 0.5, 0.75]) {
+    a.setTarget(f); run(15);
+    assert.ok(Math.abs(a.uniform.sigma0 - SIGMA_MAX * hazeCurve(f)) < 1e-9, `F5 ${f}: sigma0 ${a.uniform.sigma0}`);
+    assert.ok(Math.abs(a.uniform.hazerSigma[0] - 0.012 * hazeCurve(f)) < 1e-8);
+  }
+  // smoothly: a full throw of the fader is 90 % there in 3.5 s, never a step bigger than a frame's share, monotone
+  a.setTarget(0); run(15);
+  a.setTarget(1);
+  // (the step is bounded on the fader's scale, H, which the curve makes the scale of the visible change)
+  let prev = a.uniform.sigma0, prevH = a.H, t90 = null, biggest = 0, back = 0;
+  for (let i = 1; i <= 10 * 60; i++) {
+    a.update(1 / 60);
+    const s = a.uniform.sigma0;
+    biggest = Math.max(biggest, a.H - prevH); if (s < prev - 1e-15) back++;
+    if (t90 === null && a.H >= 0.9) t90 = i / 60;
+    prev = s; prevH = a.H;
+  }
+  assert.ok(t90 !== null && t90 <= 3.5 && t90 >= 2, `90 % of a full throw in ${t90} s`);
+  assert.ok(biggest <= (1 / 60) / rig.atmos.tau_s + 1e-12, `the largest step in a frame: ${biggest}`);
+  assert.equal(back, 0, "monotone");
+});
+
+// Review V4 (2026-10-29): with sigma0 linear in F5 the visible change was front-loaded. Measured on the GPU (FOH_WIDE, HDR,
+// Source Violet, a fresh page per level, 10 s to settle), the frame's mean luminance at F5 0 / .125 / .25 / .375 / .5 /
+// .625 / .75 / .875 / 1 was 0.0347 / 0.0409 / 0.0448 / 0.0475 / 0.0494 / 0.0507 / 0.0516 / 0.0522 / 0.0525: the first
+// quarter 56 % of the rise, the last 5 %. That is the saturation 1 - exp(-k s) of the density share s, k 3.3 by least
+// squares. Through the fader's curve every quarter of travel now gives 12 % or more of the whole rise under that measured
+// saturation (and under k 2.5 to 4, a margin for the other looks and shots); 0 is still no haze and 1 still SIGMA_MAX.
+test("the haze fader's curve: equal travel, about equal visible change (the measured saturation), 0 none, 1 full, and its inverse", async () => {
+  const { hazeCurve, hazeFader, SIGMA_MAX, Atmosphere: A2 } = await import("../arsenal/web/stage/atmos.js");
+  assert.equal(hazeCurve(0), 0); assert.equal(hazeCurve(1), 1); assert.equal(hazeCurve(-1), 0); assert.equal(hazeCurve(2), 1);
+  const lumHDR = [0.0347, 0.0409, 0.0448, 0.0475, 0.0494, 0.0507, 0.0516, 0.0522, 0.0525];
+  // the saturation the receipt measured (least squares over k on the linear fader)
+  let bestK = 0, bestE = Infinity;
+  for (let k = 1; k <= 6; k += 0.01) {
+    let e = 0;
+    lumHDR.forEach((L, i) => { const s = i / 8, m = lumHDR[0] + (lumHDR[8] - lumHDR[0]) * (1 - Math.exp(-k * s)) / (1 - Math.exp(-k)); e += (m - L) ** 2; });
+    if (e < bestE) { bestE = e; bestK = k; }
+  }
+  assert.ok(bestK > 3 && bestK < 3.6, `the measured saturation k = ${bestK.toFixed(2)}`);
+  for (const k of [bestK, 2.5, 4]) {
+    const vis = (f) => (1 - Math.exp(-k * hazeCurve(f))) / (1 - Math.exp(-k));
+    for (let q = 0; q < 4; q++) { const d = vis((q + 1) / 4) - vis(q / 4); assert.ok(d >= 0.12, `k ${k.toFixed(2)}: quarter ${q + 1} gives ${(100 * d).toFixed(1)} %`); }
+  }
+  // the linear fader the review measured fails the same bar (the first quarter 56 %, the last 5 %)
+  const lin = (f) => (1 - Math.exp(-bestK * f)) / (1 - Math.exp(-bestK));
+  assert.ok(lin(1) - lin(0.75) < 0.12);
+  for (let f = 0; f <= 1.0001; f += 0.05) { assert.ok(Math.abs(hazeFader(hazeCurve(f)) - f) < 1e-9); if (f > 0) assert.ok(hazeCurve(f) > hazeCurve(f - 0.05)); }
+  // the page's default F5 (0.85) is the density the old default (0.55) gave, within 0.5 %
+  assert.ok(Math.abs(hazeCurve(0.85) - 0.55) / 0.55 < 0.005);
+  const a = new A2({ preHaze: 0.85 }); a.update(0);
+  assert.ok(Math.abs(a.uniform.sigma0 - SIGMA_MAX * 0.55) < SIGMA_MAX * 0.003);
+});
+
+test("a fader moves its target whatever kind the hub filed it as: absolute, or a CC it learned as relative (its raw value rides in delta)", async () => {
+  const { faderValue } = await import("../arsenal/web/stage/show.js");
+  assert.equal(faderValue({ t: "ctl", id: "cc109", kind: "abs", value: 0.5, delta: 3 }), 0.5);
+  assert.equal(faderValue({ t: "ctl", id: "cc109", kind: "rel", value: 0.73, delta: 127 - 64 }), 1);
+  assert.equal(faderValue({ t: "ctl", id: "cc109", kind: "rel", value: 0.73, delta: 0 - 64 }), 0);
+  assert.ok(Math.abs(faderValue({ t: "ctl", id: "cc109", kind: "rel", value: 0.9, delta: 40 - 64 }) - 40 / 127) < 1e-12);
+  assert.equal(faderValue({ kind: "abs", value: "x" }), null);
+  assert.equal(faderValue(null), null);
+});

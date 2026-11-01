@@ -43,7 +43,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { LOCK_DIR, acquireGpuLock } from "./gpu_lock.mjs";
-import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { QUIET_FLAGS, judgeFor, renderFlags, rendererName } from "../shaders/headless.mjs";
 import { SCENARIOS as STORM_SCENARIOS, VIRTUAL_CLOCK as STORM_VIRTUAL_CLOCK, runStormInPage } from "./vj_storm.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
@@ -58,6 +58,8 @@ const { values: opt } = parseArgs({
     width: { type: "string", default: "960" },
     height: { type: "string", default: "540" },
     "gpu-wait-min": { type: "string", default: "2" },
+    // render on the real GPU instead of SwiftShader: attended runs only (see headless.mjs GPU_FLAGS)
+    gpu: { type: "boolean", default: false },
     // the house lock lives in the main checkout's state/; a run from a git worktree names it here
     "lock-dir": { type: "string", default: LOCK_DIR },
     "play-port": { type: "string", default: "8933" },
@@ -239,7 +241,7 @@ try {
   // one run holds the lock throughout (about 9 min before Lasers v2, 12-14 with its phase and storms): a 25-minute cap so a
   // waiter never reaps a run still going, and a 0.5 s poll so a run waiting behind lanes that render in short chunks gets
   // its turn (at 2 s it waited more than 30 minutes on 2026-10-25)
-  gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: "vj_verify (SwiftShader)", maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000,
+  gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_verify (${rendererName(opt.gpu)})`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000,
                               maxHoldMs: 25 * 60_000, pollMs: 500 });
   report.gpu_lock = { acquired_at: gpu.owner.acquiredAt, inherited: gpu.inherited };
   PORT = await listenInBand(web, PORT);
@@ -247,7 +249,7 @@ try {
   report.page = `http://127.0.0.1:${PORT}/web/vj.html`;
   report.engine = `http://127.0.0.1:${ENGINE_PORT}`;
   if (!existsSync(opt.chrome)) throw new Error(`no Chrome at ${opt.chrome}`);
-  chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0",
+  chrome = spawn(opt.chrome, [...renderFlags(opt.gpu), ...QUIET_FLAGS, "--remote-debugging-port=0",
     `--user-data-dir=${profile}`, `--window-size=${opt.width},${opt.height}`, "--force-device-scale-factor=1", "about:blank"],
     { stdio: "ignore", windowsHide: true });
   const portFile = join(profile, "DevToolsActivePort");
@@ -309,7 +311,7 @@ try {
   report.webgl =await evaluate(`(() => { const c = document.getElementById("gl"); const g = c.getContext("webgl2");
     if (!g) return null; const d = g.getExtension("WEBGL_debug_renderer_info");
     return { renderer: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER), version: g.getParameter(g.VERSION) }; })()`);
-  report.renderer_check = judgeRenderer(report.webgl && report.webgl.renderer);
+  report.renderer_check = judgeFor(opt.gpu)(report.webgl && report.webgl.renderer);
   if (!report.renderer_check.ok) throw new Error(`refusing to judge: ${report.renderer_check.reason}`);
   const setList = await evaluate("window.__vj.sets()");
   console.log(`[sets] ${setList.map((s) => `${s.id}:${s.status}`).join(" ")}`);

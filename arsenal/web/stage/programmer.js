@@ -35,17 +35,82 @@
 // held, with velocity's animation (a peak, or a sweep from the V2 motion library) and a strobe in the level's top band.
 // Without a kick block in the set it is v0's strand lift, number for number.
 
+//
+// PALETTES (2026-10-28, arsenal/web/palettes.js; research/in-flight/palettes-2026-10-28/DESIGN.md): one active palette
+// drives every colour. The roles gain the split and pin roles (accent, accent2, accentLift, pin); a theme built from a
+// palette (palettes.js stageTheme) carries the palette, and from it the programmer takes
+//   - the moving heads' WHEEL PLAN: a head shows only the palette's slots (white, rest, alt, the lifts), never the wheel's
+//     warm white unless the palette declares it, and every wheel move takes the red-free short way, snapping while the
+//     head is dark (a move in black) -- a look change no longer slews a lit head through the red slot;
+//   - the SPLITS and PINS: a split's groups show the palette's second family (accent, accent2: a strand wing, the rims, the
+//     tower strips) and never cross-fade into the bed; a pin's cells hold their colour and follow the scene's level slowly
+//     (never kicked, chased, strobed or flashed); a split's heads rest on their own slot (Lime Rows' lime rows);
+//   - the 3-STOP STRANDS (Lantern Walk, Aurora): an A/B pair on a bed cell is sampled from the palette's strand gradient
+//     (OKLCh, 32 samples) instead of a two-colour lerp; two-stop strands keep the linear mix that made the loved helix;
+//   - the TEMPO: the strand's helix and the ring ladder turn at the palette's own rate (drive, slow, raw, still, walk), in
+//     beats; Lantern Walk's bed walks one stop per 16-bar phrase;
+//   - the SWITCH: beginPalette() lands a new palette on a beat position -- a neighbour crossfades its roles in OKLCh over
+//     the given beats, anything else cuts on the line through a one-beat dip (the rig dims to black and back, the colours
+//     and the wheels change at the bottom, in the dark).
+// A theme without a palette (the set's own themes, the tests') resolves as before and takes the same kick rules from its
+// own roles (bumpB the lift of a base cell, bumpA of a partner cell, W the white kick).
+
 import { EffectInstance, hashSeed } from "./effects.js";
-import { hexToLinear, isSaturatedRed } from "./lasers.js";
+import { hexToLinear } from "./lasers.js";
 import { aimPreset } from "./phrases.js";
-import { Kicks, redSlots, wheelWay, nearestAllowedSlot } from "./kick.js";
+import { Kicks, redSlots, wheelWay, wayLumaClean as wayLumaCleanKick } from "./kick.js";
+import { STAGE_ROLES, planOf, tableOf, sampleTable, mixLch, isSaturatedRed, deOK, lchOfLin, hueGap, mixLin, linToHex } from "../palettes.js";
+import { partOfSide, tableInto, whitesTurn, cycleOf, pathOf, mixPath, lasersAt, cubesAt, setupSlots, levelOf, bankColoursHex, NR as SETUP_NR } from "./setups.js";
 
 export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
 export const H = Object.freeze({ PAN: 0, TILT: 1, DIM: 2, R: 3, G: 4, B: 5, ZOOM: 6, FROST: 7, IRIS: 8, GOBO: 9, GOBOROT: 10,
   PRISM: 11, PRISMROT: 12, SHUTTER: 13, FOCUS: 14, FLAGS: 15 });
-const ROLES = ["A", "B", "W", "beamA", "beamB", "warm", "bumpA", "bumpB"];
+const ROLES = STAGE_ROLES.slice();
 export const ROLE_NAMES = ROLES;
+export const ROLE = Object.freeze(Object.fromEntries(ROLES.map((r, i) => [r, i])));
+// how a split's cells show the look's roles (the palette's second family, never the bed): a strand wing's cells take the
+// accent pair; a pin's cells take the pin
+const REMAP_SPLIT = Object.freeze({ A: "accent", B: "accent2", W: "W", beamA: "accent", beamB: "accent2", warm: "accentLift", bumpA: "accentLift",
+                                     bumpB: "accent", accent: "accent", accent2: "accent2", accentLift: "accentLift", pin: "pin" });
+export const CELL_KIND = Object.freeze({ BED: 0, ACCENT: 1, PIN: 2 });
+// the colour kick's LIFT: what each role becomes on a colour kick (swap 0), and on the re-strike that swaps the ladder
+// (swap 1). bumpB is the palette's kick colour and bumpA its highlight (palettes.js stageTheme), so a base cell lifts into
+// the partner's family and a partner cell to the highlight; a split's cells lift to accentLift; a pin is never lifted.
+export const LIFT = Object.freeze([
+  Object.freeze({ A: "bumpB", W: "bumpB", beamA: "bumpB", warm: "bumpB", bumpA: "bumpB", B: "bumpA", beamB: "bumpA", bumpB: "bumpA",
+                  accent: "accentLift", accent2: "accentLift", accentLift: "accentLift", pin: "pin" }),
+  Object.freeze({ A: "bumpA", W: "bumpA", beamA: "bumpA", warm: "bumpA", bumpA: "bumpA", B: "bumpB", beamB: "bumpB", bumpB: "bumpB",
+                  accent: "accentLift", accent2: "accentLift", accentLift: "accentLift", pin: "pin" }),
+]);
+const roleIdx = (map) => Int16Array.from(ROLES, (r) => ROLES.indexOf(map[r] ?? r));
+const REMAP_IDX = [null, roleIdx(REMAP_SPLIT), Int16Array.from(ROLES, () => ROLES.indexOf("pin"))];
+export const LIFT_IDX = Object.freeze([roleIdx(LIFT[0]), roleIdx(LIFT[1])]);
+// THE COLOUR BANK (KICK round 3, 2026-10-29; the design is kick.js's header). Daniel: "pressing 5 never seems to change the
+// full stage worth of lights, just a few accent lights. I want 5 to change light groups using a palate across all the
+// elements". A bank is the palette's colours dealt to every light group: the CYCLE is the palette's own colour roles (bed,
+// partner, highlight, kick colour and the split's accents; never the white, the warm white, the air or a pin), each kept
+// once, in the order that moves every step furthest in hue (a cell's both roles and the midpoint of a helix); each group
+// stands at its own place on the cycle, and a role shows the cycle's colour BANK_ORD[role] places on from there. A press of
+// kick 5 steps every group one place: every group changes colour, every press. The moving heads alternate between the two
+// slots of their pair (one clean wheel slot apart, never red). Pins hold.
+export const BANK_ROLES = Object.freeze(["A", "B", "bumpA", "bumpB", "accent", "accent2", "accentLift"]);
+export const BANK_ORD = Object.freeze({ A: 0, beamA: 0, accent: 0, bumpB: 1, B: 2, beamB: 2, accent2: 2, W: 2, warm: 2, bumpA: 3, accentLift: 3 });
+// the rig groups the bank deals, in this order (each member to the first that names it; the kick deck's rows, every light)
+export const BANK_GROUPS = Object.freeze(["rings.slats", "rings.rims", "truss.heads", "lip.heads", "vert", "vert.strips", "delay.30", "delay.55",
+                                          "halo", "strand.heads", "strand.cubes", "strand.dots", "strand.bars"]);
+const BANK_SAME = 0.05;
+const BANK_GREY = 0.04;                   // OKLCh chroma under this: a white or a grey (no bank colour unless the bed is grey)
+const BANK_PASTEL = 0.6;                  // a role under this share of the cycle's most colourful chroma is a pastel
+const BANK_TWIN_DEG = 10;                 // ... and a washed-out twin when a more colourful role is this close in hue
+// a role's place on from its group's (near: the partner roles one place on instead of two)
+const ordOf = (r, near = 0) => { const o = BANK_ORD[ROLES[r]] ?? 1; return near && o === 2 ? 1 : o; };                   // two roles closer than this (dEOK) are one colour of the cycle
+const BANK_ENGAGE_DE = 0.08;              // the first bank moves a group's colours at least this far from the look's
+// the colour effects the palette's tempo drives (the strand's helix, the ring ladder), and how long a pin takes to follow
+// the scene's level (seconds): slow enough that no chase, strobe or flash shows in it
+const TEMPO_EFFECTS = Object.freeze({ "cube-colour": "strand", "ring-colour": "ring" });
+const PIN_TAU_S = 1.2;
+export const PALETTE_DIP_BEATS = 1;
 export const FLASH_MIN_DECAY_BEATS = 0.5;
 export const FLASH_LIFT_BEATS = 0.125;
 
@@ -91,24 +156,105 @@ export function slewFor(attr, x0 = 0) {
 }
 
 // ----------------------------------------------------------------------------------------- the theme's colours --
+// The roles as linear rgb. The red test is the house rule as the VJ library has it (encoded OR linear R / (R + G + B) at
+// 0.8 or more); a pin is HELD (never pulsed), so it is not thrown on. A theme without the split roles shows its bed there
+// (accent = A, accent2 = B, accentLift = bumpA) and its white as the pin.
 export function resolveTheme(theme) {
   const out = {};
-  for (const r of ROLES) out[r] = theme && theme[r] ? hexToLinear(theme[r]) : [1, 1, 1];
-  for (const r of ROLES) if (isSaturatedRed(out[r])) throw new Error(`theme ${theme && theme.name}: role ${r} is saturated red (held, never pulsed)`);
+  const fallback = { accent: "A", accent2: "B", accentLift: "bumpA", pin: "W" };
+  for (const r of ROLES) out[r] = theme && theme[r] ? hexToLinear(theme[r]) : null;
+  for (const r of ROLES) if (!out[r]) out[r] = fallback[r] && out[fallback[r]] ? out[fallback[r]].slice() : [1, 1, 1];
+  for (const r of ROLES) if (r !== "pin" && isSaturatedRed(out[r])) throw new Error(`theme ${theme && theme.name}: role ${r} is saturated red (held, never pulsed)`);
   out.laser = (theme && theme.laser) || ["#19ff4a", "#4a3cff", "#e6ffe9"];
   return out;
 }
-// the wheel slot nearest a colour (squared distance on chromaticity, then brightness)
-export function nearestSlot(wheel, rgb) {
+// the wheel slot nearest a colour (squared distance on chromaticity, then brightness); allowed: the slots it may pick
+export function nearestSlot(wheel, rgb, allowed = null) {
   const n = (c) => { const s = c[0] + c[1] + c[2] || 1; return [c[0] / s, c[1] / s, c[2] / s]; };
   const q = n(rgb);
-  let best = 0, bd = Infinity;
-  for (let i = 0; i < wheel.length; i++) {
+  let best = allowed && allowed.length ? allowed[0] : 0, bd = Infinity;
+  const one = (i) => {
     const p = n(wheel[i]);
     const d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
     if (d < bd - 1e-12) { bd = d; best = i; }
-  }
+  };
+  if (allowed && allowed.length) for (const i of allowed) one(i);
+  else for (let i = 0; i < wheel.length; i++) one(i);
   return best;
+}
+
+// ------------------------------------------------------------------------------------------------- the bank --
+// The bank's CYCLE for a theme's role colours (roleRGB, linear, in ROLES order): role indices, each colour once. Of every
+// order (the bed first) the one whose smallest step is largest (OKLab distance): a step is what a cell shows before and
+// after a press -- a role's colour moving to the next on the cycle, and the midpoint of a cell between two roles one or two
+// places apart moving to the next pair's (the helix, the slats' two-colour cells); between orders as good, the one whose
+// steps move the hue most.
+export function bankCycle(roleRGB) {
+  let cand = [];
+  // (review V6, 2026-10-29: a near-white or pastel role on the bed washed whole groups out -- Molten's bank 3 took the
+  // cubes and rings from amber to cream -- and swung the stage's light up to 9.6 x across the cycle, S2.) In a palette
+  // whose bed has a colour, a role of OKLCh chroma under BANK_GREY (a white by another name: Synthwave Dusk's #fdf1fc,
+  // Leviathan Royal's #f8f5fe) is no bank colour, and while more than three remain the palest washed-out twin goes (never
+  // the bed or its partner: they are the palette). A palette whose bed is grey (Noir, Titanium, Moon Hive) keeps its greys.
+  const chroma = (r) => lchOfLin(roleRGB[r]).C, greyBed = roleRGB[ROLE.A] && chroma(ROLE.A) < BANK_GREY;
+  for (const name of BANK_ROLES) {
+    const r = ROLE[name], c = roleRGB[r];
+    if (!c || isSaturatedRed(c)) continue;
+    if (!greyBed && chroma(r) < BANK_GREY) continue;
+    if (cand.some((x) => deOK(roleRGB[x], c) < BANK_SAME)) continue;
+    cand.push(r);
+  }
+  if (!greyBed) {
+    const cmax = Math.max(0, ...cand.map(chroma));
+    while (cand.length > 3) {
+      let lo = -1;
+      // (a pastel: under BANK_PASTEL of the most colourful's chroma, with a more colourful role within BANK_TWIN_DEG of
+      // its hue -- a washed-out twin that adds no hue of its own, like Molten's peach #ffcc9e beside its amber bed)
+      const twin = (j) => cand.some((x, k) => k !== j && chroma(x) > chroma(cand[j]) && hueGap(lchOfLin(roleRGB[x]).h, lchOfLin(roleRGB[cand[j]]).h) <= BANK_TWIN_DEG);
+      for (let j = 0; j < cand.length; j++) if (cand[j] !== ROLE.A && cand[j] !== ROLE.B && chroma(cand[j]) < BANK_PASTEL * cmax && twin(j) && (lo < 0 || chroma(cand[j]) < chroma(cand[lo]))) lo = j;
+      if (lo < 0) break;
+      cand = cand.filter((_, j) => j !== lo);
+    }
+  }
+  if (cand.length < 2) return cand;
+  const hue = (x, y) => { const a = lchOfLin(x), b = lchOfLin(y); return a.C >= 0.04 && b.C >= 0.04 ? hueGap(a.h, b.h) : 0; };
+  const score = (ord) => {
+    const n = ord.length, c = ord.map((r) => roleRGB[r]);
+    let lo = Infinity, sum = 0;
+    for (let i = 0; i < n; i++) {
+      const pairs = [[c[i], c[(i + 1) % n]]];
+      for (const d of n >= 3 ? [1, 2] : []) pairs.push([mixLin(c[i], c[(i + d) % n], 0.5), mixLin(c[(i + 1) % n], c[(i + 1 + d) % n], 0.5)]);
+      for (const [x, y] of pairs) { lo = Math.min(lo, deOK(x, y)); sum += hue(x, y); }
+    }
+    // and an order with a place where a bed/partner gradient takes two new colours (not its own two, not swapped: with
+    // three colours only one of the two mirror orders has it) goes first
+    let fresh = 0;
+    for (let i = 0; i < n; i++) { const x = ord[i], y = ord[(i + 2) % n]; if (x !== ROLE.A && y !== ROLE.B && !(x === ROLE.B && y === ROLE.A)) fresh = 1; }
+    return fresh * 1e9 + lo * 1e5 + sum;
+  };
+  let best = cand.slice(), bs = score(best);
+  const rest = cand.slice(1), used = new Array(rest.length).fill(false), cur = [cand[0]];
+  const walk = () => {
+    if (cur.length === cand.length) { const s = score(cur); if (s > bs + 1e-9) { bs = s; best = cur.slice(); } return; }
+    for (let j = 0; j < rest.length; j++) if (!used[j]) { used[j] = true; cur.push(rest[j]); walk(); cur.pop(); used[j] = false; }
+  };
+  walk();
+  return best;
+}
+// A head's PAIR of wheel slots for the bank, both on the palette's plan (never red, never pink, never the warm white): the
+// palette's rest and alt when they are neighbours on the wheel, else the rest and its lift, else the alt and its lift, else
+// the rest and the alt as they are (the palettes whose heads rest on white: Rose Fans, Moon Hive, Titanium, Noir); the head
+// alternates between the two on every press. A pair one slot apart turns at the wheel's speed, lit; a pair further apart
+// is never run lit through the slots between (they are off the plan): the head takes its new slot in black (programmer
+// tick, the wheel).
+export function bankPair(wheel, rest, alt, lift, { red = [] } = {}) {
+  const n = wheel.length, adj = (a, b) => ((a - b + n) % n === 1 || (b - a + n) % n === 1);
+  const ok = (x) => x >= 0 && x < n && !red.includes(x);
+  if (ok(rest) && ok(alt) && adj(rest, alt)) return [rest, alt];
+  const lr = lift && lift.get(rest), la = lift && lift.get(alt);
+  if (lr && ok(rest) && ok(lr.to) && adj(rest, lr.to)) return [rest, lr.to];
+  if (la && ok(alt) && ok(la.to) && adj(alt, la.to)) return [alt, la.to];
+  return ok(alt) && alt !== rest ? [rest, alt] : [rest, rest];
 }
 
 // --------------------------------------------------------------------------------------------- the programmer --
@@ -132,7 +278,8 @@ export class Programmer {
     this.lines = [];
     this.pads = [];                // running playbacks {kind, onset, vel}
     this.lookName = "";
-    this.setTheme(theme || Object.values(rig.themes)[0] || null);
+    // a head no look has named yet shows the palette's rest slot (beamA, beamB), never role 0's nearest slot
+    for (let i = 0; i < this.nH; i++) { this.baseH[i * 7 + 5] = this.fromH[i * 7 + 5] = ROLE.beamA; this.baseH[i * 7 + 6] = this.fromH[i * 7 + 6] = ROLE.beamB; }
     // the head's type data: attributes, wheel colours
     this.headType = rig.heads.map((fi) => rig.types[rig.fixtures[fi].type]);
     this.strandHead = rig.heads.map((fi) => rig.elements[rig.fixtures[fi].element].id === "rung");
@@ -161,13 +308,67 @@ export class Programmer {
     this.zoomMin = Float64Array.from(this.headType, (t) => zA(t).min ?? 0.5);
     this.zoomMax = Float64Array.from(this.headType, (t) => zA(t).max ?? 4);
     this.zoomHome = Float64Array.from(this.headType, (t) => zA(t).home ?? 2);
-    // KICK v2 round 2: a kick may own a head's wheel (kickSlot: the slot it wants, -1 none); while it does, and until the
-    // wheel is back on the look's slot after it, the wheel turns the shortest way round that passes no saturated-red slot
-    // (wheelOwn: 1 while it is on that path), at its real speed
+    // KICK v2 round 2: a kick may own a head's wheel (kickSlot: the slot it wants, -1 none; wheelOwn: 1 while it does, and
+    // until the wheel is back on the look's slot after it). PALETTES: every wheel move, the look's too, turns the shortest
+    // way round that passes no saturated-red slot (wheelPos, at the wheel's real speed), and snaps while the head is dark
     this.redSlotsByType = new Map();
     this.kickSlot = new Int16Array(this.nH).fill(-1);
     this.wheelOwn = new Uint8Array(this.nH);
-    this.wheelPos = new Float64Array(this.nH);
+    this.wheelPos = new Float64Array(this.nH).fill(-1);
+    this.wheelWait = new Float64Array(this.nH).fill(-1);
+    // KICK 5's move in black (review V1, 2026-10-29): a lit head the bank sends further than one clean slot (the palettes
+    // whose heads rest on white: white and a colour far apart on the wheel) has its dimmer taken to black (bankDip 1) until
+    // it is dark, the wheel moves there, and the dimmer comes back -- in Noir and Titanium the lit beams otherwise kept their
+    // colour for good, since no look ever takes them dark
+    this.bankDip = new Uint8Array(this.nH);
+    // PALETTES: the members' place in the palette (a split's or a pin's cells, a split's heads and their own wheel plan),
+    // the colour kick's light on each cell (kickC: r, g, b and its weight, written by kick.js each frame), a pin's held level
+    this.cellKind = new Uint8Array(this.nC);
+    this.headSlotOv = new Int16Array(this.nH).fill(-1);
+    this.headLift = new Array(this.nH).fill(null);
+    this.kickC = new Float32Array(this.nC * 4);
+    this.pinDim = new Float32Array(this.nC);
+    this.palX = null; this.dipLevel = 1; this.paletteEvents = [];
+    this.tempoMeasure = {};
+    this.roleRGB = [];
+    // THE COLOUR BANK: each member's bank group (-1: none, a pin), the groups' places on the cycle, the heads' pairs and the
+    // slot the bank has a head on (-1: the look's), the cells' roles before the bank (kick.js judges the next bank with them)
+    this.bankG = { names: [], cellG: new Int16Array(this.nC).fill(-1), headG: new Int16Array(this.nH).fill(-1) };
+    // (and each member's side of its group, for a setup's left / right placement: the part 0 centre, 1 left, 2 right)
+    this.cellSG = new Int16Array(this.nC); this.headSG = new Int16Array(this.nH);
+    for (const gname of BANK_GROUPS) {
+      const g = rig.groups[gname];
+      if (!g) continue;
+      const gi = this.bankG.names.push(gname) - 1;
+      const side = g.keys && g.keys.side;
+      for (let m = 0; m < g.n; m++) {
+        const k = g.members[m], part = side ? partOfSide(side[m]) : 0;
+        if (g.kind === "cells" && this.bankG.cellG[k] < 0) { this.bankG.cellG[k] = gi; this.cellSG[k] = gi * 3 + part; }
+        else if (g.kind === "heads" && this.bankG.headG[k] < 0) { this.bankG.headG[k] = gi; this.headSG[k] = gi * 3 + part; }
+      }
+    }
+    // a member none of them names (another set's rig) still takes the bank, in a group of its own
+    const extra = this.bankG.names.length;
+    let anyExtra = false;
+    for (let c = 0; c < this.nC; c++) if (this.bankG.cellG[c] < 0) { this.bankG.cellG[c] = extra; this.cellSG[c] = extra * 3; anyExtra = true; }
+    for (let i = 0; i < this.nH; i++) if (this.bankG.headG[i] < 0) { this.bankG.headG[i] = extra; this.headSG[i] = extra * 3; anyExtra = true; }
+    if (anyExtra) this.bankG.names.push("other");
+    const nG = this.bankG.names.length;
+    this.bank = { on: false, count: 0, serial: 0, cycle: [], idx: new Int32Array(nG), near: new Uint8Array(nG), maps: Array.from({ length: nG }, () => new Int16Array(ROLES.length)),
+                  pairs: new Array(this.nH).fill(null), slot: new Int16Array(this.nH).fill(-1), log: [] };
+    this.bankOrigC = new Int16Array(this.nC * 2);
+    // THE SETUP LAYER (setups.js): each (group, part)'s role table -- the targets, what showed when a setup landed, and
+    // what shows (setupView: per (group, part) a role -> [r, g, b] view of shown, read by the colour stage like roleRGB)
+    {
+      const nSG = nG * 3, len = nSG * SETUP_NR * 3;
+      const shown = new Float32Array(len);
+      this.sx = { def: null, pending: null, k: 0, fading: false, p0: 0, len: 0, T: new Float32Array(len), F: new Float32Array(len), shown,
+                  path: new Uint8Array(nSG * SETUP_NR), wToB: new Uint8Array(nSG), level: new Float32Array(nSG).fill(Infinity), cube: null, cubeF: null, cubeT: null, cubePath: [0, 0],
+                  lasers: null, laserSerial: 0, allowed: new Map(), prevAllowed: null, prevDef: null, events: [], landings: [] };
+      this.setupView = Array.from({ length: nSG }, (_, sg) => Array.from({ length: SETUP_NR }, (_, r) => shown.subarray((sg * SETUP_NR + r) * 3, (sg * SETUP_NR + r) * 3 + 3)));
+      this.setupOn = false;
+    }
+    this.setTheme(theme || Object.values(rig.themes)[0] || null);
     this.stats = { kicks: [], flyouts: 0, lookChanges: 0, overlays: 0 };
     // the phrase layer
     const nH = this.nH, nC = this.nC;
@@ -379,11 +580,422 @@ export class Programmer {
       }
     }
   }
+  // A theme now (no transition). The role array keeps its identity (the ring formations hold it by reference).
   setTheme(theme) {
     this.theme = theme;
     this.colours = resolveTheme(theme);
-    this.roleRGB = ROLES.map((r) => this.colours[r]);
+    this.roleRGB.length = 0;
+    for (const r of ROLES) this.roleRGB.push(this.colours[r].slice());
+    this.ownRoles = ROLES.map((r) => this.colours[r].slice());
+    this._applyPalette(theme);
+    this._bankReset();                                  // a new palette starts from its own colours; kick 5 deals its banks
     if (this.kick) this.kick.extendRoles();             // KICK v2's own colours ride after the theme's roles
+  }
+  // ------------------------------------------------------------------------------------------------ the bank --
+  // the theme's cycle and the heads' pairs; the bank goes back to the palette's own colours (bank 0) until the next press
+  _bankReset() {
+    const B = this.bank;
+    if (!B) return;
+    B.cycle = bankCycle(this.roleRGB);
+    const plan = this.plan;
+    for (let i = 0; i < this.nH; i++) {
+      const w = this.wheels[i];
+      if (!w) { B.pairs[i] = null; continue; }
+      const rest = this.headSlotOv[i] >= 0 ? this.headSlotOv[i] : plan ? plan.rest : nearestSlot(w, this.roleRGB[ROLE.beamA]);
+      const alt = plan ? plan.alt : nearestSlot(w, this.roleRGB[ROLE.beamB]);
+      B.pairs[i] = bankPair(w, rest, alt, this.headLift[i], { red: this.redSlotsOf(i) });
+    }
+    B.on = false; B.count = 0; B.serial++; B.idx.fill(0); B.near.fill(0); B.slot.fill(-1);
+    if (this.bankDip) this.bankDip.fill(0);
+    if (this.sx) { this.sx.k = 0; this.sx.wToB.fill(0); if (this.sx.def) { this.sx.lasers = lasersAt(this.sx.def, 0, this.roleRGB); this.sx.laserSerial++; } }
+  }
+  // KICK 5: every group one place on round the cycle (the first press from the palette's own colours puts each group where
+  // its colours move furthest from the look's), every head to the other slot of its pair. Lands on the next frame.
+  bankAdvance(pos = null) {
+    // under a SETUP the bank turns the setup's own colours (setups.js THE BANK WITHIN A SETUP); a fade back to the palette's
+    // own looks ends at the press, and the palette's bank takes it from there
+    if (this.setupOn && this.sx.def) return this._setupBank(pos);
+    if (this.setupOn) { this.setupOn = false; this.sx.fading = false; }
+    const B = this.bank, n = B.cycle.length;
+    if (n < 2) return false;
+    const nG = B.idx.length;
+    if (!B.on) {
+      // the first bank: each group at the place on the cycle where the fewest of its cells (sampled, weighted by level)
+      // would show about the colour they show now (at their own mix: a cell half-way between two roles included)
+      const cand = Array.from({ length: nG }, () => []);
+      for (let c = 0; c < this.nC; c++) if (this.cellKind[c] !== CELL_KIND.PIN) cand[this.bankG.cellG[c]].push(c);
+      const map = new Int16Array(ROLES.length), a = [0, 0, 0], b2 = [0, 0, 0], nR = ROLES.length;
+      for (let g = 0; g < nG; g++) {
+        const cells = cand[g], stride = Math.max(1, Math.floor(cells.length / 160));
+        let bestI = g % n, bestNear = 0, bestCost = Infinity;
+        // (with an odd number of colours a group may also show its partner role one place on instead of two: with three
+        // colours a bed/highlight gradient and a bed/partner one cannot both take two new colours at one spread)
+        for (let s = 0; s < n * (n % 2 ? 2 : 1); s++) {
+          const i = (g + s) % n, near = s >= n ? 1 : 0;
+          for (let r = 0; r < nR; r++) map[r] = B.cycle[(i + ordOf(r, near)) % n];
+          let cost = 0, wsum = 0;
+          const ma = [0, 0, 0], mb = [0, 0, 0];
+          for (let m = 0; m < cells.length; m += stride) {
+            const c = cells[m], o = c * 4, r1 = this.tC[o + 2] | 0, r2 = this.tC[o + 3] | 0, mx = Math.max(0, Math.min(1, this.tC[o + 1]));
+            this.colourOfCell(c, r1, r2, mx, a);
+            B.on = true;                                          // (the colour stage as the bank will run it)
+            this.colourOfCell(c, r1 < nR ? map[r1] : r1, r2 < nR ? map[r2] : r2, mx, b2);
+            B.on = false;
+            const wt = 0.05 + Math.max(0, this.tC[o]);
+            if (deOK(a, b2) < BANK_ENGAGE_DE) cost += wt;
+            for (let j = 0; j < 3; j++) { ma[j] += a[j]; mb[j] += b2[j]; }
+            wsum += wt;
+          }
+          // a gradient whose two colours only swap ends (a helix mirrored) reads as no change: the group's mean must move
+          const cnt = Math.ceil(cells.length / stride);
+          if (cnt && deOK(ma.map((x) => x / cnt), mb.map((x) => x / cnt)) < BANK_ENGAGE_DE / 2) cost += 10 * wsum;
+          if (g > 0 && i === B.idx[g - 1]) cost += 1e-3;            // a group's neighbour in the list another colour when it can
+          if (cost < bestCost - 1e-9) { bestCost = cost; bestI = i; bestNear = near; }
+        }
+        B.idx[g] = bestI; B.near[g] = bestNear;
+      }
+      B.on = true;
+    } else for (let g = 0; g < nG; g++) B.idx[g] = (B.idx[g] + 1) % n;
+    for (let g = 0; g < nG; g++) {
+      const m = B.maps[g];
+      for (let r = 0; r < ROLES.length; r++) m[r] = B.cycle[(B.idx[g] + ordOf(r, B.near[g])) % n];
+      m[ROLE.pin] = ROLE.pin;
+    }
+    // the heads: each to the other slot of its pair (a head on neither starts on its group's side of the pair)
+    for (let i = 0; i < this.nH; i++) {
+      const pr = B.pairs[i];
+      if (!pr) continue;
+      const cur = B.slot[i] >= 0 ? B.slot[i] : this.wheelSlotOf(i);
+      B.slot[i] = cur === pr[0] ? pr[1] : cur === pr[1] ? pr[0] : pr[this.bankG.headG[i] % 2];
+    }
+    B.count++; B.serial++;
+    if (B.log.length >= 64) B.log.shift();
+    B.log.push({ count: B.count, pos: pos === null ? null : +pos.toFixed(4), idx: Array.from(B.idx) });
+    return true;
+  }
+  // the bank on the targets (after the look, the phrases and the formations, before the kicks): every cell's and head's
+  // roles through its group's map; the cells' roles before it are kept for the kick's judge
+  _bankApply() {
+    const B = this.bank, tC = this.tC, tH = this.tH, cg = this.bankG.cellG, hg = this.bankG.headG, nR = ROLES.length;
+    if (this.setupOn) {
+      // a SETUP's bank is in its tables; here only the look's whites of a group that does not keep them take its b (W to
+      // B; setups.js whitesTurn) -- a kick's white, painted after this, stays the setup's white
+      const turn = true, wb = this.sx.wToB, W = ROLE.W, Bi = ROLE.B;
+      for (let c = 0; c < this.nC; c++) {
+        const b = c * 4;
+        this.bankOrigC[c * 2] = tC[b + 2]; this.bankOrigC[c * 2 + 1] = tC[b + 3];
+        if (turn && wb[this.cellSG[c]]) { if ((tC[b + 2] | 0) === W) tC[b + 2] = Bi; if ((tC[b + 3] | 0) === W) tC[b + 3] = Bi; }
+      }
+      if (turn) for (let i = 0; i < this.nH; i++) if (wb[this.headSG[i]]) { const b = i * 7; if ((tH[b + 5] | 0) === W) tH[b + 5] = Bi; if ((tH[b + 6] | 0) === W) tH[b + 6] = Bi; }
+      return;
+    }
+    for (let c = 0; c < this.nC; c++) {
+      const b = c * 4;
+      this.bankOrigC[c * 2] = tC[b + 2]; this.bankOrigC[c * 2 + 1] = tC[b + 3];
+      if (!B.on || this.cellKind[c] === CELL_KIND.PIN) continue;
+      const m = B.maps[cg[c]], r1 = tC[b + 2] | 0, r2 = tC[b + 3] | 0;
+      if (r1 < nR) tC[b + 2] = m[r1];
+      if (r2 < nR) tC[b + 3] = m[r2];
+    }
+    if (!B.on) return;
+    for (let i = 0; i < this.nH; i++) {
+      const b = i * 7, m = B.maps[hg[i]], r1 = tH[b + 5] | 0, r2 = tH[b + 6] | 0;
+      if (r1 < nR) tH[b + 5] = m[r1];
+      if (r2 < nR) tH[b + 6] = m[r2];
+    }
+  }
+  // what cell c shows under the bank as it stands (the kick's judge, right after a press advanced it): its look roles
+  // through its group's map at its mix
+  bankColourOfCell(c, mix, out = [0, 0, 0]) {
+    const B = this.bank, nR = ROLES.length;
+    let r1 = this.bankOrigC[c * 2], r2 = this.bankOrigC[c * 2 + 1];
+    if (this.setupOn) {
+      if (this.sx.wToB[this.cellSG[c]]) { if (r1 === ROLE.W) r1 = ROLE.B; if (r2 === ROLE.W) r2 = ROLE.B; }
+      return this.colourOfCell(c, r1, r2, mix, out);
+    }
+    if (B.on && this.cellKind[c] !== CELL_KIND.PIN) { const m = B.maps[this.bankG.cellG[c]]; if (r1 < nR) r1 = m[r1]; if (r2 < nR) r2 = m[r2]; }
+    return this.colourOfCell(c, r1, r2, mix, out);
+  }
+  // the colour of group g's bed under the bank (the record's swatch)
+  bankSwatch(g = 0) {
+    const B = this.bank;
+    if (this.setupOn) return this.setupView[g * 3][ROLE.A];
+    return B.on && B.cycle.length ? this.roleRGB[B.cycle[B.idx[g] % B.cycle.length]] : this.roleRGB[ROLE.A];
+  }
+  // THE BANK'S COLOURS, as hex (kick 5): what the next press deals, in the order it deals it -- the setup's own cycle under
+  // a setup, else the palette's bank cycle. The phone bar's colour strip wears these, so the strip and the press can never
+  // promise different colours (before this the strip wore the palette's kick LADDER, which kick 5 no longer deals).
+  bankHex() {
+    const S = this.setupOn && this.sx.def ? this.sx.def : null;
+    if (S) return bankColoursHex(S, this.roleRGB).hex;
+    const B = this.bank;
+    if (!B || !B.cycle || B.cycle.length < 2) return [];
+    return B.cycle.map((r) => linToHex(this.roleRGB[r].slice()));
+  }
+  bankStatus() {
+    const B = this.bank;
+    if (this.setupOn && this.sx.def) {
+      const S = this.sx.def, place = (n) => (!S.place[n] ? "look" : S.place[n].pin ? "pinned" : "turns");
+      return { on: B.on, count: B.count, setup: S.id, cycle: cycleOf(S, this.roleRGB).slice(), groups: Object.fromEntries(this.bankG.names.map((n) => [n, place(n)])), log: B.log.slice(-8) };
+    }
+    return { on: B.on, count: B.count, cycle: B.cycle.map((r) => ROLES[r]), groups: Object.fromEntries(this.bankG.names.map((n, g) => [n, B.on ? ROLES[B.cycle[B.idx[g] % B.cycle.length]] : "look"])),
+             log: B.log.slice(-8) };
+  }
+  // the palette's structure: its wheel plan, its splits and pins, its 3-stop strand, its tempo, its walk, its air
+  _applyPalette(theme) {
+    const p = (theme && theme.palette) || null, rig = this.rig;
+    this.palette = p;
+    this.plan = p ? planOf(p) : null;
+    this.headAllowed = this.plan ? this.plan.slots : null;
+    this.cellKind.fill(0); this.headSlotOv.fill(-1);
+    for (let i = 0; i < this.nH; i++) this.headLift[i] = this.plan ? this.plan.lift : null;
+    if (p && p.split) for (const gname of p.split.accent_groups || []) {
+      const wingB = / wing B$/.test(gname), g = rig.groups[wingB ? gname.replace(/ wing B$/, "") : gname];
+      if (!g) continue;
+      for (let m = 0; m < g.n; m++) {
+        if (wingB && !(g.keys.side[m] > 0)) continue;
+        const k = g.members[m];
+        if (g.kind === "cells") this.cellKind[k] = CELL_KIND.ACCENT;
+        else if (g.kind === "heads" && this.plan.groups[gname]) { this.headSlotOv[k] = this.plan.groups[gname].rest; this.headLift[k] = this.plan.groups[gname].lift; }
+      }
+    }
+    if (p && p.pin) for (const gname of p.pin.groups || []) {
+      const g = rig.groups[gname];
+      if (g && g.kind === "cells") for (let m = 0; m < g.n; m++) this.cellKind[g.members[m]] = CELL_KIND.PIN;
+    }
+    const sg = p && (p.gradients || []).find((x) => x.name === "strand");
+    this.ramp3 = sg && sg.stops && sg.stops.length >= 3 ? tableOf(sg) : null;
+    this.walk = p && Array.isArray(p.walk) && p.walk.length ? p.walk.map(hexToLinear) : null;
+    this.ambient = hexToLinear((theme && theme.ambient) || "#3a1a8a");
+    this.airTint = theme && Number.isFinite(theme.air_tint) ? theme.air_tint : 0;
+    // the palette's tempo turns the strand's helix and the ring ladder (a held ladder, "still", one turn in 16 bars)
+    const t = p && p.tempo;
+    this.tempoMeasure = t ? { "cube-colour": t.strand, "ring-colour": t.name === "still" ? 64 : t.ring } : {};
+    for (const [id, inst] of this.effects) {
+      const name = id.slice(id.indexOf(":") + 1), m = this.tempoMeasure[name] ?? (this.rig.effects[name] || {}).measure;
+      if (TEMPO_EFFECTS[name] && Number.isFinite(m) && m > 0) inst.phasor.measure = m;
+    }
+  }
+  // A new palette lands at beat position pos: a neighbour crossfades every role in OKLCh over `beats`; anything else
+  // (dip: true) cuts ON pos through a one-beat dip -- the rig dims to black over the half beat before it and comes back in
+  // the new palette over the half beat after, its colours and wheels changing at the bottom, in the dark.
+  beginPalette(theme, pos, { beats = 16, dip = false } = {}) {
+    const to = resolveTheme(theme);
+    this.palX = { theme, to: ROLES.map((r) => to[r]), from: null, fromAmbient: null, toAmbient: hexToLinear(theme.ambient || "#3a1a8a"), dip: !!dip,
+                  p0: dip ? pos - PALETTE_DIP_BEATS / 2 : pos, len: dip ? PALETTE_DIP_BEATS : Math.max(1e-3, beats), swapAt: pos, swapped: false };
+    return { at: pos, until: this.palX.p0 + this.palX.len, dip: this.palX.dip };
+  }
+  // the palette's transition and Lantern Walk's walk, once a frame before the colours
+  _paletteStep(pos) {
+    const X = this.palX;
+    this.dipLevel = 1;
+    if (X) {
+      const t = (pos - X.p0) / X.len;
+      if (!X.swapped && pos >= (X.dip ? X.swapAt : X.p0) - 1e-9) {
+        // the new palette's structure (the plan, the splits and pins, the tempo) and, for a dip, its colours: now; a
+        // crossfade starts from the colours showing at this moment
+        X.from = this.roleRGB.slice(0, ROLES.length).map((c) => c.slice()); X.fromAmbient = this.ambient.slice();
+        this.setTheme(X.theme);
+        if (!X.dip) { for (let r = 0; r < ROLES.length; r++) this.roleRGB[r] = X.from[r].slice(); this.ambient = X.fromAmbient.slice(); }
+        X.swapped = true;
+        this.paletteEvents.push({ type: "swap", id: X.theme.id || X.theme.name, pos });
+      }
+      if (X.dip) {
+        const u = Math.max(0, Math.min(1, t));
+        this.dipLevel = t <= 0 || t >= 1 ? 1 : 0.5 + 0.5 * Math.cos(2 * Math.PI * u);
+      } else if (t >= 0 && X.from) {
+        const u = Math.min(1, t);
+        for (let r = 0; r < ROLES.length; r++) this.roleRGB[r] = mixLch(X.from[r], X.to[r], u);
+        this.ambient = mixLch(X.fromAmbient, X.toAmbient, u);
+      }
+      if (t >= 1) {
+        if (!X.dip) { for (let r = 0; r < ROLES.length; r++) this.roleRGB[r] = X.to[r].slice(); this.ambient = X.toAmbient.slice(); }
+        this.palX = null;
+        this.paletteEvents.push({ type: "landed", id: X.theme.id || X.theme.name, pos });
+      }
+    }
+    // Lantern Walk: the bed walks its stops, one per 16-bar phrase, crossfading in OKLCh over the phrase's first 4 bars
+    if (this.walk && !this.palX) {
+      const ph = (pos - (this.barAnchor || 0)) / 64, k = Math.floor(ph), u = Math.min(1, (ph - k) * 4), n = this.walk.length;
+      const cur = this.walk[((k % n) + n) % n], prev = this.walk[(((k - 1) % n) + n) % n];
+      this.roleRGB[ROLE.A] = u >= 1 ? cur.slice() : mixLch(prev, cur, u);
+    }
+  }
+  // --------------------------------------------------------------------------------------------- THE SETUP LAYER --
+  // SETUPS (2026-10-29, setups.js; Daniel: "i want the lights to cycle different color palates and setups"). A setup
+  // places its own colours on the bank's groups (and the lasers and the HAL cubes): each (group, part) gets a role table
+  // the colour stage reads instead of the palette's roles (setupView), after the look, the phrases, the formations, the
+  // bank and the kicks have set every member's roles and levels -- so a setup recolours, it never moves or dims anything.
+  // beginSetup(S, pos) lands S (null: back to the palette's own looks) ON pos, crossfading every table from what shows
+  // over `beats` along each colour's clean path (setups.js pathOf); a new setup starts at bank 0 and kick 5 turns its own
+  // colours (_setupBank). Pinned groups hold; heads take the slots nearest the colours their OWN group was placed with
+  // (setups.js groupColours: _setupAllowed), moving far in black.
+  beginSetup(S, pos, { beats = 4 } = {}) {
+    this.sx.pending = { def: S || null, at: pos, beats: Math.max(0, beats) };
+    return { id: S ? S.id : null, at: pos, until: pos + Math.max(0, beats) };
+  }
+  // a setup now, no crossfade (the receipts' door and the page's first frame)
+  setSetupNow(S) { this.sx.pending = { def: S || null, at: -Infinity, beats: 0 }; this._setupStep(-Infinity); }
+  _setupTargets(S, k, out) {
+    const roles = this.roleRGB, cy = S ? cycleOf(S, roles) : null, names = this.bankG.names, nR = SETUP_NR;
+    for (let g = 0; g < names.length; g++) {
+      const placed = S && S.place[names[g]];
+      this.sx.wToB[g * 3] = this.sx.wToB[g * 3 + 1] = this.sx.wToB[g * 3 + 2] = placed && whitesTurn(S, names[g], k) ? 1 : 0;
+      this.sx.level[g * 3] = this.sx.level[g * 3 + 1] = this.sx.level[g * 3 + 2] = placed ? levelOf(S, names[g]) : Infinity;
+      for (let part = 0; part < 3; part++) {
+        const off = (g * 3 + part) * nR * 3;
+        if (placed) tableInto(S, names[g], part, k, roles, out, off, cy);
+        else for (let r = 0; r < nR; r++) { const c = roles[r]; out[off + r * 3] = c[0]; out[off + r * 3 + 1] = c[1]; out[off + r * 3 + 2] = c[2]; }
+      }
+    }
+    return out;
+  }
+  // the HAL cubes' tint the setup gives (cubes.js THE HOOK), or the palette's own (its deep along to its B)
+  _setupCubeTarget(S, k) {
+    if (S) return cubesAt(S, k, this.roleRGB);
+    return { glowTop: (this.ambient || [0.03, 0.01, 0.2]).slice(), glowBottom: this.roleRGB[ROLE.B].slice(), coreTop: null, coreBottom: null, glowMix: null };
+  }
+  _setupStep(pos) {
+    const X = this.sx;
+    if (X.pending && pos >= X.pending.at - 1e-9) {
+      const P = X.pending;
+      X.pending = null;
+      // what shows now is where the crossfade starts (the palette's own roles when no setup was up)
+      if (this.setupOn) X.F.set(X.shown); else this._setupTargets(null, 0, X.F);
+      X.cubeF = this.setupOn && X.cube ? { ...X.cube } : this._setupCubeTarget(null, 0);
+      X.prevDef = this.setupOn ? X.def : null; X.prevAllowed = this.setupOn ? "setup" : "palette";
+      X.def = P.def;
+      X.allowed.clear();
+      this.setupOn = true;
+      this._bankReset();                                 // the new setup (or the palette) starts from its own colours
+      X.k = 0;
+      this._setupTargets(X.def, 0, X.T);
+      X.fading = P.beats > 0 && Number.isFinite(P.at);
+      X.p0 = P.at; X.len = P.beats;
+      if (X.fading) {
+        const a = [0, 0, 0], b = [0, 0, 0];
+        for (let e = 0; e < X.path.length; e++) { const o = e * 3; a[0] = X.F[o]; a[1] = X.F[o + 1]; a[2] = X.F[o + 2]; b[0] = X.T[o]; b[1] = X.T[o + 1]; b[2] = X.T[o + 2]; X.path[e] = pathOf(a, b); }
+        X.cubeT = this._setupCubeTarget(X.def, 0);
+        X.cubePath = [pathOf(X.cubeF.glowTop, X.cubeT.glowTop), pathOf(X.cubeF.glowBottom, X.cubeT.glowBottom)];
+      }
+      X.lasers = X.def ? lasersAt(X.def, 0, this.roleRGB) : null;   // the lasers change ON the line
+      X.laserSerial++;
+      X.events.push({ type: "swap", id: X.def ? X.def.id : null, pos: Number.isFinite(pos) ? pos : null });
+      if (!X.fading) { X.events.push({ type: "landed", id: X.def ? X.def.id : null, pos: Number.isFinite(pos) ? pos : null }); if (!X.def) this.setupOn = false; }
+      if (X.landings.length >= 64) X.landings.shift();
+      X.landings.push({ id: X.def ? X.def.id : null, pos: Number.isFinite(P.at) ? +P.at.toFixed(4) : null, beats: P.beats });
+    }
+    if (!this.setupOn) { X.cube = null; return; }
+    this._setupTargets(X.def, X.k, X.T);
+    const cubeT = this._setupCubeTarget(X.def, X.k);
+    if (X.fading) {
+      const u = (pos - X.p0) / X.len;
+      if (u >= 1) {
+        X.fading = false;
+        X.events.push({ type: "landed", id: X.def ? X.def.id : null, pos });
+        X.prevAllowed = null; X.allowed.clear();
+        if (!X.def) { this.setupOn = false; X.cube = null; return; }
+      } else {
+        const t = Math.max(0, u), a = [0, 0, 0], b = [0, 0, 0], m = [0, 0, 0];
+        for (let e = 0; e < X.path.length; e++) {
+          const o = e * 3;
+          a[0] = X.F[o]; a[1] = X.F[o + 1]; a[2] = X.F[o + 2]; b[0] = X.T[o]; b[1] = X.T[o + 1]; b[2] = X.T[o + 2];
+          mixPath(a, b, t, X.path[e], m);
+          X.shown[o] = m[0]; X.shown[o + 1] = m[1]; X.shown[o + 2] = m[2];
+        }
+        const F = X.cubeF;
+        X.cube = { glowTop: mixPath(F.glowTop, cubeT.glowTop, t, X.cubePath[0]), glowBottom: mixPath(F.glowBottom, cubeT.glowBottom, t, X.cubePath[1]),
+                   coreTop: t < 0.5 ? F.coreTop : cubeT.coreTop, coreBottom: t < 0.5 ? F.coreBottom : cubeT.coreBottom, glowMix: t < 0.5 ? F.glowMix : cubeT.glowMix };
+        return;
+      }
+    }
+    X.shown.set(X.T);
+    X.cube = X.def ? cubeT : null;
+  }
+  // KICK 5 under a setup: the next bank of the setup's own colours, every group at once (the tables now, so the kick's
+  // judge sees them on this press); the lasers turn through the setup's laser bank; a crossfade under way lands at once
+  _setupBank(pos) {
+    const B = this.bank, X = this.sx;
+    B.on = true; B.count++; B.serial++; X.k = B.count;
+    X.fading = false; X.prevAllowed = null; X.allowed.clear();
+    this._setupTargets(X.def, X.k, X.T);
+    X.shown.set(X.T);
+    X.cube = this._setupCubeTarget(X.def, X.k);
+    X.lasers = lasersAt(X.def, X.k, this.roleRGB); X.laserSerial++;
+    // the dealer's view of the beams: the slot each will show (the look's roles at its mix through the new tables)
+    const W = ROLE.W, Bi = ROLE.B, rgb = [0, 0, 0];
+    for (let i = 0; i < this.nH; i++) {
+      const w = this.wheels[i];
+      if (!w) continue;
+      const b = i * 7, RT = this.setupView[this.headSG[i]], turn = X.wToB[this.headSG[i]];
+      let r1 = this.tH[b + 5] | 0, r2 = this.tH[b + 6] | 0;
+      if (turn && r1 === W) r1 = Bi;
+      if (turn && r2 === W) r2 = Bi;
+      const c1 = r1 < SETUP_NR ? RT[r1] : this.roleRGB[r1], c2 = r2 < SETUP_NR ? RT[r2] : this.roleRGB[r2], mx = Math.max(0, Math.min(1, this.tH[b + 4]));
+      for (let k = 0; k < 3; k++) rgb[k] = c1[k] + (c2[k] - c1[k]) * mx;
+      B.slot[i] = nearestSlot(w, rgb, this._setupAllowed(i));
+    }
+    if (B.log.length >= 64) B.log.shift();
+    B.log.push({ count: B.count, pos: pos === null ? null : +pos.toFixed(4), setup: X.def.id });
+    return true;
+  }
+  // the wheel slots a head may show under the setup (and, while one crossfades in, under what it replaces)
+  // THE BEAMS FOLLOW THE SETUP: a head's slots come from the colours the setup places on ITS OWN GROUP (setups.js
+  // groupColours, over the whole bank turn), never from the whole setup's palette -- so the truss beams can only show what
+  // the truss was given, and can never drift onto a colour the lasers, the cubes or the halo own (the report's "the beams
+  // stay on the palette's wheel plan"). Keyed per (group, part) AND fixture type: two groups of one fixture type are two
+  // placements, and two fixture types of one group are two wheels (their slot indices are not interchangeable).
+  _setupAllowed(i) {
+    const X = this.sx, gname = this.bankG.names[this.bankG.headG[i]], t = this.rig.fixtures[this.rig.heads[i]].type;
+    const key = `${this.headSG[i]}|${t}`;
+    let a = X.allowed.get(key);
+    if (a) return a;
+    const w = this.wheels[i], red = this.redSlotsOf(i), set = new Set(X.def ? setupSlots(X.def, w, red, this.roleRGB, nearestSlot, gname) : [0]);
+    if (X.fading || !X.def) {
+      // a crossfade's range also holds what it replaces (the previous setup's own group, or the palette's plan)
+      const prev = X.prevAllowed === "setup" && X.prevDef ? setupSlots(X.prevDef, w, red, this.roleRGB, nearestSlot, gname) : this.headAllowed || w.map((_, k) => k);
+      for (const s of prev) set.add(s);
+    }
+    a = [...set].filter((s) => !red.includes(s)).sort((x, y) => x - y);
+    X.allowed.set(key, a);
+    return a;
+  }
+  takeSetupEvents() { const e = this.sx.events; this.sx.events = []; return e; }
+  setupStatus() {
+    const X = this.sx;
+    return { on: this.setupOn, id: X.def ? X.def.id : null, name: X.def ? X.def.name : null, bank: X.k, fading: X.fading,
+             pending: X.pending ? { id: X.pending.def ? X.pending.def.id : null, at: X.pending.at } : null,
+             cycle: X.def ? cycleOf(X.def, this.roleRGB).slice() : null, lasers: X.lasers ? X.lasers.names.slice() : null,
+             cubes: X.def ? cubesAt(X.def, X.k, this.roleRGB).names : null, landings: X.landings.slice(-8) };
+  }
+  // a cell's colour for the roles r1, r2 at mix as this palette shows it (its split or pin, a 3-stop strand's ramp): the
+  // colour stage below does the same inline; kick.js judges a hit with it
+  colourOfCell(c, r1, r2, mix, out = [0, 0, 0]) {
+    const kind = this.cellKind[c], nR = ROLES.length, RT = this.setupOn ? this.setupView[this.cellSG[c]] : null;
+    if (kind && !(this.bank.on && kind === CELL_KIND.ACCENT)) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
+    if (this.ramp3 && !RT && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) return sampleTable(this.ramp3, r1 === ROLE.A ? mix : 1 - mix, out);
+    const c1 = RT && r1 < nR ? RT[r1] : this.roleRGB[r1], c2 = RT && r2 < nR ? RT[r2] : this.roleRGB[r2];
+    for (let k = 0; k < 3; k++) out[k] = c1[k] + (c2[k] - c1[k]) * mix;
+    return out;
+  }
+  // the colour kick's LIFT of that cell: each of its roles lifted inside the palette (LIFT; swap 1 the swapped ladder), its
+  // mix -- its place in the gradient -- kept, so a lifted strand is still a helix
+  liftOfCell(c, r1, r2, mix, swap = 0, out = [0, 0, 0]) {
+    const kind = this.cellKind[c], nR = ROLES.length, L = LIFT_IDX[swap ? 1 : 0], RT = this.setupOn ? this.setupView[this.cellSG[c]] : this.roleRGB;
+    if (kind && !(this.bank.on && kind === CELL_KIND.ACCENT)) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
+    const c1 = r1 < nR ? RT[L[r1]] : this.roleRGB[r1], c2 = r2 < nR ? RT[L[r2]] : this.roleRGB[r2];
+    for (let k = 0; k < 3; k++) out[k] = c1[k] + (c2[k] - c1[k]) * mix;
+    return out;
+  }
+  takePaletteEvents() { const e = this.paletteEvents; this.paletteEvents = []; return e; }
+  // the slot a head shows for the look's colour: a split head's own slot (white stays white), else the palette's slot
+  // nearest the colour (never a slot outside the palette's plan: the warm white only where a palette declares it)
+  _lookSlot(i, b, rgb) {
+    if (this.setupOn) return nearestSlot(this.wheels[i], rgb, this._setupAllowed(i));   // a SETUP: its colours' slots
+    if (this.bank.on && this.bank.slot[i] >= 0) return this.bank.slot[i];     // KICK 5's bank: the head's side of its pair
+    const ov = this.headSlotOv[i];
+    if (ov >= 0) { const lead = this.tH[b + 4] <= 0.5 ? this.tH[b + 5] | 0 : this.tH[b + 6] | 0; if (lead !== ROLE.W) return ov; }
+    return nearestSlot(this.wheels[i], rgb, this.headAllowed);
   }
   setSpeed(s, grid, tEval) {
     this.speed = s;
@@ -431,6 +1043,7 @@ export class Programmer {
         const ref = typeof e === "string" ? { name: e } : e;
         const def = { ...(this.rig.effects[ref.name] || {}), ...(ref.with || {}) };
         if (!this.rig.effects[ref.name]) throw new Error(`look ${name}: no effect ${ref.name}`);
+        if (TEMPO_EFFECTS[ref.name] && this.tempoMeasure[ref.name] > 0) def.measure = this.tempoMeasure[ref.name];   // the palette's tempo
         const id = `${line.group}:${ref.name}`;
         wanted.add(id);
         let inst = this.effects.get(id);
@@ -474,7 +1087,7 @@ export class Programmer {
   wheelSlotOf(i) {
     const w = this.wheels[i];
     if (!w) return -1;
-    const n = w.length, x = this.wheelOwn[i] ? this.wheelPos[i] : this.slews[i].wheel.x;
+    const n = w.length, x = this.wheelPos[i] >= 0 ? this.wheelPos[i] : this.slews[i].wheel.x;
     return ((Math.round(x) % n) + n) % n;
   }
   // a head's saturated-red wheel slots (cached per fixture type)
@@ -491,6 +1104,10 @@ export class Programmer {
     const ver = grid.ver;
     const nH = this.nH, nC = this.nC;
     this.perMs = grid.period || this.perMs; this.barAnchor = grid.barAnchor ?? 0;
+    // 0. the palette: its transition (a crossfade, or a dip with the swap at the bottom) and Lantern Walk's walk
+    this._paletteStep(pos);
+    // 0b. the SETUP layer: a setup landing (its crossfade from what shows), its tables at the bank's step
+    this._setupStep(pos);
     // 1. the look's base, crossfading dimmers from the previous look
     const f = this.fade.len > 0 ? Math.min(1, Math.max(0, (pos - this.fade.p0) / this.fade.len)) : 1;
     for (let i = 0; i < nH * 7; i++) {
@@ -523,6 +1140,8 @@ export class Programmer {
     // 2b. the phrase layer (v1), over the look; 2c. the ring formations' light (v2), over both
     if (this.ov.active) this._overlay(pos, ver);
     if (this.layer) this.layer.apply(this.tH, this.tC, pos);
+    // 2d. KICK 5's colour bank (latched): every group's roles through its place on the palette's cycle
+    this._bankApply();
     // 3. playbacks: KICK v2 (kick.js: the dealt rows, HTP on the level, the button's colour, the sweep, the strobe) and
     // FLY-OUT (outward tilt and a pop on the beams)
     this.kick.apply(pos, tEval / 1000, dt);
@@ -541,64 +1160,114 @@ export class Programmer {
       }
     }
     this.pads = this.pads.filter((p) => pos - p.onset < 3);
-    // 4-6. masters, colour, physics -> FrameState
-    const M = this.masters;
+    // 4-6. masters, colour, physics -> FrameState (a palette's dip dims the whole rig with the grand master)
+    const M = this.masters, dipL = this.dipLevel;
+    const tol = this.kick.wheelTol;
+    // the bank's move in black: may heads waiting for one start their dip on this frame? (asked once a frame, so every
+    // waiting head dips together: one dip of the beams, not a ripple of them)
+    let dipOK = null;
+    const SV = this.setupOn ? this.setupView : null, nRh = ROLES.length;
     for (let i = 0; i < nH; i++) {
       const b = i * 7, o = i * HEAD_FLOATS, s = this.slews[i];
-      const master = M.grand * (this.strandHead[i] ? M.strand : M.beams);
-      const dim = Math.max(0, Math.min(1, s.dim.step(Math.max(0, Math.min(1, this.tH[b + 2])) * master, dt)));
+      const master = M.grand * dipL * (this.strandHead[i] ? M.strand : M.beams);
+      const dim = Math.max(0, Math.min(1, s.dim.step(this.bankDip[i] ? 0 : Math.max(0, Math.min(1, this.tH[b + 2])) * master, dt)));
       const pan = s.pan.step(this.tH[b], dt), tilt = s.tilt.step(this.tH[b + 1], dt);
       const zt = this.tH[b + 3] > 0 ? this.tH[b + 3] : this.zoomHome[i];
       const zoom = s.zoom.step(Math.min(this.zoomMax[i], Math.max(this.zoomMin[i], zt)), dt);
       const mix = Math.max(0, Math.min(1, this.tH[b + 4]));
-      const c1 = this.roleRGB[this.tH[b + 5] | 0], c2 = this.roleRGB[this.tH[b + 6] | 0];
+      const rh1 = this.tH[b + 5] | 0, rh2 = this.tH[b + 6] | 0, RTh = SV ? SV[this.headSG[i]] : null;
+      const c1 = RTh && rh1 < nRh ? RTh[rh1] : this.roleRGB[rh1], c2 = RTh && rh2 < nRh ? RTh[rh2] : this.roleRGB[rh2];
       let r = c1[0] + (c2[0] - c1[0]) * mix, g = c1[1] + (c2[1] - c1[1]) * mix, bl = c1[2] + (c2[2] - c1[2]) * mix;
       const wheel = this.wheels[i];
       if (wheel) {
-        const ks = this.kickSlot[i];
-        let c;
-        if (ks >= 0 || this.wheelOwn[i]) {
-          // a kick's wheel move (or its way back): the red-free short way round, one slot per slot_time
-          const n = wheel.length, red = this.redSlotsOf(i);
-          const target = ks >= 0 ? ks : nearestAllowedSlot(wheel, [r, g, bl], red);
-          if (!this.wheelOwn[i]) { this.wheelOwn[i] = 1; this.wheelPos[i] = ((Math.round(s.wheel.x) % n) + n) % n; }
-          let x = this.wheelPos[i];
-          const at = ((Math.round(x) % n) + n) % n;
-          const way = wheelWay(at, target, n, red, wheel, this.kick.wheelTol);
+        // the wheel: the kick's slot while a kick owns it, else the look's (the palette's slot nearest the role colour). Every
+        // move turns the red-free short way at the wheel's real speed; a head that is dark snaps (a move in black); a lit head
+        // asked for more than one clean slot waits up to a beat for its dimmer to reach black before it turns
+        const n = wheel.length, red = this.redSlotsOf(i), ks = this.kickSlot[i];
+        const look = this._lookSlot(i, b, [r, g, bl]);
+        let x = this.wheelPos[i];
+        if (x < 0) x = look;                                              // the first frame: the wheel starts on its slot
+        const at = ((Math.round(x) % n) + n) % n, resting = Math.abs(x - Math.round(x)) < 1e-9;
+        let target = ks >= 0 ? ks : look;
+        if (ks < 0 && target !== at && resting) {
+          const one = Math.min(((target - at) % n + n) % n, ((at - target) % n + n) % n) === 1 && wayLumaCleanFor(wheel, at, target, red, tol);
+          if (dim < 0.02) { x = target; this.wheelWait[i] = -1; this.bankDip[i] = 0; }           // dark: the move in black
+          else if (!one) {
+            if (this.wheelWait[i] < 0) this.wheelWait[i] = pos;
+            // lit: wait (up to a beat) for black; a bank's far move (white to a colour) is never run lit through the slots
+            // between: it takes its dimmer to black (the move in black), as soon as the flash governor has room for the
+            // dip and its return (kick.js canDip), and waits until then
+            if (this.bank.on && this.bank.slot[i] === target && !SV) {
+              if (!this.bankDip[i]) { if (dipOK === null) dipOK = this.kick.canDip(); if (dipOK) this.bankDip[i] = 1; }
+              target = at;
+            } else if (SV) {
+              // a SETUP's beams: a far move (a landing, a bank step, a look's role change) is made in black as soon as the
+              // governor has room for the dip; with none within a beat the wheel turns lit the red-free short way, as a
+              // look's change does (a setup's beams never stay on the last setup's colour)
+              if (!this.bankDip[i]) { if (dipOK === null) dipOK = this.kick.canDip(); if (dipOK) this.bankDip[i] = 1; }
+              if (this.bankDip[i] || pos - this.wheelWait[i] < 1) target = at;
+            } else if (pos - this.wheelWait[i] < 1) target = at;
+          }
+        } else if (ks >= 0 || target === at) { this.wheelWait[i] = -1; this.bankDip[i] = 0; }
+        const cur = ((Math.round(x) % n) + n) % n;
+        if (Math.abs(x - target) > 1e-9) {
+          const way = wheelWay(cur, target, n, red, wheel, tol);
           if (way !== 0) {
             const left = way > 0 ? (((target - x) % n) + n) % n : (((x - target) % n) + n) % n;
             const stepS = dt * s.wheel.vmax;
             x = left <= stepS ? target : x + way * stepS;
             x = ((x % n) + n) % n;
           } else x = target;
-          this.wheelPos[i] = x;
-          const shown = ((Math.round(x) % n) + n) % n;
-          c = wheel[shown];
-          // back on the look's own slot with no kick on it: the linear wheel takes over from here
-          if (ks < 0 && shown === target && Math.abs(x - target) < 1e-9) { this.wheelOwn[i] = 0; s.wheel.x = target; s.wheel.v = 0; }
-        } else {
-          const slot = nearestSlot(wheel, [r, g, bl]);
-          const wpos = s.wheel.step(slot, dt);
-          c = wheel[Math.round(wpos)];
         }
+        this.wheelPos[i] = x;
+        const shown = ((Math.round(x) % n) + n) % n;
+        s.wheel.x = x; s.wheel.v = 0;
+        this.wheelOwn[i] = ks >= 0 || (this.wheelOwn[i] && shown !== look) ? 1 : 0;
+        const c = wheel[shown];
         r = c[0]; g = c[1]; bl = c[2];
       }
       const h = this.heads;
-      h[o + H.PAN] = pan; h[o + H.TILT] = tilt; h[o + H.DIM] = dim; h[o + H.R] = r; h[o + H.G] = g; h[o + H.B] = bl;
+      // a SETUP's beams at its level (setups.js THE LEVEL): a wheel slot brighter than the group's level (white, yellow,
+      // cyan, green against the blue and violet slots) is dimmed to it on the way out, the dimmer's own motion untouched
+      // (stage_verify --phases setups: with the beams mastered off the limiter never acted under any setup)
+      const lvl = SV ? Math.min(1, this.sx.level[this.headSG[i]] / Math.max(1e-6, 0.2126 * r + 0.7152 * g + 0.0722 * bl)) : 1;
+      h[o + H.PAN] = pan; h[o + H.TILT] = tilt; h[o + H.DIM] = dim * lvl; h[o + H.R] = r; h[o + H.G] = g; h[o + H.B] = bl;
       h[o + H.ZOOM] = zoom; h[o + H.FROST] = 0; h[o + H.IRIS] = 1; h[o + H.GOBO] = 0; h[o + H.GOBOROT] = 0;
       h[o + H.PRISM] = 0; h[o + H.PRISMROT] = 0; h[o + H.SHUTTER] = 1; h[o + H.FOCUS] = 0.5; h[o + H.FLAGS] = 0;
     }
+    const kC = this.kickC, ramp = this.ramp3, nR = ROLES.length, tmp = [0, 0, 0], bankOn = this.bank.on, SV2 = this.setupOn ? this.setupView : null;
+    const pinK = 1 - Math.exp(-Math.max(0, dt) / PIN_TAU_S);
     for (let c = 0; c < nC; c++) {
-      const b = c * 4;
-      const master = M.grand * M.pixels * (this.strandCell[c] ? M.strand : 1);
-      const dim = Math.max(0, Math.min(1, this.tC[b])) * master;
+      const b = c * 4, kind = this.cellKind[c];
+      const master = M.grand * dipL * M.pixels * (this.strandCell[c] ? M.strand : 1);
+      let dim = Math.max(0, Math.min(1, this.tC[b])) * master;
       const mix = Math.max(0, Math.min(1, this.tC[b + 1]));
-      const c1 = this.roleRGB[this.tC[b + 2] | 0], c2 = this.roleRGB[this.tC[b + 3] | 0];
-      this.pixels[b] = (c1[0] + (c2[0] - c1[0]) * mix) * dim;
-      this.pixels[b + 1] = (c1[1] + (c2[1] - c1[1]) * mix) * dim;
-      this.pixels[b + 2] = (c1[2] + (c2[2] - c1[2]) * mix) * dim;
+      let r1 = this.tC[b + 2] | 0, r2 = this.tC[b + 3] | 0;
+      // (a split's cells show its second family; under the bank they show the bank's colours like every other cell)
+      if (kind && !(bankOn && kind === CELL_KIND.ACCENT)) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
+      let R, G, B;
+      const RTc = SV2 ? SV2[this.cellSG[c]] : null;
+      if (ramp && !RTc && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) {
+        sampleTable(ramp, r1 === ROLE.A ? mix : 1 - mix, tmp); R = tmp[0]; G = tmp[1]; B = tmp[2];   // a 3-stop strand
+      } else {
+        const c1 = RTc && r1 < nR ? RTc[r1] : this.roleRGB[r1], c2 = RTc && r2 < nR ? RTc[r2] : this.roleRGB[r2];
+        R = c1[0] + (c2[0] - c1[0]) * mix; G = c1[1] + (c2[1] - c1[1]) * mix; B = c1[2] + (c2[2] - c1[2]) * mix;
+      }
+      // the colour kick's lift over the look's colour (kick.js: each cell's own roles lifted, its gradient kept)
+      const kw = kC[b + 3];
+      if (kw > 0) { R += (kC[b] - R) * kw; G += (kC[b + 1] - G) * kw; B += (kC[b + 2] - B) * kw; }
+      if (kind === CELL_KIND.PIN) { this.pinDim[c] += (dim - this.pinDim[c]) * pinK; dim = this.pinDim[c]; }   // a pin holds
+      this.pixels[b] = R * dim;
+      this.pixels[b + 1] = G * dim;
+      this.pixels[b + 2] = B * dim;
       this.pixels[b + 3] = dim;
     }
     return { heads: this.heads, pixels: this.pixels };
   }
+}
+// a one-slot wheel move that runs clean (no red slot, the luminance way clean): a lit head may make it at once
+function wayLumaCleanFor(wheel, at, to, red, tol) {
+  if (red.includes(to)) return false;
+  const n = wheel.length, dir = ((to - at) % n + n) % n === 1 ? 1 : -1;
+  return wayLumaCleanKick(wheel, at, to, dir, tol < 1 ? tol : 0.35);
 }

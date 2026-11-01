@@ -45,7 +45,7 @@ import { ringAnnulus } from "./camera.js";
 export const FORMATIONS_API = "arsenal.stage-formations/v1";
 export const MAX_FORMATION_EMIT = 4096;      // the renderer's extra emitter room (bands, planets, motes, the core's dots)
 export const MAX_FORMATION_BEAMS = 4;        // and its extra beam proxies (the energy column)
-export const ROLE = Object.freeze({ A: 0, B: 1, W: 2, beamA: 3, beamB: 4, warm: 5, bumpA: 6, bumpB: 7 });
+export const ROLE = Object.freeze({ A: 0, B: 1, W: 2, beamA: 3, beamB: 4, warm: 5, bumpA: 6, bumpB: 7, accent: 8, accent2: 9, accentLift: 10, pin: 11 });   // programmer.js ROLE_NAMES (palettes.js STAGE_ROLES)
 const DEG = Math.PI / 180, TAU = Math.PI * 2;
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const frac = (x) => x - Math.floor(x);

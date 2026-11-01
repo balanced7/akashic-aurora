@@ -156,7 +156,7 @@ export class Lasers3D {
       const tEnd = Number.isFinite(hit.t) ? hit.t : 200;
       // colour: never a saturated red
       let cr = s2[b + SEG.R], cg = s2[b + SEG.G], cb = s2[b + SEG.B];
-      if (isSaturatedRed([cr, cg, cb])) { cr = 0.9; cg = 0.75; cb = 0.55; }
+      if (isSaturatedRed([cr, cg, cb])) { const w = this.safeWhite || [1, 1, 1]; cr = w[0]; cg = w[1]; cb = w[2]; }   // the palette's white
       const cmax = Math.max(cr, cg, cb, 1e-6);
       const share = Math.pow(I, this.gamma) / sum[h];
       const pw = pr.power_w;
