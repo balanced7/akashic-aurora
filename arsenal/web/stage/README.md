@@ -147,6 +147,47 @@ on-screen box is 5.7x larger at CLOSE than at FAR; on FOH_WIDE 11.6 / 27.8 / 66.
   `distance-auto`; the set's `show.faders` may name another control `distance` (else F8 = CC 112). A shot may carry
   `distance: false` (it keeps its size) or `distance: {k_min, k_max}`.
 
+## The piano plays the lighting (2026-11-02, `piano.js`)
+
+Daniel: "Any ideas how we can marry what we have built with the piano visualizer and our new lightshow rig? ... then lets
+build it, we have 20m, so go crazy." His pick: what he PLAYS shapes the rig. The engine already turns the KeyLab into
+events (`arsenal/keylab/vj.py`: `note` with velocity, `pedal`, and the keys' `chord` with root, quality and pitch classes)
+and the stage already reacts to the beat, the energy and the audio's chords; this layer is the mapping between them.
+
+- **The toggle.** `?piano=1` turns it on at load and `Y` toggles it live; **default OFF**, and OFF means the page drops
+  those three events exactly as it did before, so every existing show is unchanged. `?pianohaze=` and `?pianobloom=` are
+  the A/B overrides of the two pedal numbers.
+- **The mapping is pure** (`piano.js`, `tests/stage_piano.test.mjs`): one reducer, `pianoStep(state, event, ctx) ->
+  {state, deltas}`, `pianoTick` for a hold that expires between events, and one delta per thing the rig should do. The
+  page only applies them.
+- **Velocity -> the note's light hit.** A note is a kick (`programmer.pad` -> `kick.js`), so velocity gives the level and
+  the level gives the intensity exactly as a pad does (`levelOfVel`/`intensityOf`, floor 0.5, gamma 0.5 -- the test pins
+  the mirror against `KICK_DEFAULTS`). One hit per press (`hit_gap_ms` swallows a bounced key). A hand holding that kick
+  pad wins: the piano skips rather than fights it, and a hit the flash governor refuses is counted (`refused`), never
+  forced.
+- **The sustain pedal -> the air and the bloom, held.** `haze = pedal ? fader : fader x 0.55`, so the F5 haze fader stays
+  the **ceiling** at all times -- the pedal clears the room between legato passages and thickens it inside them, and can
+  never take the operator's authority away. Bloom adds its measured spare only (0.05 -> 0.10 base mix; the limiter, not
+  the knob, decides in the window where the show is already at the ceiling). Until the pedal is first touched the air is
+  the show's own: turning the layer on does not repaint the room.
+- **The held register -> the camera's own presets.** The centre of the lowest and highest held notes: under MIDI 48 pulls
+  the camera out (`far`), 48-71 holds `medium`, 72 and up comes in `close`; nothing held hands the camera back to the
+  director (`auto`). A register must HOLD for 150 ms before the camera is asked, so a rolled chord does not walk it in and
+  out, and the same stop is never asked twice (`distance.js` hands back to auto on a repeated press). The moves land on
+  beat lines because `distance.js` plans them there.
+- **Chord quality -> a palette FAMILY, never a colour.** `maj/maj7/6/7/9/5` -> major, `m/m7/m9/m6/min` -> minor,
+  `sus/add` -> shimmer, `dim/aug/m7b5` -> tension; each class names an ORDER of the palette library's own families
+  (`major: warm, green, violet`; `minor: blue, violet, neutral`; `shimmer: violet, pink, blue`; `tension: pink, violet,
+  neutral`). The first family the loaded library has is used, its first palette that is not the one showing cuts in on the
+  **next beat line**, and two family changes never land inside 2 beats. A family the library does not have changes
+  nothing. The engine's AUDIO chords are ignored (`src: "audio"`): the hands drive the colour, not the PA.
+- **State and doors.** The HUD's haze row gains `· piano[ pedal] CLOSE|MEDIUM|FAR family (N refused)`; the window event
+  `arsenal:piano` {on, pedal, stop, cls, family, haze, bloom, hits, refused, skips} fires on a pedal, register or family
+  change (`window.__piano` keeps the latest); `api.piano(on)`, `api.pianoToggle()`, `api.pianoNote(key, vel, on)`,
+  `api.pianoPedal(on)`, `api.pianoChord(quality)` and `api.state().piano` (with the last 64 deltas) are the receipts'
+  door. Flash protection governs all of it as before: every hit is a kick (the governor's subject) and every frame still
+  passes the final-frame limiter.
+
 ## Flash protection: the viewer's choice (2026-10-28, `../lib/flash-consent.js`)
 
 Daniel: "have it be a toggle, as it should be, you get a siezure warning and its up to you what you do with it, default
@@ -252,6 +293,7 @@ models the stands); the Qlimax-faithful home keeps the 2014 rule: the ring is st
 | `grammar.js` | The chord phrasing's recogniser (pure): singles on their own call, chords, strums, fades (slow sweeps and `B`), moving intervals, auto-repeat, releases by press id, cancel per source. |
 | `ensemble.js` | What a chord, strum or fade does, as intents over the page's own actions: one attack identity per lineage, transport collapsed, one camera composition, the BREATH level and its layer. |
 | `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. v2 (2026-10-28): the same windows, counters and limits, met with smooth fields over the cells' corners (a soft dimming, or a glow in the region's own colour) instead of v1's per-cell holds, which froze whole tiles with hard edges; see "Flash protection" below. |
+| `piano.js` | The piano plays the lighting (2026-11-02, `?piano=1`, default OFF): the pure mapping from the engine's note / pedal / keyed chord events to one delta each -- velocity to a kick's intensity, the sustain pedal to the air and the bloom (the F5 fader is the ceiling), the held register to the camera's close/medium/far, the chord's quality to a palette FAMILY (never a colour). |
 | `render.js`, `shaders.js` | The three.js r186 renderer and our own GLSL, composed with the house library; v1: the crowd near the lens is not drawn (4 m) and its arms hold still (10 m). |
 
 Tests: `node --test tests/stage_*.test.mjs`. The browser receipt: `node arsenal/lanes/stage_verify.mjs` (default phases

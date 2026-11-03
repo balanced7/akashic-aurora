@@ -15,6 +15,16 @@
 //      (source-v0 still loads) ?quality=high|receipt|low ?hud=0 ?w=&h= (a fixed backing size, for receipts)
 //      ?theme=dreaming-city (one of the set's themes) ?phrase=pillars (the phrase pad 3 starts) ?ring=orrery (a ring formation)
 //      ?strand=arch (a strand shape, landed after the first section starts: arch, valley, ramp, stairs, helix-sine)
+//      ?piano=1 (THE PIANO PLAYS THE LIGHTING, piano.js: default OFF; Y toggles it live)
+//
+// THE PIANO PLAYS THE LIGHTING (2026-11-02, piano.js). Daniel: "Any ideas how we can marry what we have built with the
+// piano visualizer and our new lightshow rig? ... then lets build it, we have 20m, so go crazy." With ?piano=1 (or Y) the
+// engine's note / pedal / chord events shape the rig: velocity -> the note's light hit (a kick), the sustain pedal -> the
+// air and the bloom (the F5 fader stays the haze ceiling), the held register -> the camera's close/medium/far presets, and
+// the chord's quality -> a palette FAMILY of the existing library (never a colour). OFF by default and every event is
+// dropped untouched; the flash limiter and the consent toggle govern all of it as before (a hit is a kick, the governor's
+// subject). The page says what it is doing with "arsenal:piano" {on, pedal, stop, cls, family, haze, bloom, hits, refused}
+// and keeps the latest in window.__piano.
 //
 // v1 (2026-10-25): the phrases (phrases.js) sit between the show and the programmer: a section may name one, pads 3, 4
 // and 7 (keys 3, 4, 7) are PHRASE GO, NEXT and STOP, and the HUD shows the phrase's step. Every phrase event lands on the
@@ -92,6 +102,8 @@ import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
 import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
 import { Grammar } from "./grammar.js";
+import { parsePiano, pianoStep, pianoTick, emptyState as pianoEmptyState, pianoStatus, pedalHaze, pedalBloom, resolveFamily,
+         PIANO_KEY, PIANO_CFG } from "./piano.js";
 import { Ensembles, chainLayers } from "./ensemble.js";
 import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf, bankLasers, bankLaserExtras } from "../palettes.js";
 import { fetchSetups, stepSetup, nextAutoLine, nextBarLine } from "./setups.js";
@@ -126,6 +138,19 @@ const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
 // at or below a plain Gaussian beam's, i.e. no spill beyond the beam's own profile. ?bloommix= overrides it, so an A/B
 // is a URL and not an edit. (0.6 -> an effective mix of 0.10.)
 const BLOOM_MIX = (QS.get("bloommix") !== null && Number.isFinite(Number(QS.get("bloommix")))) ? Number(QS.get("bloommix")) : 0.05;
+// THE PIANO PLAYS THE LIGHTING (2026-11-02, piano.js; Daniel: "Any ideas how we can marry what we have built with the
+// piano visualizer and our new lightshow rig? ... then lets build it, we have 20m, so go crazy."). DEFAULT OFF: with no
+// ?piano=1 the engine's note, pedal and chord events are dropped exactly as they were and every existing show is
+// unchanged. ?piano=1 turns the mapping on at load and Y toggles it live; ?pianobloom= and ?pianohaze= are the A/B
+// overrides of the two pedal numbers (haze_floor, bloom_add), which is how a receipt asks for one without an edit.
+const PIANO_ON = parsePiano(QS).on;
+const PIANO_CFG_NOW = { ...PIANO_CFG };
+{
+  const bh = Number(QS.get("pianohaze"));
+  if (QS.get("pianohaze") !== null && Number.isFinite(bh)) PIANO_CFG_NOW.haze_floor = Math.min(1, Math.max(0, bh));
+  const bb = Number(QS.get("pianobloom"));
+  if (QS.get("pianobloom") !== null && Number.isFinite(bb)) PIANO_CFG_NOW.bloom_add = Math.min(1, Math.max(0, bb));
+}
 const DPR_CAP = 2;
 const $ = (id) => document.getElementById(id);
 
@@ -405,6 +430,70 @@ function start({ rig, R, renderMod, palettes, setups }) {
   // KeyLab F8 (CC 112) is the camera's distance unless the set names its own control for it
   if (!Object.values(faderMap).includes("distance") && !faderMap.cc112) faderMap.cc112 = "distance";
   const padMap = show0.pads || {};
+  // ---------------------------------------------------------------------------------------- THE PIANO LAYER --
+  // piano.js decides, this page applies. One reducer state, fed the engine's note / pedal / chord events and stepped once
+  // a frame (a register's hold can expire between two events). Every delta it returns is applied through a door the rig
+  // already has: a note's hit is a KICK (programmer.pad -> kick.js, so the flash governor owns it and the limiter judges
+  // the frame), the register presses the camera's close/medium/far presets (distance.js), the pedal moves the air and the
+  // bloom knob (atmos.setTarget, fs.bloomMix -- the F5 fader stays the haze ceiling), and a chord's family cuts in one of
+  // the palette library's own palettes on the next beat line (../palettes.js). No colour is named in the mapping.
+  const pia = {
+    state: pianoEmptyState({ on: PIANO_ON }),
+    families: palettes ? [...new Set(palettes.list.map((p) => p.family))].filter(Boolean) : [],
+    pending: null,                            // {id, at}: the palette a family change asked for, landing on its beat line
+    pedalSeen: false,                         // the pedal has been touched once: until then the air is the show's own
+    log: [], hits: 0, refused: 0, skips: 0,   // refused: the flash governor had no budget; skips: a hand on that kick pad
+  };
+  function piaCtx(tMs) {
+    return { nowMs: tMs, pos: grid.posAt(tMs + grid.presentLagMs), faderHaze: faders.haze, bloomBase: BLOOM_MIX,
+             families: pia.families, cfg: PIANO_CFG_NOW };
+  }
+  function announcePiano() {
+    const d = { ...pianoStatus(pia.state, { faderHaze: faders.haze, bloomBase: BLOOM_MIX, cfg: PIANO_CFG_NOW }),
+                families: pia.families.slice(), pending: pia.pending, hits: pia.hits, refused: pia.refused, skips: pia.skips, key: PIANO_KEY };
+    window.__piano = d;
+    window.dispatchEvent(new CustomEvent("arsenal:piano", { detail: { ...d } }));
+  }
+  function applyPiano(deltas, tEval) {
+    if (!deltas.length) return;
+    const pos = grid.posAt(tEval);
+    let announce = false;
+    for (const d of deltas) {
+      if (d.type === "hit") {
+        // a hand on the same kick pad (pad 1 is kick-white too) wins over the keyboard: never fight Daniel's own fingers
+        if (programmer.kick.list.some((k) => k.kind === d.kind && k.held && !k.dead)) pia.skips++;
+        else if (programmer.pad(d.kind, d.vel, pos)) pia.hits++;
+        else pia.refused++;                    // the governor's budget, the camera's view, or no deck: counted, never forced
+      } else if (d.type === "distance") { distance(d.stop); announce = true; }
+      else if (d.type === "pedal") { pia.pedalSeen = true; announce = true; }
+      else if (d.type === "family") {
+        const id = resolveFamily(palettes ? palettes.list : [], d.family, pal.id);
+        if (id && id !== pal.id) pia.pending = { id, at: d.at };
+        announce = true;
+      }
+      if (pia.log.length >= 256) pia.log.shift();
+      pia.log.push({ ...d, pos: +pos.toFixed(4) });
+    }
+    // a hit is not an announcement (a dense passage would fire dozens a second); the counters in state() stay live
+    if (announce) announcePiano();
+  }
+  // on/off. Off hands the room back: the air to the F5 fader's own value, the camera to the director.
+  function setPiano(on) {
+    const wasOn = pia.state.on;
+    pia.state = { ...pia.state, on: !!on, cand: null, ...(on ? {} : { family: null, cls: null, stop: "auto" }) };
+    pia.pending = null;
+    if (wasOn && !on) { atmos.setTarget(faders.haze); distance("auto"); }
+    announcePiano();
+    return pia.state.on;
+  }
+  function pianoHandle(obj, nowMs) {
+    if (!pia.state.on) return false;
+    const r = pianoStep(pia.state, obj, piaCtx(nowMs));
+    pia.state = r.state;
+    applyPiano(r.deltas, nowMs + grid.presentLagMs);
+    return true;
+  }
+  if (pia.state.on) announcePiano();
   let sectionSpeed = 1, energy = 0.6, lastFrame = null, manualShot = null;
   // STILLS: ?shot=ID played by hand as C does (looping over its bars), or held at ?shot_u=
   {
@@ -624,6 +713,8 @@ function start({ rig, R, renderMod, palettes, setups }) {
     if (ev.t === "beat") grid.beat({ ...ev, ...beatExtras(obj) }, nowMs);
     else if (ev.t === "pad") { if (!(GRAMMAR && inputPad("midi", ev.pad, ev.vel, ev.on, nowMs))) pad(ev.pad, ev.vel, ev.on, tEval); }
     else if (ev.t === "energy") energy = ev.level;
+    // THE PIANO LAYER (piano.js): the notes, the pedal and the KEYS' chord -- dropped untouched when the toggle is off
+    else if (ev.t === "note" || ev.t === "pedal" || ev.t === "chord") pianoHandle(ev, nowMs);
     else if (ev.t === "ctl") {
       // a mapped fader's position, whichever kind the hub filed it as (show.js faderValue)
       const target = faderMap[ev.id], v = target ? faderValue(ev) : null;
@@ -658,6 +749,18 @@ function start({ rig, R, renderMod, palettes, setups }) {
       if (grammar) { runDecisions(grammar.settle(now)); ens.tick(now); }
       const tEval = now + grid.presentLagMs;
       const pos = grid.posAt(tEval);
+      // THE PIANO LAYER, once a frame: the register's hold settles between events, the palette a family asked for lands on
+      // its beat line, and the air holds the pedal's value with the F5 fader still its ceiling (applied every frame so the
+      // fader keeps the last word, even against a setTarget from the show's own update).
+      if (pia.state.on) {
+        const pr = pianoTick(pia.state, piaCtx(now));
+        pia.state = pr.state;
+        applyPiano(pr.deltas, tEval);
+        if (pia.pending && pos >= pia.pending.at) { stepPal(1, tEval, { id: pia.pending.id, now: true }); pia.pending = null; announcePiano(); }
+        if (pia.pedalSeen) atmos.setTarget(pedalHaze(faders.haze, pia.state.pedal, PIANO_CFG_NOW));
+      }
+      // (the air is the show's own until the pedal is first touched: turning the layer on does not repaint the room)
+      const bloomNow = pia.state.on && pia.pedalSeen ? pedalBloom(BLOOM_MIX, pia.state.pedal, PIANO_CFG_NOW) : BLOOM_MIX;
       if (grid.locked || !show.demo) {
         for (const ev of show.update(grid, pos)) {
           if (ev.type === "section") enterSection(ev);
@@ -743,7 +846,7 @@ function start({ rig, R, renderMod, palettes, setups }) {
       const amb = ambS === 1 ? ambient : ambient.map((c) => c * ambS);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
                    pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
-                   bloomMix: BLOOM_MIX, rings: rf,
+                   bloomMix: bloomNow, rings: rf,
                    // the HAL cubes' glow: the palette's deep (crossfading with it) along to its B, unless a setup names its own;
                    // and the kicks on their cells (a kicked cube's glow follows the hit: cubes.js cubeKickOf)
                    // (a SETUP names its own: programmer.sx.cube, crossfading with it; the URL's A/B wins over both)
@@ -822,7 +925,10 @@ function start({ rig, R, renderMod, palettes, setups }) {
     $("hud-lasers").textContent = `${state.l2 ? state.l2.look : "-"} · ${state.l3 ? state.l3.n : 0} beams · ${state.l2 && state.l2.hits ? `${state.l2.hits} hits` : "no hits"}`;
     // the haze in the room now (what the renderer draws), and the F5 fader it is following
     const hz = Math.round(atmos.H * 100), f5 = Math.round(atmos.target * 100);
-    $("hud-haze").textContent = `${hz} %${hz === f5 ? " (F5)" : ` → F5 ${f5} %`} · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers at ${hz} %`;
+    const pn = pia.state.on
+      ? ` · piano${pia.state.pedal ? " pedal" : ""} ${pia.state.stop}${pia.state.family ? ` ${pia.state.family}` : ""}${pia.refused ? ` (${pia.refused} refused)` : ""}`
+      : "";
+    $("hud-haze").textContent = `${hz} %${hz === f5 ? " (F5)" : ` → F5 ${f5} %`} · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers at ${hz} %${pn}`;
     const st = limiter.stats();
     $("hud-flash").innerHTML = !flash.on ? "protection off (frames as drawn)"
       : st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
@@ -888,6 +994,7 @@ function start({ rig, R, renderMod, palettes, setups }) {
     if (KEY_STOPS[e.code]) { distance(KEY_STOPS[e.code], { cut: e.shiftKey }); e.preventDefault(); return; }
     if (e.code === "KeyP") stepPal(e.shiftKey ? -1 : 1, tEval);
     else if (e.code === "KeyO") setupGo(e.shiftKey ? -1 : 1, tEval);
+    else if (e.code === PIANO_KEY) setPiano(!pia.state.on);      // the piano layer's live toggle (default OFF)
     else if (e.code === "KeyH") hudEl.classList.toggle("hidden");
     else if (e.code === "KeyU") R.cubes.style = CUBE_STYLES[(CUBE_STYLES.indexOf(R.cubes.style) + 1) % CUBE_STYLES.length];
     else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
@@ -944,6 +1051,14 @@ function start({ rig, R, renderMod, palettes, setups }) {
                              library: setups ? setups.ids.slice() : [], refused: setups ? setups.refused.map((r) => r.id) : [], layer: programmer.setupStatus() },
                     palette: { id: pal.id, name: theme.name, queued: pal.queued, at: pal.at, dip: pal.dip, landings: pal.landings.slice(-8),
                                library: palettes ? palettes.ids.length : 0, refused: palettes ? palettes.refused.map((r) => r.id) : [] },
+                    // THE PIANO LAYER: what it reads, what it asked for and what the rig gave it (refused = the governor's
+                    // budget or no deck; skips = a hand was on that kick pad; applied = hits the rig actually lit)
+                    piano: { ...pianoStatus(pia.state, { faderHaze: faders.haze, bloomBase: BLOOM_MIX, cfg: PIANO_CFG_NOW }),
+                             on_at_load: PIANO_ON, cfg: { haze_floor: PIANO_CFG_NOW.haze_floor, bloom_add: PIANO_CFG_NOW.bloom_add },
+                             families: pia.families.slice(), pending: pia.pending, applied: pia.hits, refused: pia.refused, skips: pia.skips,
+                             pedal_seen: pia.pedalSeen,
+                             bloom_now: pia.state.on ? pedalBloom(BLOOM_MIX, pia.state.pedal, PIANO_CFG_NOW) : BLOOM_MIX,
+                             deltas: pia.log.slice(-64) },
                     rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
                              poses: rings.rr.poses.map((p) => ({ ...p })), lands: rings.rr.lands.slice(-8), clamped: rings.rr.clamped.slice(-8),
                              hero: { fired: rings.heroState.fired.slice(-8), refused: rings.heroState.refused.slice(-8), armed: rings.heroState.at } } }),
@@ -976,6 +1091,13 @@ function start({ rig, R, renderMod, palettes, setups }) {
     setup: (id, { now = false } = {}) => setupGo(1, performance.now() + grid.presentLagMs, { id, now }),
     setupStep: (delta = 1) => setupGo(delta, performance.now() + grid.presentLagMs),
     setupHold: (on = true) => { su.hold = !!on; announceSetup(); return su.hold; },
+    // THE PIANO LAYER (piano.js): the switch, and the engine's own events, for a receipt that has no keyboard (they go
+    // through the same door the SSE stream does, so a note played here is a note played)
+    piano: (on) => (on === undefined ? window.__piano : setPiano(on)),
+    pianoToggle: () => setPiano(!pia.state.on),
+    pianoNote: (key, vel = 0.8, on = true) => handle({ t: "note", key, vel, on }, performance.now()),
+    pianoPedal: (on) => handle({ t: "pedal", on: !!on }, performance.now()),
+    pianoChord: (quality, src = "keys") => handle({ t: "chord", src, quality, name: "", root: -1, pcs: [], changed: true }, performance.now()),
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
     // the chord phrasing's door, for scripts: a down or an up of a control ("1".."0", "C", "B") from a source
     door: (source, control, down, vel = 0.8, id = null) => input(source, String(control), !!down, vel, performance.now(), id),
